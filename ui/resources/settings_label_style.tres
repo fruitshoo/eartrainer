@@ -1,0 +1,7 @@
+[gd_resource type="LabelSettings" format=3 uid="uid://12p7xoiimgp5"]
+
+[ext_resource type="FontFile" uid="uid://u6bndlupmrla" path="res://assets/fonts/NanumSquareNeo-eHv.ttf" id="1_5cwse"]
+
+[resource]
+font = ExtResource("1_5cwse")
+font_size = 14

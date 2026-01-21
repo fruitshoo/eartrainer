@@ -2,26 +2,32 @@ extends CanvasLayer
 
 # % 기호는 노드 설정에서 "Access as Unique Name"을 켰을 때 사용합니다.
 @onready var key_options = %KeyOptionButton
-@onready var mode_options = %ModeOptionButton # 새로 추가된 버튼
+@onready var mode_options = %ModeOptionButton
 @onready var notation_options = %NotationOptionButton
 @onready var hint_check = %HintCheckButton
+@onready var range_label = %ValueLabel
+
+# 추가: 플러스/마이너스 버튼 참조
+@onready var minus_button = %MinusButton
+@onready var plus_button = %PlusButton
 
 func _ready():
-	# [중요] GameManager에게 내 주소를 알려줍니다.
 	GameManager.settings_ui_ref = self
 	
-	# UI 채우기
 	setup_ui_content()
 	sync_with_game_manager()
 
-	# 3. [핵심] 스크립트에서 신호 직접 연결하기
-	# % 기호(Unique Name)를 사용하여 버튼 노드에 접근합니다.
+	# 신호 연결 (기존)
 	key_options.item_selected.connect(_on_key_option_button_item_selected)
 	mode_options.item_selected.connect(_on_mode_option_selected)
 	notation_options.item_selected.connect(_on_notation_option_button_item_selected)
 	hint_check.toggled.connect(_on_hint_check_button_toggled)
 	
-	# 처음에는 숨김
+	# [수정] 플러스/마이너스 버튼 신호 연결 추가
+	if minus_button: minus_button.pressed.connect(_on_minus_button_pressed)
+	if plus_button: plus_button.pressed.connect(_on_plus_button_pressed)
+	
+	update_range_display()
 	visible = false
 
 # 1. 내용물 채우기
@@ -54,13 +60,26 @@ func _on_key_option_button_item_selected(index):
 	GameManager.current_root_note = index
 
 func _on_mode_option_selected(index):
-	GameManager.current_scale_mode = index as GameManager.ScaleMode
+	GameManager.current_scale_mode = index as MusicTheory.ScaleMode
 
 func _on_notation_option_button_item_selected(index):
-	GameManager.current_notation = index as GameManager.NotationMode
+	GameManager.current_notation = index as MusicTheory.NotationMode
 
 func _on_hint_check_button_toggled(toggled_on):
 	GameManager.is_hint_visible = toggled_on
 
 func _on_close_button_pressed():
 	visible = false
+
+func _on_minus_button_pressed():
+	# 값을 변경하면 GameManager의 setter가 실행되어야 함
+	GameManager.focus_range = clampi(GameManager.focus_range - 1, 1, 12)
+	update_range_display()
+
+func _on_plus_button_pressed():
+	GameManager.focus_range = clampi(GameManager.focus_range + 1, 1, 12)
+	update_range_display()
+
+func update_range_display():
+	if range_label:
+		range_label.text = str(GameManager.focus_range)

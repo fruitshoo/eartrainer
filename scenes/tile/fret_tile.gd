@@ -7,6 +7,8 @@ var midi_note: int = 0
 @onready var label = $Label3D
 @onready var mesh_instance = $MeshInstance3D
 
+var current_tween: Tween = null
+
 func _ready():
 	# 설정 변경과 캐릭터 이동 신호 모두에 반응
 	GameManager.settings_changed.connect(update_appearance)
@@ -75,17 +77,20 @@ func apply_visual_tier(color: Color, energy: float):
 		mat = mesh_instance.get_active_material(0).duplicate()
 		mesh_instance.set_surface_override_material(0, mat)
 	
-	# Albedo(색상)와 Emission(발광)을 동시에 제어하여 계층 형성
-	var tween = create_tween().set_parallel(true)
-	tween.tween_property(mat, "albedo_color", color, 0.2)
+	# [수정] 이전 트윈이 실행 중이면 정지시켜서 반응 속도 개선
+	if current_tween:
+		current_tween.kill()
 	
-	# Emission 설정 (Chord Tone 이상만 밝게 빛나도록)
+	current_tween = create_tween().set_parallel(true)
+	current_tween.tween_property(mat, "albedo_color", color, 0.2)
+	
 	if energy > 0:
 		mat.emission_enabled = true
-		tween.tween_property(mat, "emission", color, 0.2)
-		tween.tween_property(mat, "emission_energy_multiplier", energy, 0.2)
+		current_tween.tween_property(mat, "emission", color, 0.2)
+		current_tween.tween_property(mat, "emission_energy_multiplier", energy, 0.2)
 	else:
-		tween.tween_property(mat, "emission_energy_multiplier", 0.0, 0.2)
+		# 에너지가 0일 때 확실히 꺼지도록 수정
+		current_tween.tween_property(mat, "emission_energy_multiplier", 0.0, 0.2)
 
 func _input_event(_camera, event, _position, _normal, _shape_idx):
 	if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
