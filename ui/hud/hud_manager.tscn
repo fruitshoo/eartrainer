@@ -1,0 +1,52 @@
+[gd_scene format=3 uid="uid://gpehw4doyrkv"]
+
+[ext_resource type="Script" uid="uid://c6gyovtu652tg" path="res://ui/hud/hud_manager.gd" id="1_q3kxm"]
+[ext_resource type="LabelSettings" uid="uid://br2mdu0t4kmo6" path="res://ui/resources/chord_label_settings.tres" id="2_dnfae"]
+[ext_resource type="LabelSettings" uid="uid://ce8ewexmqqpcx" path="res://ui/resources/key_label_settings.tres" id="2_kanua"]
+
+[node name="HUD" type="CanvasLayer" unique_id=867313363]
+script = ExtResource("1_q3kxm")
+
+[node name="MainContainer" type="Control" parent="." unique_id=599544182]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+
+[node name="InfoPanel" type="MarginContainer" parent="MainContainer" unique_id=1583880336]
+layout_mode = 1
+anchors_preset = 7
+anchor_left = 0.5
+anchor_top = 1.0
+anchor_right = 0.5
+anchor_bottom = 1.0
+offset_left = -20.0
+offset_top = -50.0
+offset_right = 20.0
+grow_horizontal = 2
+grow_vertical = 0
+mouse_filter = 2
+theme_override_constants/margin_bottom = 20
+
+[node name="VBoxContainer" type="VBoxContainer" parent="MainContainer/InfoPanel" unique_id=1156355794]
+layout_mode = 2
+size_flags_horizontal = 4
+size_flags_vertical = 4
+mouse_filter = 2
+
+[node name="KeyLabel" type="Label" parent="MainContainer/InfoPanel/VBoxContainer" unique_id=1771035011]
+unique_name_in_owner = true
+layout_mode = 2
+text = "현재 Key 표시"
+label_settings = ExtResource("2_kanua")
+horizontal_alignment = 1
+
+[node name="ChordLabel" type="Label" parent="MainContainer/InfoPanel/VBoxContainer" unique_id=1603013253]
+unique_name_in_owner = true
+layout_mode = 2
+text = "현재 Chord 표시"
+label_settings = ExtResource("2_dnfae")
+horizontal_alignment = 1

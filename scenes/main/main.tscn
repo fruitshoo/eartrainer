@@ -1,0 +1,33 @@
+[gd_scene format=3 uid="uid://de4ok38d5lbo8"]
+
+[ext_resource type="PackedScene" uid="uid://dfr2ddt5ck8x0" path="res://scenes/fretboard/fretboard_manger.tscn" id="1_iuonh"]
+[ext_resource type="PackedScene" uid="uid://bt7f8k18nm6ga" path="res://scenes/player/player.tscn" id="2_k2fmo"]
+[ext_resource type="PackedScene" uid="uid://bkug7wowkh7rj" path="res://ui/settings/settings_ui.tscn" id="3_k2fmo"]
+[ext_resource type="Script" uid="uid://ddy07ttvmepmc" path="res://scenes/main/main_camera.gd" id="3_l3cfh"]
+[ext_resource type="PackedScene" uid="uid://gpehw4doyrkv" path="res://ui/hud/hud_manager.tscn" id="5_6q06x"]
+
+[sub_resource type="Environment" id="Environment_vom5j"]
+ssao_enabled = true
+
+[node name="Main" type="Node3D" unique_id=1566035042]
+
+[node name="FretboardManger" parent="." unique_id=1419062901 instance=ExtResource("1_iuonh")]
+
+[node name="Player" parent="." unique_id=1910528158 instance=ExtResource("2_k2fmo")]
+
+[node name="WorldEnvironment" type="WorldEnvironment" parent="." unique_id=1642191298]
+environment = SubResource("Environment_vom5j")
+
+[node name="DirectionalLight3D" type="DirectionalLight3D" parent="." unique_id=2065457007]
+
+[node name="MainCamera" type="Camera3D" parent="." unique_id=743275868]
+transform = Transform3D(-0.70710677, -0.35355338, 0.6123724, 0, 0.8660254, 0.5, -0.70710677, 0.35355338, -0.6123724, 10, 8, -10)
+projection = 1
+current = true
+fov = 12.0
+size = 12.0
+script = ExtResource("3_l3cfh")
+
+[node name="SettingsUI" parent="." unique_id=77076675 instance=ExtResource("3_k2fmo")]
+
+[node name="HUD" parent="." unique_id=867313363 instance=ExtResource("5_6q06x")]

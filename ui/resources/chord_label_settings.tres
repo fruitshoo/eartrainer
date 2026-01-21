@@ -1,0 +1,9 @@
+[gd_resource type="LabelSettings" format=3 uid="uid://br2mdu0t4kmo6"]
+
+[ext_resource type="FontFile" uid="uid://u6bndlupmrla" path="res://assets/fonts/NanumSquareNeo-eHv.ttf" id="1_tbxok"]
+
+[resource]
+font = ExtResource("1_tbxok")
+font_size = 24
+outline_size = 2
+shadow_offset = Vector2(2, 2)

@@ -1,0 +1,26 @@
+[gd_scene format=3 uid="uid://c0e7i5jgtq023"]
+
+[ext_resource type="Script" uid="uid://g34dj4qcfmgm" path="res://scenes/tile/fret_tile.gd" id="1_jtpmk"]
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_jtpmk"]
+resource_local_to_scene = true
+
+[sub_resource type="BoxMesh" id="BoxMesh_lmv8r"]
+material = SubResource("StandardMaterial3D_jtpmk")
+size = Vector3(1.4, 0.1, 1.4)
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_lmv8r"]
+size = Vector3(1.4, 0.1, 1.4)
+
+[node name="FretTile" type="Area3D" unique_id=403137249]
+script = ExtResource("1_jtpmk")
+
+[node name="MeshInstance3D" type="MeshInstance3D" parent="." unique_id=207382635]
+mesh = SubResource("BoxMesh_lmv8r")
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="." unique_id=2037351598]
+shape = SubResource("BoxShape3D_lmv8r")
+
+[node name="Label3D" type="Label3D" parent="." unique_id=1410607119]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.1, 0)
+billboard = 1

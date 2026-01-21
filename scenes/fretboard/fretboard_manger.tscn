@@ -1,0 +1,6 @@
+[gd_scene format=3 uid="uid://dfr2ddt5ck8x0"]
+
+[ext_resource type="Script" uid="uid://bjioir1hl3k1g" path="res://scenes/fretboard/fretboard_manger.gd" id="1_1188a"]
+
+[node name="FretboardManger" type="Node3D" unique_id=1419062901]
+script = ExtResource("1_1188a")
