@@ -34,6 +34,10 @@ var show_hints: bool = false:
 
 var is_metronome_enabled: bool = true # 메트로놈 소리 켜기/끄기
 
+var bpm: int = 120: # 템포 (BPM)
+	set(value):
+		bpm = clampi(value, 40, 240)
+		settings_changed.emit()
 
 # ============================================================
 # STATE VARIABLES - 현재 코드

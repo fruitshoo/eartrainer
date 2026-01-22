@@ -77,10 +77,14 @@ func play_metronome(is_accent: bool) -> void:
 	var sample_count := int(generator.mix_rate * METRONOME_DURATION)
 	
 	for i in range(sample_count):
-		var t := float(i) / generator.mix_rate
-		var sample := sin(TAU * frequency * t)
-		# 빠른 페이드 아웃 (엔벨로프)
-		var envelope := 1.0 - (float(i) / sample_count)
+		# 타입을 float으로 명시적으로 지정합니다.
+		var t: float = float(i) / generator.mix_rate
+		var sample: float = sin(TAU * frequency * t)
+		
+		# 엔벨로프(envelope)도 타입을 명시합니다.
+		var envelope: float = 1.0 - (float(i) / sample_count)
+		
+		# 소리 데이터 밀어넣기
 		playback.push_frame(Vector2(sample * envelope, sample * envelope))
 	
 	# 재생 완료 후 삭제

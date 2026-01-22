@@ -80,6 +80,7 @@ label_settings = ExtResource("2_hmly7")
 unique_name_in_owner = true
 layout_mode = 2
 size_flags_horizontal = 3
+button_pressed = true
 
 [node name="FocusRangeRow" type="HBoxContainer" parent="RootMargin/PanelContainer/VBoxContainer" unique_id=1457383314]
 layout_mode = 2
@@ -109,6 +110,35 @@ unique_name_in_owner = true
 custom_minimum_size = Vector2(20, 0)
 layout_mode = 2
 text = "+"
+
+[node name="VBoxContainer" type="VBoxContainer" parent="RootMargin/PanelContainer/VBoxContainer" unique_id=1281877439]
+layout_mode = 2
+
+[node name="BPMLabel" type="Label" parent="RootMargin/PanelContainer/VBoxContainer/VBoxContainer" unique_id=688614459]
+unique_name_in_owner = true
+layout_mode = 2
+text = "120 BPM"
+label_settings = ExtResource("2_hmly7")
+horizontal_alignment = 1
+
+[node name="BPMSlider" type="HSlider" parent="RootMargin/PanelContainer/VBoxContainer/VBoxContainer" unique_id=1973247866]
+unique_name_in_owner = true
+layout_mode = 2
+
+[node name="HBoxContainer" type="HBoxContainer" parent="RootMargin/PanelContainer/VBoxContainer" unique_id=1685542694]
+layout_mode = 2
+
+[node name="Label" type="Label" parent="RootMargin/PanelContainer/VBoxContainer/HBoxContainer" unique_id=1507960665]
+custom_minimum_size = Vector2(140, 0)
+layout_mode = 2
+text = "Metronome"
+label_settings = ExtResource("2_hmly7")
+
+[node name="MetronomeToggle" type="CheckButton" parent="RootMargin/PanelContainer/VBoxContainer/HBoxContainer" unique_id=1863015900]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+button_pressed = true
 
 [node name="CloseButton" type="Button" parent="RootMargin/PanelContainer/VBoxContainer" unique_id=1945070583]
 layout_mode = 2

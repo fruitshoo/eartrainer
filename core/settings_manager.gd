@@ -39,6 +39,8 @@ func save_settings() -> void:
 	_config.set_value("Music", "notation", int(GameManager.current_notation))
 	_config.set_value("Display", "show_hints", GameManager.show_hints)
 	_config.set_value("Display", "focus_range", GameManager.focus_range)
+	_config.set_value("Audio", "bpm", GameManager.bpm)
+	_config.set_value("Audio", "metronome_enabled", GameManager.is_metronome_enabled)
 	_config.set_value("Player", "last_string", last_string)
 	_config.set_value("Player", "last_fret", last_fret)
 	_config.save(SAVE_PATH)
@@ -57,6 +59,8 @@ func load_settings() -> void:
 	GameManager.current_notation = notation_int as MusicTheory.NotationMode
 	GameManager.show_hints = _config.get_value("Display", "show_hints", false)
 	GameManager.focus_range = _config.get_value("Display", "focus_range", 3)
+	GameManager.bpm = _config.get_value("Audio", "bpm", 120)
+	GameManager.is_metronome_enabled = _config.get_value("Audio", "metronome_enabled", true)
 	last_string = _config.get_value("Player", "last_string", DEFAULT_STRING)
 	last_fret = _config.get_value("Player", "last_fret", DEFAULT_FRET)
 
@@ -72,6 +76,8 @@ func reset_to_defaults() -> void:
 	GameManager.current_notation = MusicTheory.NotationMode.BOTH
 	GameManager.show_hints = false
 	GameManager.focus_range = 3
+	GameManager.bpm = 120
+	GameManager.is_metronome_enabled = true
 	last_string = DEFAULT_STRING
 	last_fret = DEFAULT_FRET
 	print("[SettingsManager] Reset to defaults: C Major, Fret 5")

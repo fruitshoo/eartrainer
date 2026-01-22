@@ -4,6 +4,6 @@
 
 [resource]
 font = ExtResource("1_tbxok")
-font_size = 24
+font_size = 14
 outline_size = 2
 shadow_offset = Vector2(2, 2)

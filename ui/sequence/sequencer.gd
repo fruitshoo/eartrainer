@@ -10,7 +10,6 @@ signal bar_started(slot_index: int)
 # ============================================================
 # EXPORTS
 # ============================================================
-@export var bpm: int = 80
 @export var beats_per_bar: int = 4
 
 # ============================================================
@@ -62,7 +61,7 @@ func toggle_play() -> void:
 # PLAYBACK
 # ============================================================
 func _play_current_bar() -> void:
-	var beat_duration := 60.0 / bpm
+	var beat_duration := 60.0 / GameManager.bpm
 	var bar_duration := beat_duration * beats_per_bar
 	
 	current_beat = 0
