@@ -114,12 +114,11 @@ text = "+"
 [node name="VBoxContainer" type="VBoxContainer" parent="RootMargin/PanelContainer/VBoxContainer" unique_id=1281877439]
 layout_mode = 2
 
-[node name="BPMLabel" type="Label" parent="RootMargin/PanelContainer/VBoxContainer/VBoxContainer" unique_id=688614459]
+[node name="BPMLabel" type="LineEdit" parent="RootMargin/PanelContainer/VBoxContainer/VBoxContainer" unique_id=1591180107]
 unique_name_in_owner = true
 layout_mode = 2
-text = "120 BPM"
-label_settings = ExtResource("2_hmly7")
-horizontal_alignment = 1
+text = "120"
+alignment = 1
 
 [node name="BPMSlider" type="HSlider" parent="RootMargin/PanelContainer/VBoxContainer/VBoxContainer" unique_id=1973247866]
 unique_name_in_owner = true
@@ -141,5 +140,6 @@ size_flags_horizontal = 3
 button_pressed = true
 
 [node name="CloseButton" type="Button" parent="RootMargin/PanelContainer/VBoxContainer" unique_id=1945070583]
+unique_name_in_owner = true
 layout_mode = 2
 text = "Close"
