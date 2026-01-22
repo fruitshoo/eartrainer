@@ -6,7 +6,7 @@ extends Node
 # CONSTANTS
 # ============================================================
 const SAVE_PATH := "user://settings.cfg"
-const DEFAULT_STRING := 2 # 기본 시작 줄 (4번줄, 인덱스 2)
+const DEFAULT_STRING := 1 # 기본 시작 줄 (4번줄, 인덱스 2)
 const DEFAULT_FRET := 5 # 기본 시작 프렛
 
 # ============================================================
