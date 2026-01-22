@@ -84,6 +84,8 @@ func _unhandled_input(event: InputEvent) -> void:
 
 ## 타일의 3-Tier 시각화 계층 반환
 func get_tile_tier(midi_note: int) -> int:
+	# [DEBUG] 값 추적 - print 주석 해제하여 사용
+	# print("get_tile_tier -> Note:%d ChordRoot:%d Type:%s Key:%d Mode:%d" % [midi_note, current_chord_root, current_chord_type, current_key, current_mode])
 	return MusicTheory.get_visual_tier(
 		midi_note, current_chord_root, current_chord_type,
 		current_key, current_mode

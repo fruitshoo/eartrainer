@@ -101,6 +101,8 @@ static func is_in_scale(midi_note: int, key_root: int, mode: ScaleMode) -> bool:
 
 ## 3-Tier 시각화용 계층 반환 (1=Root, 2=ChordTone, 3=ScaleTone, 4=Avoid)
 static func get_visual_tier(midi_note: int, chord_root: int, chord_type: String, key_root: int, mode: ScaleMode) -> int:
+	# [DEBUG] 값 추적 - 문제 해결 후 삭제할 것
+	# print("get_visual_tier -> Note:%d ChordRoot:%d Type:%s KeyRoot:%d Mode:%d" % [midi_note, chord_root, chord_type, key_root, mode])
 	var chord_interval := _get_interval(midi_note, chord_root)
 	
 	if chord_interval == 0:
