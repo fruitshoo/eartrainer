@@ -1,85 +1,97 @@
+# settings_ui.gd
+# 설정 패널 UI 컨트롤러
 extends CanvasLayer
 
-# % 기호는 노드 설정에서 "Access as Unique Name"을 켰을 때 사용합니다.
-@onready var key_options = %KeyOptionButton
-@onready var mode_options = %ModeOptionButton
-@onready var notation_options = %NotationOptionButton
-@onready var hint_check = %HintCheckButton
-@onready var range_label = %ValueLabel
+# ============================================================
+# NODE REFERENCES
+# ============================================================
+@onready var key_option: OptionButton = %KeyOptionButton
+@onready var mode_option: OptionButton = %ModeOptionButton
+@onready var notation_option: OptionButton = %NotationOptionButton
+@onready var hint_toggle: CheckButton = %HintCheckButton
+@onready var range_label: Label = %ValueLabel
+@onready var minus_btn: Button = %MinusButton
+@onready var plus_btn: Button = %PlusButton
 
-# 추가: 플러스/마이너스 버튼 참조
-@onready var minus_button = %MinusButton
-@onready var plus_button = %PlusButton
-
-func _ready():
+# ============================================================
+# LIFECYCLE
+# ============================================================
+func _ready() -> void:
 	GameManager.settings_ui_ref = self
 	
-	setup_ui_content()
-	sync_with_game_manager()
-
-	# 신호 연결 (기존)
-	key_options.item_selected.connect(_on_key_option_button_item_selected)
-	mode_options.item_selected.connect(_on_mode_option_selected)
-	notation_options.item_selected.connect(_on_notation_option_button_item_selected)
-	hint_check.toggled.connect(_on_hint_check_button_toggled)
+	_populate_options()
+	_sync_from_game_manager()
+	_connect_signals()
 	
-	# [수정] 플러스/마이너스 버튼 신호 연결 추가
-	if minus_button: minus_button.pressed.connect(_on_minus_button_pressed)
-	if plus_button: plus_button.pressed.connect(_on_plus_button_pressed)
-	
-	update_range_display()
 	visible = false
 
-# 1. 내용물 채우기
-func setup_ui_content():
-	key_options.clear()
-	var keys = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"]
-	for i in range(keys.size()):
-		key_options.add_item(keys[i], i)
+# ============================================================
+# SETUP
+# ============================================================
+func _populate_options() -> void:
+	# 키 선택
+	key_option.clear()
+	for i in range(MusicTheory.NOTE_NAMES_CDE.size()):
+		key_option.add_item(MusicTheory.NOTE_NAMES_CDE[i], i)
+	
+	# 모드 선택
+	mode_option.clear()
+	mode_option.add_item("MAJOR", 0)
+	mode_option.add_item("MINOR", 1)
+	
+	# 노테이션 선택
+	notation_option.clear()
+	notation_option.add_item("CDE (English)", 0)
+	notation_option.add_item("도레미 (Doremi)", 1)
+	notation_option.add_item("둘 다 (Both)", 2)
 
-	# 스케일 모드 채우기
-	mode_options.clear()
-	mode_options.add_item("MAJOR", 0)
-	mode_options.add_item("MINOR", 1)
+func _sync_from_game_manager() -> void:
+	key_option.selected = GameManager.current_key
+	mode_option.selected = GameManager.current_mode
+	notation_option.selected = GameManager.current_notation
+	hint_toggle.button_pressed = GameManager.show_hints
+	_update_range_label()
 
-	notation_options.clear()
-	notation_options.add_item("CDE (English)", 0)
-	notation_options.add_item("도레미 (Doremi)", 1)
-	notation_options.add_item("둘 다 표시 (Both)", 2)
+func _connect_signals() -> void:
+	key_option.item_selected.connect(_on_key_changed)
+	mode_option.item_selected.connect(_on_mode_changed)
+	notation_option.item_selected.connect(_on_notation_changed)
+	hint_toggle.toggled.connect(_on_hint_toggled)
+	
+	if minus_btn:
+		minus_btn.pressed.connect(_on_range_decrease)
+	if plus_btn:
+		plus_btn.pressed.connect(_on_range_increase)
 
-# 2. GameManager의 현재 값과 UI 동기화
-func sync_with_game_manager():
-	key_options.selected = GameManager.current_root_note
-	mode_options.selected = GameManager.current_scale_mode
-	notation_options.selected = GameManager.current_notation
-	hint_check.button_pressed = GameManager.is_hint_visible
+# ============================================================
+# SIGNAL HANDLERS
+# ============================================================
+func _on_key_changed(index: int) -> void:
+	GameManager.current_key = index
 
-# --- 신호(Signal) 연결 부분 ---
+func _on_mode_changed(index: int) -> void:
+	GameManager.current_mode = index as MusicTheory.ScaleMode
 
-func _on_key_option_button_item_selected(index):
-	GameManager.current_root_note = index
-
-func _on_mode_option_selected(index):
-	GameManager.current_scale_mode = index as MusicTheory.ScaleMode
-
-func _on_notation_option_button_item_selected(index):
+func _on_notation_changed(index: int) -> void:
 	GameManager.current_notation = index as MusicTheory.NotationMode
 
-func _on_hint_check_button_toggled(toggled_on):
-	GameManager.is_hint_visible = toggled_on
+func _on_hint_toggled(enabled: bool) -> void:
+	GameManager.show_hints = enabled
 
-func _on_close_button_pressed():
+func _on_range_decrease() -> void:
+	GameManager.focus_range = clampi(GameManager.focus_range - 1, 1, 12)
+	_update_range_label()
+
+func _on_range_increase() -> void:
+	GameManager.focus_range = clampi(GameManager.focus_range + 1, 1, 12)
+	_update_range_label()
+
+func _on_close_button_pressed() -> void:
 	visible = false
 
-func _on_minus_button_pressed():
-	# 값을 변경하면 GameManager의 setter가 실행되어야 함
-	GameManager.focus_range = clampi(GameManager.focus_range - 1, 1, 12)
-	update_range_display()
-
-func _on_plus_button_pressed():
-	GameManager.focus_range = clampi(GameManager.focus_range + 1, 1, 12)
-	update_range_display()
-
-func update_range_display():
+# ============================================================
+# HELPERS
+# ============================================================
+func _update_range_label() -> void:
 	if range_label:
 		range_label.text = str(GameManager.focus_range)
