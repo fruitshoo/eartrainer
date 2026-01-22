@@ -136,9 +136,10 @@ func _apply_overlay(color: Color, energy: float) -> void:
 	_overlay_tween.tween_property(mat, "emission", color, 0.08)
 	_overlay_tween.tween_property(mat, "emission_energy_multiplier", energy, 0.08)
 
-## _refresh_visuals 후 오버레이가 활성 상태면 다시 적용
+## _refresh_visuals 후 시퀀서가 재생 중이고 오버레이가 활성이면 다시 적용
 func _reapply_overlay_if_active() -> void:
-	if _overlay_active:
+	# 시퀀서가 실제로 재생 중일 때만 오버레이 유지
+	if _overlay_active and EventBus.is_sequencer_playing:
 		_apply_overlay(_overlay_color, _overlay_energy)
 
 ## 외부에서 호출 가능한 시각 업데이트 (레거시 호환)

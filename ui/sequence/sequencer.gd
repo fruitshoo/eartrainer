@@ -37,12 +37,14 @@ func _ready() -> void:
 # ============================================================
 func toggle_play() -> void:
 	is_playing = !is_playing
+	EventBus.is_sequencer_playing = is_playing # 전역 상태 동기화
+	
 	if is_playing:
 		current_step = 0
 		_play_current_bar()
 	else:
 		_timer.stop()
-		_clear_all_highlights() # [v0.3] 정지 시 모든 하이라이트 해제
+		_clear_all_highlights()
 
 # ============================================================
 # PLAYBACK
