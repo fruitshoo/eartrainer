@@ -3,7 +3,13 @@ extends Node
 # 준비물: res://assets/audio/ 폴더에 'E2.wav' (6번줄 개방현 소리) 하나를 넣어주세요.
 var base_sample = preload("res://assets/audio/E2.wav")
 
-func play_note(midi_note: int):
+func _ready() -> void:
+	EventBus.tile_clicked.connect(_on_tile_clicked)
+
+func _on_tile_clicked(midi_note: int, _string_index: int, _modifiers: Dictionary) -> void:
+	play_note(midi_note)
+
+func play_note(midi_note: int) -> void:
 	var player = AudioStreamPlayer.new()
 	add_child(player)
 	

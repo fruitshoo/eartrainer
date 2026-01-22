@@ -6,8 +6,16 @@ var is_jumping: bool = false
 var jump_height: float = 2.0
 var jump_duration: float = 0.25
 
-func _ready():
+func _ready() -> void:
 	GameManager.current_player = self
+	EventBus.tile_clicked.connect(_on_tile_clicked)
+
+func _on_tile_clicked(_midi_note: int, _string_index: int, modifiers: Dictionary) -> void:
+	var target_pos: Vector3 = modifiers.get("position", global_position)
+	var fret_index: int = modifiers.get("fret_index", 0)
+	
+	jump_to(target_pos)
+	GameManager.player_fret = fret_index
 
 func jump_to(target_pos: Vector3):
 	if is_jumping: return

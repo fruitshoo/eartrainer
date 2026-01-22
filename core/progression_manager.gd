@@ -19,17 +19,23 @@ const SLOT_COUNT := 4
 # ============================================================
 var selected_index: int = -1:
 	set(value):
-		# [핵심 수정] 하한선을 0이 아니라 -1로 변경합니다.
 		selected_index = clampi(value, -1, SLOT_COUNT - 1)
-		
-		# UI에 선택 상태를 알립니다.
 		slot_selected.emit(selected_index)
-		
-		# 만약 선택이 해제(-1)되었다면 추가 신호를 보냅니다.
 		if selected_index == -1:
 			selection_cleared.emit()
 
 var slots: Array = [null, null, null, null]
+
+# ============================================================
+# LIFECYCLE
+# ============================================================
+func _ready() -> void:
+	EventBus.tile_clicked.connect(_on_tile_clicked)
+
+func _on_tile_clicked(midi_note: int, string_index: int, modifiers: Dictionary) -> void:
+	var is_shift: bool = modifiers.get("shift", false)
+	var is_alt: bool = modifiers.get("alt", false)
+	set_slot_from_tile(midi_note, string_index, is_shift, is_alt)
 
 # ============================================================
 # PUBLIC API

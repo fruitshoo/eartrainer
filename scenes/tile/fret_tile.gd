@@ -109,16 +109,13 @@ func _input_event(_camera: Camera3D, event: InputEvent, _pos: Vector3, _normal: 
 		_on_clicked(is_shift, is_alt)
 
 func _on_clicked(is_shift: bool, is_alt: bool) -> void:
-	# 캐릭터 이동
-	if GameManager.current_player:
-		GameManager.current_player.jump_to(global_position)
-		GameManager.player_fret = fret_index
-	
-	# 음 재생
-	AudioEngine.play_note(midi_note)
-	
-	# 시퀀서 슬롯 업데이트
-	ProgressionManager.set_slot_from_tile(midi_note, string_index, is_shift, is_alt)
+	# [v0.3] 모든 직접 호출 제거 → EventBus로 이벤트만 발생
+	EventBus.tile_clicked.emit(midi_note, string_index, {
+		"shift": is_shift,
+		"alt": is_alt,
+		"fret_index": fret_index,
+		"position": global_position
+	})
 
 # ============================================================
 # HELPER METHODS
