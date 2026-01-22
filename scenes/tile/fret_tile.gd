@@ -94,13 +94,21 @@ func apply_visual_tier(color: Color, energy: float):
 
 func _input_event(_camera, event, _position, _normal, _shape_idx):
 	if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
-		on_tile_clicked()
+		# 전역 Input 상태를 실시간으로 확인 (가장 확실함)
+		var is_shift = Input.is_key_pressed(KEY_SHIFT)
+		var is_alt = Input.is_key_pressed(KEY_ALT) # 맥의 Option
+		
+		# [디버그] 클릭 시 보조키가 어떻게 눌렸는지 확인
+		print("타일 클릭! Shift:", is_shift, " Alt:", is_alt)
+		
+		on_tile_clicked(is_shift, is_alt)
 
-func on_tile_clicked():
+func on_tile_clicked(is_shift: bool, is_alt: bool):
 	if GameManager.current_player:
 		GameManager.current_player.jump_to(global_position)
-		# 중요: 캐릭터가 이동한 타일의 프렛 정보를 GameManager에 알림
 		GameManager.player_fret = fret_index
 		
 	AudioEngine.play_note(midi_note)
-	if QuizManager: QuizManager.check_answer(midi_note)
+	
+	# [개선] 보조키 상태를 함께 보냅니다.
+	ProgressionManager.update_current_slot(midi_note, string_index, is_shift, is_alt)

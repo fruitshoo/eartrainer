@@ -107,3 +107,12 @@ func toggle_settings():
 func is_note_in_scale(midi_note: int) -> bool:
 	# 실제 계산은 MusicTheory에 맡기고 결과만 받아옵니다.
 	return MusicTheory.is_note_in_scale(midi_note, current_root_note, current_scale_mode)
+
+# 특정 줄과 프렛 번호로 타일을 찾아주는 함수
+func get_tile(string_idx: int, fret_idx: int) -> Node:
+	# 타일들이 들어있는 Group 이름을 'fret_tiles'라고 설정했다고 가정합니다.
+	var tiles = get_tree().get_nodes_in_group("fret_tiles")
+	for tile in tiles:
+		if tile.string_index == string_idx and tile.fret_index == fret_idx:
+			return tile
+	return null

@@ -5,6 +5,7 @@
 [ext_resource type="PackedScene" uid="uid://bkug7wowkh7rj" path="res://ui/settings/settings_ui.tscn" id="3_k2fmo"]
 [ext_resource type="Script" uid="uid://ddy07ttvmepmc" path="res://scenes/main/main_camera.gd" id="3_l3cfh"]
 [ext_resource type="PackedScene" uid="uid://gpehw4doyrkv" path="res://ui/hud/hud_manager.tscn" id="5_6q06x"]
+[ext_resource type="PackedScene" uid="uid://bx6tqcwt8wrfi" path="res://ui/sequence/sequence_ui.tscn" id="6_ow5a4"]
 
 [sub_resource type="Environment" id="Environment_vom5j"]
 ssao_enabled = true
@@ -31,3 +32,5 @@ script = ExtResource("3_l3cfh")
 [node name="SettingsUI" parent="." unique_id=77076675 instance=ExtResource("3_k2fmo")]
 
 [node name="HUD" parent="." unique_id=867313363 instance=ExtResource("5_6q06x")]
+
+[node name="SequenceUI" parent="." unique_id=1004823414 instance=ExtResource("6_ow5a4")]

@@ -12,7 +12,7 @@ size = Vector3(1.4, 0.1, 1.4)
 [sub_resource type="BoxShape3D" id="BoxShape3D_lmv8r"]
 size = Vector3(1.4, 0.1, 1.4)
 
-[node name="FretTile" type="Area3D" unique_id=403137249]
+[node name="FretTile" type="Area3D" unique_id=403137249 groups=["fret_tiles"]]
 script = ExtResource("1_jtpmk")
 
 [node name="MeshInstance3D" type="MeshInstance3D" parent="." unique_id=207382635]

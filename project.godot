@@ -19,6 +19,7 @@ config/icon="res://icon.svg"
 AudioEngine="*uid://deqauwlbpdo4m"
 GameManager="*uid://cdqhxtp1ctg77"
 QuizManager="*uid://ffwv4s6js4ys"
+ProgressionManager="*uid://cdeqxx32mc6sw"
 
 [display]
 
