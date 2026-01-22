@@ -22,6 +22,7 @@ var is_playing: bool = false
 # PRIVATE
 # ============================================================
 var _timer: Timer
+var _highlighted_tiles: Array = [] # [v0.3] 현재 하이라이트된 타일 추적
 
 # ============================================================
 # LIFECYCLE
@@ -41,6 +42,7 @@ func toggle_play() -> void:
 		_play_current_bar()
 	else:
 		_timer.stop()
+		_clear_all_highlights() # [v0.3] 정지 시 모든 하이라이트 해제
 
 # ============================================================
 # PLAYBACK
@@ -48,6 +50,7 @@ func toggle_play() -> void:
 func _play_current_bar() -> void:
 	var bar_duration := (60.0 / bpm) * 4.0 # 4박자 = 1마디
 	
+	_clear_all_highlights() # [v0.3] 이전 마디 하이라이트 해제
 	_apply_slot_to_game()
 	bar_started.emit(current_step)
 	_timer.start(bar_duration)
@@ -75,14 +78,21 @@ func _play_strum(data: Dictionary) -> void:
 		var target_fret: int = root_fret + offset[1]
 		
 		var tile = GameManager.find_tile(target_string, target_fret)
-		if tile:
+		if tile and is_instance_valid(tile):
 			AudioEngine.play_note(tile.midi_note)
-			tile.apply_visual_tier(Color(2.0, 2.0, 2.0), 3.0)
-			_restore_tile_after_delay(tile)
+			# [v0.3] 새 오버레이 함수 사용
+			tile.apply_sequencer_highlight(Color(1.0, 0.5, 0.2), 3.0)
+			_highlighted_tiles.append(tile)
 		
 		await get_tree().create_timer(0.05).timeout
 
-func _restore_tile_after_delay(tile: Node) -> void:
-	await get_tree().create_timer(0.1).timeout
-	if is_instance_valid(tile):
-		tile.update_appearance()
+# ============================================================
+# HIGHLIGHT MANAGEMENT
+# ============================================================
+
+## [v0.3] 모든 활성 하이라이트 해제
+func _clear_all_highlights() -> void:
+	for tile in _highlighted_tiles:
+		if is_instance_valid(tile):
+			tile.clear_sequencer_highlight()
+	_highlighted_tiles.clear()
