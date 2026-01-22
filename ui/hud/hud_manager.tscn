@@ -34,6 +34,7 @@ layout_mode = 2
 size_flags_horizontal = 4
 size_flags_vertical = 4
 mouse_filter = 2
+alignment = 1
 
 [node name="KeyLabel" type="Label" parent="MainContainer/InfoPanel/VBoxContainer" unique_id=1771035011]
 unique_name_in_owner = true
