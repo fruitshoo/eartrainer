@@ -9,13 +9,31 @@ var jump_duration: float = 0.25
 func _ready() -> void:
 	GameManager.current_player = self
 	EventBus.tile_clicked.connect(_on_tile_clicked)
+	# 타일들이 모두 생성된 후 초기 위치로 이동
+	call_deferred("_initialize_position")
 
-func _on_tile_clicked(_midi_note: int, _string_index: int, modifiers: Dictionary) -> void:
+func _initialize_position() -> void:
+	# 한 프레임 더 대기하여 타일 생성 완료 보장
+	await get_tree().process_frame
+	
+	var target_tile = GameManager.find_tile(
+		SettingsManager.last_string,
+		SettingsManager.last_fret
+	)
+	if target_tile:
+		global_position = target_tile.global_position
+		GameManager.player_fret = SettingsManager.last_fret
+	else:
+		# 타일을 찾지 못하면 기본 위치 (fret 5)
+		GameManager.player_fret = SettingsManager.DEFAULT_FRET
+
+func _on_tile_clicked(_midi_note: int, string_index: int, modifiers: Dictionary) -> void:
 	var target_pos: Vector3 = modifiers.get("position", global_position)
 	var fret_index: int = modifiers.get("fret_index", 0)
 	
 	jump_to(target_pos)
 	GameManager.player_fret = fret_index
+	SettingsManager.last_string = string_index # 위치 저장용
 
 func jump_to(target_pos: Vector3):
 	if is_jumping: return
