@@ -61,6 +61,15 @@ func reset_position() -> void:
 	EventBus.beat_updated.emit(-1, beats_per_bar) # UI 리셋
 	EventBus.bar_changed.emit(current_step)
 
+## 완전 정지 및 리셋 (Stop 버튼용)
+func stop_and_reset() -> void:
+	is_playing = false
+	EventBus.is_sequencer_playing = false
+	
+	_pause_playback() # 타이머 정지
+	reset_position() # 위치 및 UI 리셋
+
+
 # ============================================================
 # PLAYBACK CONTROL
 # ============================================================
@@ -148,3 +157,10 @@ func _clear_all_highlights() -> void:
 		if is_instance_valid(tile):
 			tile.clear_sequencer_highlight()
 	_highlighted_tiles.clear()
+
+## 현재 비트 정보를 EventBus에 알리고 펄스 신호를 발생시킵니다.
+func _emit_beat() -> void:
+	# EventBus에 현재 비트 인덱스와 전체 비트 수를 전달 (도트 업데이트용)
+	EventBus.beat_updated.emit(current_beat, beats_per_bar)
+	# 메트로놈과 HUD 애니메이션을 위한 펄스 신호 발생
+	EventBus.beat_pulsed.emit()

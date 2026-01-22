@@ -1,7 +1,7 @@
 [gd_scene format=3 uid="uid://bx6tqcwt8wrfi"]
 
 [ext_resource type="Script" uid="uid://cgd5souy3fyph" path="res://ui/sequence/sequence_ui.gd" id="1_2bt3v"]
-[ext_resource type="LabelSettings" uid="uid://12p7xoiimgp5" path="res://ui/resources/settings_label_style.tres" id="1_t0usl"]
+[ext_resource type="LabelSettings" uid="uid://kjcfw5e72a5p" path="res://ui/resources/slot_settings.tres" id="3_plaov"]
 [ext_resource type="Script" uid="uid://iw3vuv01bc2e" path="res://ui/sequence/sequencer.gd" id="3_t8hoy"]
 
 [node name="SequenceUI" type="CanvasLayer" unique_id=1004823414]
@@ -24,29 +24,38 @@ grow_horizontal = 2
 grow_vertical = 0
 theme_override_constants/margin_bottom = 40
 
-[node name="PanelContainer" type="PanelContainer" parent="RootMargin" unique_id=662601037]
+[node name="VBoxContainer" type="VBoxContainer" parent="RootMargin" unique_id=139187317]
 layout_mode = 2
 
-[node name="InnerMargin" type="MarginContainer" parent="RootMargin/PanelContainer" unique_id=777644062]
+[node name="PanelContainer" type="PanelContainer" parent="RootMargin/VBoxContainer" unique_id=662601037]
 layout_mode = 2
-theme_override_constants/margin_left = 20
-theme_override_constants/margin_top = 20
-theme_override_constants/margin_right = 20
-theme_override_constants/margin_bottom = 20
 
-[node name="SlotContainer" type="HBoxContainer" parent="RootMargin/PanelContainer/InnerMargin" unique_id=154152354]
-unique_name_in_owner = true
+[node name="InnerMargin" type="MarginContainer" parent="RootMargin/VBoxContainer/PanelContainer" unique_id=777644062]
 layout_mode = 2
-theme_override_constants/separation = 20
+theme_override_constants/margin_left = 10
+theme_override_constants/margin_top = 10
+theme_override_constants/margin_right = 10
+theme_override_constants/margin_bottom = 10
+
+[node name="VBoxContainer" type="VBoxContainer" parent="RootMargin/VBoxContainer/PanelContainer/InnerMargin" unique_id=719714234]
+layout_mode = 2
+size_flags_horizontal = 4
+size_flags_vertical = 4
 alignment = 1
 
-[node name="Slot1" type="Button" parent="RootMargin/PanelContainer/InnerMargin/SlotContainer" unique_id=1110768823]
+[node name="SlotContainer" type="HBoxContainer" parent="RootMargin/VBoxContainer/PanelContainer/InnerMargin/VBoxContainer" unique_id=154152354]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_constants/separation = 10
+alignment = 1
+
+[node name="Slot1" type="Button" parent="RootMargin/VBoxContainer/PanelContainer/InnerMargin/VBoxContainer/SlotContainer" unique_id=1110768823]
 custom_minimum_size = Vector2(150, 100)
 layout_mode = 2
 size_flags_horizontal = 4
 size_flags_vertical = 4
 
-[node name="Label" type="Label" parent="RootMargin/PanelContainer/InnerMargin/SlotContainer/Slot1" unique_id=146092741]
+[node name="Label" type="Label" parent="RootMargin/VBoxContainer/PanelContainer/InnerMargin/VBoxContainer/SlotContainer/Slot1" unique_id=146092741]
 layout_mode = 1
 anchors_preset = 8
 anchor_left = 0.5
@@ -60,14 +69,15 @@ offset_bottom = 11.5
 grow_horizontal = 2
 grow_vertical = 2
 text = "slot 1"
-label_settings = ExtResource("1_t0usl")
+label_settings = ExtResource("3_plaov")
+horizontal_alignment = 1
 vertical_alignment = 1
 
-[node name="Slot2" type="Button" parent="RootMargin/PanelContainer/InnerMargin/SlotContainer" unique_id=1360295405]
+[node name="Slot2" type="Button" parent="RootMargin/VBoxContainer/PanelContainer/InnerMargin/VBoxContainer/SlotContainer" unique_id=1360295405]
 custom_minimum_size = Vector2(150, 100)
 layout_mode = 2
 
-[node name="Label" type="Label" parent="RootMargin/PanelContainer/InnerMargin/SlotContainer/Slot2" unique_id=513238887]
+[node name="Label" type="Label" parent="RootMargin/VBoxContainer/PanelContainer/InnerMargin/VBoxContainer/SlotContainer/Slot2" unique_id=513238887]
 layout_mode = 1
 anchors_preset = 8
 anchor_left = 0.5
@@ -81,13 +91,13 @@ offset_bottom = 11.5
 grow_horizontal = 2
 grow_vertical = 2
 text = "slot 2"
-label_settings = ExtResource("1_t0usl")
+label_settings = ExtResource("3_plaov")
 
-[node name="Slot3" type="Button" parent="RootMargin/PanelContainer/InnerMargin/SlotContainer" unique_id=1444631334]
+[node name="Slot3" type="Button" parent="RootMargin/VBoxContainer/PanelContainer/InnerMargin/VBoxContainer/SlotContainer" unique_id=1444631334]
 custom_minimum_size = Vector2(150, 100)
 layout_mode = 2
 
-[node name="Label" type="Label" parent="RootMargin/PanelContainer/InnerMargin/SlotContainer/Slot3" unique_id=1114840351]
+[node name="Label" type="Label" parent="RootMargin/VBoxContainer/PanelContainer/InnerMargin/VBoxContainer/SlotContainer/Slot3" unique_id=1114840351]
 layout_mode = 1
 anchors_preset = 8
 anchor_left = 0.5
@@ -101,13 +111,13 @@ offset_bottom = 11.5
 grow_horizontal = 2
 grow_vertical = 2
 text = "slot 3"
-label_settings = ExtResource("1_t0usl")
+label_settings = ExtResource("3_plaov")
 
-[node name="Slot4" type="Button" parent="RootMargin/PanelContainer/InnerMargin/SlotContainer" unique_id=1926038978]
+[node name="Slot4" type="Button" parent="RootMargin/VBoxContainer/PanelContainer/InnerMargin/VBoxContainer/SlotContainer" unique_id=1926038978]
 custom_minimum_size = Vector2(150, 100)
 layout_mode = 2
 
-[node name="Label" type="Label" parent="RootMargin/PanelContainer/InnerMargin/SlotContainer/Slot4" unique_id=1397594716]
+[node name="Label" type="Label" parent="RootMargin/VBoxContainer/PanelContainer/InnerMargin/VBoxContainer/SlotContainer/Slot4" unique_id=1397594716]
 layout_mode = 1
 anchors_preset = 8
 anchor_left = 0.5
@@ -121,25 +131,34 @@ offset_bottom = 11.5
 grow_horizontal = 2
 grow_vertical = 2
 text = "slot 4"
-label_settings = ExtResource("1_t0usl")
+label_settings = ExtResource("3_plaov")
 
-[node name="PlayButton" type="Button" parent="RootMargin/PanelContainer/InnerMargin/SlotContainer" unique_id=2100523467]
-unique_name_in_owner = true
-custom_minimum_size = Vector2(80, 0)
+[node name="PanelContainer2" type="PanelContainer" parent="RootMargin/VBoxContainer" unique_id=181281439]
 layout_mode = 2
 
-[node name="Label" type="Label" parent="RootMargin/PanelContainer/InnerMargin/SlotContainer/PlayButton" unique_id=1073832314]
-layout_mode = 1
-anchors_preset = 8
-anchor_left = 0.5
-anchor_top = 0.5
-anchor_right = 0.5
-anchor_bottom = 0.5
-offset_left = -20.0
-offset_top = -11.5
-offset_right = 20.0
-offset_bottom = 11.5
-grow_horizontal = 2
-grow_vertical = 2
+[node name="InnerMargin" type="MarginContainer" parent="RootMargin/VBoxContainer/PanelContainer2" unique_id=250626872]
+layout_mode = 2
+theme_override_constants/margin_top = 5
+theme_override_constants/margin_bottom = 5
+
+[node name="HBoxContainer" type="HBoxContainer" parent="RootMargin/VBoxContainer/PanelContainer2/InnerMargin" unique_id=641263888]
+layout_mode = 2
+size_flags_horizontal = 4
+size_flags_vertical = 4
+alignment = 1
+
+[node name="PlayButton" type="Button" parent="RootMargin/VBoxContainer/PanelContainer2/InnerMargin/HBoxContainer" unique_id=2100523467]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(60, 30)
+layout_mode = 2
+size_flags_horizontal = 4
+size_flags_vertical = 4
 text = "Play"
-label_settings = ExtResource("1_t0usl")
+
+[node name="StopButton" type="Button" parent="RootMargin/VBoxContainer/PanelContainer2/InnerMargin/HBoxContainer" unique_id=1473458188]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(60, 30)
+layout_mode = 2
+size_flags_horizontal = 4
+size_flags_vertical = 4
+text = "Stop"

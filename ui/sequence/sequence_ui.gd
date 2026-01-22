@@ -8,6 +8,7 @@ extends CanvasLayer
 @onready var slot_container: HBoxContainer = %SlotContainer
 @onready var sequencer: Node = %Sequencer
 @onready var play_button: Button = %PlayButton
+@onready var stop_button: Button = %StopButton # [v0.3] 정지 버튼 추가
 
 # ============================================================
 # LIFECYCLE
@@ -17,11 +18,15 @@ func _ready() -> void:
 	_connect_manager_signals()
 	_highlight_selected(0)
 	ProgressionManager.selection_cleared.connect(_on_selection_cleared)
+	
+	if stop_button:
+		stop_button.pressed.connect(_on_stop_button_pressed)
 
 func _connect_slot_signals() -> void:
 	for i in range(slot_container.get_child_count()):
 		var slot := slot_container.get_child(i)
-		if slot == play_button:
+		# 버튼들은 슬롯 처리에서 제외
+		if slot == play_button or slot == stop_button:
 			continue
 		slot.pressed.connect(_on_slot_clicked.bind(i))
 
@@ -59,7 +64,7 @@ func _on_slot_clicked(index: int) -> void:
 func _highlight_selected(selected: int) -> void:
 	for i in range(slot_container.get_child_count()):
 		var slot := slot_container.get_child(i)
-		if slot == play_button:
+		if slot == play_button or slot == stop_button:
 			continue
 		
 		# 선택된 슬롯(노란색), 나머지(흰색)
@@ -83,12 +88,31 @@ func _update_slot_label(index: int, data: Dictionary) -> void:
 # ============================================================
 func _toggle_playback() -> void:
 	sequencer.toggle_play()
-	play_button.text = "STOP" if sequencer.is_playing else "PLAY"
+	_update_play_button_text()
+
+func _on_stop_button_pressed() -> void:
+	sequencer.stop_and_reset()
+	_update_play_button_text()
+	# UI 하이라이트도 초기화 (선택된 슬롯만 남기고 재생 하이라이트 제거)
+	_highlight_playing(-1)
+	if ProgressionManager.selected_index != -1:
+		_highlight_selected(ProgressionManager.selected_index)
+
+func _update_play_button_text() -> void:
+	play_button.text = "PAUSE" if sequencer.is_playing else "PLAY"
 
 func _highlight_playing(playing_index: int) -> void:
 	for i in range(slot_container.get_child_count()):
 		var slot := slot_container.get_child(i)
-		if slot == play_button:
+		if slot == play_button or slot == stop_button:
+			continue
+		
+		# 정지 상태(playing_index == -1)면 선택 상태 복구
+		if playing_index == -1:
+			if i == ProgressionManager.selected_index:
+				slot.modulate = Color(1.5, 1.5, 1.0)
+			else:
+				slot.modulate = Color.WHITE
 			continue
 		
 		if i == playing_index:
