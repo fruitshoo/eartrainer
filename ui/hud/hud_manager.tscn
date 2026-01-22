@@ -49,3 +49,9 @@ layout_mode = 2
 text = "현재 Chord 표시"
 label_settings = ExtResource("2_dnfae")
 horizontal_alignment = 1
+
+[node name="BeatContainer" type="HBoxContainer" parent="MainContainer/InfoPanel/VBoxContainer" unique_id=2141948552]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 4
+size_flags_vertical = 4

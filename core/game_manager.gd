@@ -32,6 +32,9 @@ var show_hints: bool = false:
 		show_hints = value
 		settings_changed.emit()
 
+var is_metronome_enabled: bool = true # 메트로놈 소리 켜기/끄기
+
+
 # ============================================================
 # STATE VARIABLES - 현재 코드
 # ============================================================
