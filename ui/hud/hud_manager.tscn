@@ -9,27 +9,25 @@ script = ExtResource("1_q3kxm")
 
 [node name="MainContainer" type="Control" parent="." unique_id=599544182]
 layout_mode = 3
-anchors_preset = 15
-anchor_right = 1.0
-anchor_bottom = 1.0
+anchors_preset = 5
+anchor_left = 0.5
+anchor_right = 0.5
 grow_horizontal = 2
-grow_vertical = 2
+size_flags_horizontal = 4
+size_flags_vertical = 4
 mouse_filter = 2
 
 [node name="InfoPanel" type="MarginContainer" parent="MainContainer" unique_id=1583880336]
 layout_mode = 1
-anchors_preset = 7
+anchors_preset = 5
 anchor_left = 0.5
-anchor_top = 1.0
 anchor_right = 0.5
-anchor_bottom = 1.0
-offset_left = -20.0
-offset_top = -50.0
-offset_right = 20.0
+offset_left = -91.0
+offset_right = 91.0
+offset_bottom = 80.0
 grow_horizontal = 2
-grow_vertical = 0
 mouse_filter = 2
-theme_override_constants/margin_bottom = 20
+theme_override_constants/margin_top = 20
 
 [node name="VBoxContainer" type="VBoxContainer" parent="MainContainer/InfoPanel" unique_id=1156355794]
 layout_mode = 2

@@ -15,3 +15,4 @@ var is_sequencer_playing: bool = false # 시퀀서 재생 상태 (전역 접근�
 signal sequencer_started
 signal sequencer_stopped
 signal bar_changed(slot_index: int)
+signal beat_pulsed # 메트로놈 비트 펄스
