@@ -3,10 +3,18 @@
 extends CanvasLayer
 
 # ============================================================
+# CONSTANTS
+# ============================================================
+const BEAT_DOT_COUNT := 4
+const BEAT_DOT_ON_COLOR := Color(1.0, 0.8, 0.3, 1.0)
+const BEAT_DOT_OFF_COLOR := Color(0.3, 0.3, 0.3, 0.5)
+
+# ============================================================
 # NODE REFERENCES
 # ============================================================
 @onready var key_label: Label = %KeyLabel
 @onready var chord_label: Label = %ChordLabel
+@onready var beat_container: HBoxContainer = %BeatContainer # 비트 도트 컨테이너
 
 # ============================================================
 # STATE
@@ -14,6 +22,7 @@ extends CanvasLayer
 var _last_chord_text: String = ""
 var _chord_tween: Tween = null
 var _is_animating: bool = false
+var _beat_dots: Array = []
 
 # ============================================================
 # LIFECYCLE
@@ -22,7 +31,9 @@ func _ready() -> void:
 	GameManager.settings_changed.connect(_update_display)
 	EventBus.beat_pulsed.connect(_on_beat_pulsed)
 	EventBus.bar_changed.connect(_on_bar_changed)
+	EventBus.beat_updated.connect(_on_beat_updated)
 	_setup_visual_style()
+	_setup_beat_indicators()
 	call_deferred("_delayed_setup")
 
 func _delayed_setup() -> void:
@@ -34,14 +45,28 @@ func _delayed_setup() -> void:
 # ============================================================
 func _setup_visual_style() -> void:
 	if chord_label:
-		# 피벗을 중앙으로 설정 (애니메이션이 중앙에서 커지도록)
 		chord_label.pivot_offset = chord_label.size / 2.0
-		
-		# 글로우 효과를 위한 설정
 		chord_label.add_theme_color_override("font_color", Color(1.0, 0.9, 0.4))
 		chord_label.add_theme_color_override("font_shadow_color", Color(1.0, 0.6, 0.2, 0.5))
 		chord_label.add_theme_constant_override("shadow_offset_x", 2)
 		chord_label.add_theme_constant_override("shadow_offset_y", 2)
+
+func _setup_beat_indicators() -> void:
+	if not beat_container:
+		return
+	
+	# 기존 도트 삭제
+	for child in beat_container.get_children():
+		child.queue_free()
+	_beat_dots.clear()
+	
+	# 4개의 비트 도트 생성
+	for i in range(BEAT_DOT_COUNT):
+		var dot := ColorRect.new()
+		dot.custom_minimum_size = Vector2(16, 16)
+		dot.color = BEAT_DOT_OFF_COLOR
+		beat_container.add_child(dot)
+		_beat_dots.append(dot)
 
 # ============================================================
 # DISPLAY UPDATE
@@ -50,16 +75,13 @@ func _update_display() -> void:
 	if not key_label or not chord_label:
 		return
 	
-	# 키 + 모드 표시
 	var key_name := MusicTheory.NOTE_NAMES_CDE[GameManager.current_key % 12]
 	var mode_name := "MAJOR" if GameManager.current_mode == MusicTheory.ScaleMode.MAJOR else "MINOR"
 	key_label.text = "[ %s %s ]" % [key_name, mode_name]
 	
-	# 코드 표시
 	var chord_root: int = GameManager.current_chord_root
 	var chord_type: String = GameManager.current_chord_type
 	
-	# 시퀀서 재생 중이면 현재 슬롯 데이터 사용
 	if EventBus.is_sequencer_playing:
 		var sequencer = get_tree().get_first_node_in_group("sequencer")
 		if sequencer:
@@ -68,7 +90,6 @@ func _update_display() -> void:
 				chord_root = slot_data.root
 				chord_type = slot_data.type
 	
-	# 빈 코드 처리
 	if chord_type.is_empty():
 		_fade_out_chord_label()
 		return
@@ -78,20 +99,45 @@ func _update_display() -> void:
 	var root_name := MusicTheory.NOTE_NAMES_CDE[chord_root % 12]
 	var new_text := "%s %s" % [root_name, chord_type]
 	
-	# 피벗 재계산 (텍스트 변경 시 size가 바뀔 수 있음)
 	chord_label.pivot_offset = chord_label.size / 2.0
 	
-	# 텍스트가 바뀌었으면 애니메이션 실행
 	if new_text != _last_chord_text:
 		chord_label.text = new_text
 		_animate_chord_change()
 		_last_chord_text = new_text
 
 # ============================================================
+# BEAT INDICATOR
+# ============================================================
+func _on_beat_updated(beat_index: int, _total_beats: int) -> void:
+	if beat_index < 0:
+		# 시퀀서 정지 시 모든 도트 끄기
+		_reset_beat_dots()
+		return
+	
+	# 현재 박자까지 불 켜기
+	for i in range(_beat_dots.size()):
+		var dot: ColorRect = _beat_dots[i]
+		if i <= beat_index:
+			dot.color = BEAT_DOT_ON_COLOR
+			# 현재 박자는 펄스 효과
+			if i == beat_index:
+				_pulse_dot(dot)
+		else:
+			dot.color = BEAT_DOT_OFF_COLOR
+
+func _reset_beat_dots() -> void:
+	for dot in _beat_dots:
+		dot.color = BEAT_DOT_OFF_COLOR
+
+func _pulse_dot(dot: ColorRect) -> void:
+	var tween := create_tween()
+	tween.tween_property(dot, "scale", Vector2(1.3, 1.3), 0.05)
+	tween.tween_property(dot, "scale", Vector2(1.0, 1.0), 0.1)
+
+# ============================================================
 # ANIMATIONS
 # ============================================================
-
-## 코드 변경 시 살짝 커졌다 돌아오는 효과
 func _animate_chord_change() -> void:
 	if _chord_tween and _chord_tween.is_running():
 		_chord_tween.kill()
@@ -104,7 +150,6 @@ func _animate_chord_change() -> void:
 		.set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
 	_chord_tween.finished.connect(func(): _is_animating = false)
 
-## 비트 펄스 효과 (시퀀서 재생 중 + 애니메이션 안 할 때만)
 func _on_beat_pulsed() -> void:
 	if not chord_label or not EventBus.is_sequencer_playing or _is_animating:
 		return
@@ -115,11 +160,9 @@ func _on_beat_pulsed() -> void:
 	pulse_tween.tween_property(chord_label, "scale", Vector2(1.0, 1.0), 0.1) \
 		.set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN)
 
-## 마디 변경 시 디스플레이 업데이트
 func _on_bar_changed(_slot_index: int) -> void:
 	_update_display()
 
-## 빈 코드일 때 페이드아웃
 func _fade_out_chord_label() -> void:
 	var fade_tween := create_tween()
 	fade_tween.tween_property(chord_label, "modulate:a", 0.3, 0.2)

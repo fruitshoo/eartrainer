@@ -25,6 +25,9 @@ var selected_index: int = -1:
 			selection_cleared.emit()
 
 var slots: Array = [null, null, null, null]
+# 멜로디 저장용 플레이스홀더 (향후 구현)
+# 각 슬롯 형식: {"root": int, "type": String, "string": int, "melody_data": []}
+
 
 # ============================================================
 # LIFECYCLE

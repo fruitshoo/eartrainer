@@ -16,3 +16,4 @@ signal sequencer_started
 signal sequencer_stopped
 signal bar_changed(slot_index: int)
 signal beat_pulsed # 메트로놈 비트 펄스
+signal beat_updated(beat_index: int, total_beats: int) # 박자 진행 정보

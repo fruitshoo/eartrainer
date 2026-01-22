@@ -11,53 +11,84 @@ signal bar_started(slot_index: int)
 # EXPORTS
 # ============================================================
 @export var bpm: int = 80
+@export var beats_per_bar: int = 4
 
 # ============================================================
 # STATE
 # ============================================================
 var current_step: int = 0
+var current_beat: int = 0 # 현재 마디 내 박자 (0-3)
 var is_playing: bool = false
 
 # ============================================================
 # PRIVATE
 # ============================================================
-var _timer: Timer
-var _highlighted_tiles: Array = [] # [v0.3] 현재 하이라이트된 타일 추적
+var _bar_timer: Timer
+var _beat_timer: Timer
+var _highlighted_tiles: Array = []
 
 # ============================================================
 # LIFECYCLE
 # ============================================================
 func _ready() -> void:
-	_timer = Timer.new()
-	add_child(_timer)
-	_timer.timeout.connect(_on_bar_complete)
+	add_to_group("sequencer") # HUD에서 찾을 수 있도록
+	
+	_bar_timer = Timer.new()
+	add_child(_bar_timer)
+	_bar_timer.timeout.connect(_on_bar_complete)
+	
+	_beat_timer = Timer.new()
+	add_child(_beat_timer)
+	_beat_timer.timeout.connect(_on_beat_tick)
 
 # ============================================================
 # PUBLIC API
 # ============================================================
 func toggle_play() -> void:
 	is_playing = !is_playing
-	EventBus.is_sequencer_playing = is_playing # 전역 상태 동기화
+	EventBus.is_sequencer_playing = is_playing
 	
 	if is_playing:
 		current_step = 0
+		current_beat = 0
 		_play_current_bar()
 	else:
-		_timer.stop()
+		_bar_timer.stop()
+		_beat_timer.stop()
 		_clear_all_highlights()
+		EventBus.beat_updated.emit(-1, beats_per_bar) # 정지 시 리셋
 
 # ============================================================
 # PLAYBACK
 # ============================================================
 func _play_current_bar() -> void:
-	var bar_duration := (60.0 / bpm) * 4.0 # 4박자 = 1마디
+	var beat_duration := 60.0 / bpm
+	var bar_duration := beat_duration * beats_per_bar
 	
-	_clear_all_highlights() # [v0.3] 이전 마디 하이라이트 해제
+	current_beat = 0
+	_clear_all_highlights()
 	_apply_slot_to_game()
 	bar_started.emit(current_step)
-	_timer.start(bar_duration)
+	EventBus.bar_changed.emit(current_step)
+	
+	# 첫 번째 비트 즉시 발생
+	_emit_beat()
+	
+	# 비트 타이머 시작 (다음 비트부터)
+	_beat_timer.start(beat_duration)
+	_bar_timer.start(bar_duration)
+
+func _on_beat_tick() -> void:
+	current_beat += 1
+	if current_beat < beats_per_bar:
+		_emit_beat()
+
+func _emit_beat() -> void:
+	EventBus.beat_updated.emit(current_beat, beats_per_bar)
+	EventBus.beat_pulsed.emit()
 
 func _on_bar_complete() -> void:
+	_beat_timer.stop()
 	current_step = (current_step + 1) % ProgressionManager.SLOT_COUNT
 	_play_current_bar()
 
@@ -82,7 +113,6 @@ func _play_strum(data: Dictionary) -> void:
 		var tile = GameManager.find_tile(target_string, target_fret)
 		if tile and is_instance_valid(tile):
 			AudioEngine.play_note(tile.midi_note)
-			# [v0.3] 새 오버레이 함수 사용
 			tile.apply_sequencer_highlight(Color(1.0, 0.5, 0.2), 3.0)
 			_highlighted_tiles.append(tile)
 		
@@ -91,8 +121,6 @@ func _play_strum(data: Dictionary) -> void:
 # ============================================================
 # HIGHLIGHT MANAGEMENT
 # ============================================================
-
-## [v0.3] 모든 활성 하이라이트 해제
 func _clear_all_highlights() -> void:
 	for tile in _highlighted_tiles:
 		if is_instance_valid(tile):
