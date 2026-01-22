@@ -16,6 +16,7 @@ func _ready() -> void:
 	_connect_slot_signals()
 	_connect_manager_signals()
 	_highlight_selected(0)
+	ProgressionManager.selection_cleared.connect(_on_selection_cleared)
 
 func _connect_slot_signals() -> void:
 	for i in range(slot_container.get_child_count()):
@@ -45,13 +46,24 @@ func _unhandled_input(event: InputEvent) -> void:
 func _on_slot_clicked(index: int) -> void:
 	if index >= ProgressionManager.SLOT_COUNT:
 		return
-	ProgressionManager.selected_index = index
+	
+	# [토글 로직] 이미 선택된 슬롯을 다시 누르면 선택 해제(-1), 아니면 선택
+	if ProgressionManager.selected_index == index:
+		ProgressionManager.selected_index = -1
+	else:
+		ProgressionManager.selected_index = index
+	
+	# 에러가 났던 '_update_button_visuals()' 대신 기존 함수 호출
+	_highlight_selected(ProgressionManager.selected_index)
 
 func _highlight_selected(selected: int) -> void:
 	for i in range(slot_container.get_child_count()):
 		var slot := slot_container.get_child(i)
 		if slot == play_button:
 			continue
+		
+		# 선택된 슬롯(노란색), 나머지(흰색)
+		# selected가 -1이면 모든 슬롯이 Color.WHITE가 됩니다.
 		slot.modulate = Color(1.5, 1.5, 1.0) if i == selected else Color.WHITE
 
 func _update_slot_label(index: int, data: Dictionary) -> void:
@@ -85,3 +97,11 @@ func _highlight_playing(playing_index: int) -> void:
 			slot.modulate = Color(1.5, 1.5, 1.0) # 선택됨 (노란색)
 		else:
 			slot.modulate = Color.WHITE
+
+# ============================================================
+# SIGNALS FROM MANAGER
+# ============================================================
+func _on_selection_cleared():
+	# 타일 입력을 마쳐서 selected_index가 -1이 되었을 때 호출됩니다.
+	# 모든 하이라이트를 끕니다.
+	_highlight_selected(-1)
