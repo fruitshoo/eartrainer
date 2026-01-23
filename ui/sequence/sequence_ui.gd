@@ -6,7 +6,6 @@ extends CanvasLayer
 # NODE REFERENCES
 # ============================================================
 @onready var slot_container: HBoxContainer = %SlotContainer
-@onready var sequencer: Node = %Sequencer
 @onready var play_button: Button = %PlayButton
 @onready var stop_button: Button = %StopButton # [v0.3] 정지 버튼 추가
 
@@ -34,7 +33,8 @@ func _connect_manager_signals() -> void:
 	ProgressionManager.slot_selected.connect(_highlight_selected)
 	ProgressionManager.slot_updated.connect(_update_slot_label)
 	play_button.pressed.connect(_toggle_playback)
-	sequencer.bar_started.connect(_highlight_playing)
+	EventBus.bar_changed.connect(_highlight_playing)
+	EventBus.sequencer_playing_changed.connect(_on_sequencer_playing_changed)
 
 # ============================================================
 # INPUT
@@ -78,7 +78,8 @@ func _update_slot_label(index: int, data: Dictionary) -> void:
 	var slot := slot_container.get_child(index)
 	var label: Label = slot.get_node("Label")
 	
-	var root_name := MusicTheory.NOTE_NAMES_CDE[data.root % 12]
+	var use_flats := MusicTheory.should_use_flats(GameManager.current_key, GameManager.current_mode)
+	var root_name := MusicTheory.get_note_name(data.root, use_flats)
 	var degree := MusicTheory.get_degree_label(data.root, GameManager.current_key, GameManager.current_mode)
 	
 	label.text = "%s\n(%s %s)" % [degree, root_name, data.type]
@@ -87,19 +88,17 @@ func _update_slot_label(index: int, data: Dictionary) -> void:
 # PLAYBACK CONTROL
 # ============================================================
 func _toggle_playback() -> void:
-	sequencer.toggle_play()
-	_update_play_button_text()
+	EventBus.request_toggle_playback.emit()
 
 func _on_stop_button_pressed() -> void:
-	sequencer.stop_and_reset()
-	_update_play_button_text()
+	EventBus.request_stop_playback.emit()
 	# UI 하이라이트도 초기화 (선택된 슬롯만 남기고 재생 하이라이트 제거)
 	_highlight_playing(-1)
 	if ProgressionManager.selected_index != -1:
 		_highlight_selected(ProgressionManager.selected_index)
 
-func _update_play_button_text() -> void:
-	play_button.text = "PAUSE" if sequencer.is_playing else "PLAY"
+func _on_sequencer_playing_changed(is_playing: bool) -> void:
+	play_button.text = "PAUSE" if is_playing else "PLAY"
 
 func _highlight_playing(playing_index: int) -> void:
 	for i in range(slot_container.get_child_count()):

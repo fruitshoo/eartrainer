@@ -23,6 +23,7 @@ var _last_chord_text: String = ""
 var _chord_tween: Tween = null
 var _is_animating: bool = false
 var _beat_dots: Array = []
+var _current_sequencer_step: int = -1 # 시퀀서 현재 스텝 추적 (EventBus 통해 업데이트)
 
 # ============================================================
 # LIFECYCLE
@@ -63,7 +64,7 @@ func _setup_beat_indicators() -> void:
 	# 4개의 비트 도트 생성
 	for i in range(BEAT_DOT_COUNT):
 		var dot := ColorRect.new()
-		dot.custom_minimum_size = Vector2(16, 16)
+		dot.custom_minimum_size = Vector2(20, 20)
 		dot.color = BEAT_DOT_OFF_COLOR
 		beat_container.add_child(dot)
 		_beat_dots.append(dot)
@@ -75,20 +76,19 @@ func _update_display() -> void:
 	if not key_label or not chord_label:
 		return
 	
-	var key_name := MusicTheory.NOTE_NAMES_CDE[GameManager.current_key % 12]
+	var use_flats := MusicTheory.should_use_flats(GameManager.current_key, GameManager.current_mode)
+	var key_name := MusicTheory.get_note_name(GameManager.current_key, use_flats)
 	var mode_name := "MAJOR" if GameManager.current_mode == MusicTheory.ScaleMode.MAJOR else "MINOR"
 	key_label.text = "[ %s %s ]" % [key_name, mode_name]
 	
 	var chord_root: int = GameManager.current_chord_root
 	var chord_type: String = GameManager.current_chord_type
 	
-	if EventBus.is_sequencer_playing:
-		var sequencer = get_tree().get_first_node_in_group("sequencer")
-		if sequencer:
-			var slot_data = ProgressionManager.get_slot(sequencer.current_step)
-			if slot_data:
-				chord_root = slot_data.root
-				chord_type = slot_data.type
+	if EventBus.is_sequencer_playing and _current_sequencer_step >= 0:
+		var slot_data = ProgressionManager.get_slot(_current_sequencer_step)
+		if slot_data:
+			chord_root = slot_data.root
+			chord_type = slot_data.type
 	
 	if chord_type.is_empty():
 		_fade_out_chord_label()
@@ -96,7 +96,7 @@ func _update_display() -> void:
 	else:
 		chord_label.modulate.a = 1.0
 	
-	var root_name := MusicTheory.NOTE_NAMES_CDE[chord_root % 12]
+	var root_name := MusicTheory.get_note_name(chord_root, use_flats)
 	var new_text := "%s %s" % [root_name, chord_type]
 	
 	chord_label.pivot_offset = chord_label.size / 2.0
@@ -160,7 +160,8 @@ func _on_beat_pulsed() -> void:
 	pulse_tween.tween_property(chord_label, "scale", Vector2(1.0, 1.0), 0.1) \
 		.set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN)
 
-func _on_bar_changed(_slot_index: int) -> void:
+func _on_bar_changed(slot_index: int) -> void:
+	_current_sequencer_step = slot_index
 	_update_display()
 
 func _fade_out_chord_label() -> void:

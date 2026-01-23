@@ -5,7 +5,7 @@ extends Node
 # ============================================================
 # SIGNALS
 # ============================================================
-signal bar_started(slot_index: int)
+
 
 # ============================================================
 # EXPORTS
@@ -30,11 +30,14 @@ var _highlighted_tiles: Array = []
 # LIFECYCLE
 # ============================================================
 func _ready() -> void:
-	add_to_group("sequencer") # HUD에서 찾을 수 있도록
+	add_to_group("sequencer") # TODO: HUD refactoring 후 제거 가능
 	
 	_beat_timer = Timer.new()
 	add_child(_beat_timer)
 	_beat_timer.timeout.connect(_on_beat_tick)
+	
+	EventBus.request_toggle_playback.connect(toggle_play)
+	EventBus.request_stop_playback.connect(stop_and_reset)
 
 # ============================================================
 # PUBLIC API
@@ -43,6 +46,7 @@ func _ready() -> void:
 func toggle_play() -> void:
 	is_playing = !is_playing
 	EventBus.is_sequencer_playing = is_playing
+	EventBus.sequencer_playing_changed.emit(is_playing)
 	
 	if is_playing:
 		_resume_playback()
@@ -65,6 +69,7 @@ func reset_position() -> void:
 func stop_and_reset() -> void:
 	is_playing = false
 	EventBus.is_sequencer_playing = false
+	EventBus.sequencer_playing_changed.emit(false)
 	
 	_pause_playback() # 타이머 정지
 	reset_position() # 위치 및 UI 리셋
@@ -101,7 +106,6 @@ func _pause_playback() -> void:
 func _play_current_bar() -> void:
 	_clear_all_highlights()
 	_apply_slot_to_game()
-	bar_started.emit(current_step)
 	EventBus.bar_changed.emit(current_step)
 	
 	# 첫 번째 비트(0) 처리

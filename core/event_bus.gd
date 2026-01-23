@@ -14,6 +14,9 @@ var is_sequencer_playing: bool = false # 시퀀서 재생 상태 (전역 접근�
 
 signal sequencer_started
 signal sequencer_stopped
+signal sequencer_playing_changed(is_playing: bool) # 재생 상태 변경 알림
+signal request_toggle_playback # 재생/일시정지 토글 요청
+signal request_stop_playback # 정지 및 리셋 요청
 signal bar_changed(slot_index: int)
 signal beat_pulsed # 메트로놈 비트 펄스
 signal beat_updated(beat_index: int, total_beats: int) # 박자 진행 정보
