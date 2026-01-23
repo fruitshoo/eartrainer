@@ -105,12 +105,18 @@ func _pause_playback() -> void:
 # ============================================================
 func _play_current_bar() -> void:
 	_clear_all_highlights()
-	_apply_slot_to_game()
-	EventBus.bar_changed.emit(current_step)
 	
-	# 첫 번째 비트(0) 처리
+	# 1. 게임 상태 업데이트 (Beat 0 이전에 최신 코드 정보 반영)
+	_update_game_state_from_slot()
+	
+	# 2. 첫 번째 비트(0) 처리 및 신호 발송 (타일 청소 -> 새 코드 모양 표시)
 	current_beat = 0
 	_emit_beat()
+	
+	# 3. 실제 아르페지오 재생 (이미 켜진 불빛 위에 강조 효과)
+	_play_slot_strum()
+	
+	EventBus.bar_changed.emit(current_step)
 	
 	# 타이머 시작
 	var beat_duration := 60.0 / GameManager.bpm
@@ -127,13 +133,18 @@ func _on_beat_tick() -> void:
 		# 마디 내 박자 진행
 		_emit_beat()
 
-func _apply_slot_to_game() -> void:
+func _update_game_state_from_slot() -> void:
 	var data = ProgressionManager.get_slot(current_step)
 	if data == null:
 		return
 	
 	GameManager.current_chord_root = data.root
 	GameManager.current_chord_type = data.type
+
+func _play_slot_strum() -> void:
+	var data = ProgressionManager.get_slot(current_step)
+	if data == null:
+		return
 	_play_strum(data)
 
 func _play_strum(data: Dictionary) -> void:
@@ -148,7 +159,7 @@ func _play_strum(data: Dictionary) -> void:
 		var tile = GameManager.find_tile(target_string, target_fret)
 		if tile and is_instance_valid(tile):
 			AudioEngine.play_note(tile.midi_note)
-			tile.apply_sequencer_highlight(Color(1.0, 0.5, 0.2), 3.0)
+			tile.apply_sequencer_highlight(null, 2.0)
 			_highlighted_tiles.append(tile)
 		
 		await get_tree().create_timer(0.05).timeout

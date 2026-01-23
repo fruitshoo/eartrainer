@@ -57,12 +57,14 @@ func _refresh_visuals() -> void:
 	var tier := GameManager.get_tile_tier(midi_note)
 	var is_scale_tone := GameManager.is_in_scale(midi_note)
 	
+	var color := _get_tier_color(tier, is_key_root, is_scale_tone)
+	
 	if not is_in_focus:
 		label.visible = false
 		if is_key_root:
-			_apply_glow(Color(0.8, 0.6, 0.2), 0.3) # 희미한 북극성
+			_apply_glow(color, 0.3) # 희미한 북극성
 		elif is_scale_tone:
-			_apply_glow(Color(0.2, 0.2, 0.2), 0.05) # 가로등
+			_apply_glow(color, 0.05) # 가로등
 		else:
 			_apply_glow(Color(0.05, 0.05, 0.05), 0.0)
 		_reapply_overlay_if_active()
@@ -72,16 +74,25 @@ func _refresh_visuals() -> void:
 	label.visible = true
 	
 	if is_key_root:
-		_apply_glow(Color(1.0, 0.8, 0.2), 2.5) # 북극성 (황금)
+		_apply_glow(color, 2.5) # 북극성 (황금)
 	elif tier <= 2:
-		_apply_glow(Color(0.3, 0.8, 1.0), 1.8) # 코드톤 (하늘색)
+		_apply_glow(color, 1.8) # 코드톤 (하늘색)
 	elif is_scale_tone:
-		_apply_glow(Color(0.4, 0.4, 0.4), 0.3) # 스케일톤 (회색)
+		_apply_glow(color, 0.3) # 스케일톤 (회색)
 	else:
 		label.visible = false
 		_apply_glow(Color(0.05, 0.05, 0.05), 0.0) # 어보이드
 	
 	_reapply_overlay_if_active()
+
+func _get_tier_color(tier: int, is_key_root: bool, is_scale_tone: bool) -> Color:
+	if is_key_root:
+		return Color(1.0, 0.8, 0.2) # 북극성 (황금)
+	elif tier <= 2:
+		return Color(0.3, 0.8, 1.0) # 코드톤 (하늘색)
+	elif is_scale_tone:
+		return Color(0.4, 0.4, 0.4) # 스케일톤 (회색)
+	return Color(0.05, 0.05, 0.05) # 어보이드
 
 func _apply_glow(color: Color, energy: float) -> void:
 	var mat := mesh.get_surface_override_material(0)
@@ -107,11 +118,30 @@ func _apply_glow(color: Color, energy: float) -> void:
 # ============================================================
 
 ## 시퀀서 하이라이트 적용 (기존 시각화 위에 덮어씌움)
-func apply_sequencer_highlight(color: Color, energy: float) -> void:
+## color가 null이면 현재 타일의 기본 색상을 사용함
+func apply_sequencer_highlight(color: Variant, energy: float) -> void:
+	if color == null:
+		# 현재 타일 속성에 맞는 색상 자동 선택
+		var tier := GameManager.get_tile_tier(midi_note)
+		var is_key_root := (midi_note - GameManager.current_key) % 12 == 0
+		var is_scale_tone := GameManager.is_in_scale(midi_note)
+		color = _get_tier_color(tier, is_key_root, is_scale_tone)
+		
 	_overlay_active = true
 	_overlay_color = color
 	_overlay_energy = energy
 	_apply_overlay(color, energy)
+
+## [v0.3] 코드 모양 미리보기 (Beat 0)
+func _show_chord_shape_preview() -> void:
+	if not GameManager.show_hints:
+		return
+		
+	# 포커스 범위 내의 코드톤(tier <= 2)만 미리 보기에 표시
+	if _is_within_focus():
+		var tier := GameManager.get_tile_tier(midi_note)
+		if tier <= 2:
+			apply_sequencer_highlight(null, 0.5)
 
 ## 시퀀서 하이라이트 해제 → 기존 시각화로 복귀
 func clear_sequencer_highlight() -> void:
@@ -135,6 +165,12 @@ func _apply_overlay(color: Color, energy: float) -> void:
 	mat.emission_enabled = true
 	_overlay_tween.tween_property(mat, "emission", color, 0.08)
 	_overlay_tween.tween_property(mat, "emission_energy_multiplier", energy, 0.08)
+	# [v0.3] 플래시 효과: 강하게 켜졌다가(energy) 은은하게 유지(0.5)
+	# 중요: 플래시 후에는 '지속 에너지(0.5)'를 _overlay_energy로 업데이트하여
+	#       _reapply 호출 시 다시 번쩍이지 않고 유지되도록 함
+	_overlay_tween.chain().tween_property(mat, "emission_energy_multiplier", 0.5, 0.4) \
+		.set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT)
+	_overlay_tween.tween_callback(func(): _overlay_energy = 0.5)
 
 ## _refresh_visuals 후 시퀀서가 재생 중이고 오버레이가 활성이면 다시 적용
 func _reapply_overlay_if_active() -> void:
