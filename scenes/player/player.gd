@@ -1,6 +1,7 @@
 extends Node3D
 
 @onready var visual = $Visual
+@onready var landing_particles: GPUParticles3D = $LandingParticles
 
 # ============================================================
 # CONSTANTS
@@ -81,7 +82,11 @@ func jump_to(target_pos: Vector3) -> void:
 	_vertical_tween.finished.connect(_on_land, CONNECT_ONE_SHOT)
 
 func _on_land() -> void:
-	# 착지 시 쫀득한 스케일 효과
+	# 1. 파티클 실행
+	landing_particles.restart() # 이전 파티클이 끝나기 전 다시 눌러도 중첩 실행되게 함
+	landing_particles.emitting = true
+	
+	# 2. 기존의 쫀득한 스케일 효과
 	var juice_tween = create_tween()
 	juice_tween.tween_property(visual, "scale", Vector3(1.3, 0.7, 1.3), 0.04)
 	juice_tween.tween_property(visual, "scale", Vector3(1.0, 1.0, 1.0), 0.08)
