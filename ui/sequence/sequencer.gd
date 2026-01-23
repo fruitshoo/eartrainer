@@ -159,7 +159,7 @@ func _play_strum(data: Dictionary) -> void:
 		var tile = GameManager.find_tile(target_string, target_fret)
 		if tile and is_instance_valid(tile):
 			AudioEngine.play_note(tile.midi_note)
-			tile.apply_sequencer_highlight(null, 2.0)
+			tile.apply_sequencer_highlight(null)
 			_highlighted_tiles.append(tile)
 		
 		await get_tree().create_timer(0.05).timeout

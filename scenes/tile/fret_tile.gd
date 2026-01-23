@@ -8,7 +8,15 @@ extends Area3D
 var string_index: int = 0
 var fret_index: int = 0
 var midi_note: int = 0
+@export_group("Focus Settings")
+@export var idle_energy: float = 0.05
+@export var root_focus_energy: float = 1.0
+@export var chord_focus_energy: float = 0.5
+@export var scale_focus_energy: float = 0.1
 
+@export_group("Sequencer Settings")
+@export var sustain_energy: float = 0.8
+@export var attack_energy: float = 2.5
 # ============================================================
 # NODE REFERENCES
 # ============================================================
@@ -65,9 +73,9 @@ func _refresh_visuals() -> void:
 	if not is_in_focus:
 		label.visible = false
 		if is_key_root:
-			_apply_glow(color, 0.3) # 희미한 북극성
+			_apply_glow(color, 0.3) # 희미한 북극성 -> TODO: 이것도 변수화 고려
 		elif is_scale_tone:
-			_apply_glow(color, 0.05) # 가로등
+			_apply_glow(color, idle_energy) # 가로등
 		else:
 			_apply_glow(Color(0.05, 0.05, 0.05), 0.0)
 		_reapply_overlay_if_active()
@@ -77,11 +85,11 @@ func _refresh_visuals() -> void:
 	label.visible = true
 	
 	if is_key_root:
-		_apply_glow(color, 2.5) # 북극성 (황금)
+		_apply_glow(color, root_focus_energy) # 북극성 (황금)
 	elif tier <= 2:
-		_apply_glow(color, 1.8) # 코드톤 (하늘색)
+		_apply_glow(color, chord_focus_energy) # 코드톤 (하늘색)
 	elif is_scale_tone:
-		_apply_glow(color, 0.3) # 스케일톤 (회색)
+		_apply_glow(color, scale_focus_energy) # 스케일톤 (회색)
 	else:
 		label.visible = false
 		_apply_glow(Color(0.05, 0.05, 0.05), 0.0) # 어보이드
@@ -122,13 +130,17 @@ func _apply_glow(color: Color, energy: float) -> void:
 
 ## 시퀀서 하이라이트 적용 (기존 시각화 위에 덮어씌움)
 ## color가 null이면 현재 타일의 기본 색상을 사용함
-func apply_sequencer_highlight(color: Variant, energy: float) -> void:
+## energy가 -1.0(기본값)이면 Sequencer Settings의 attack_energy를 사용함
+func apply_sequencer_highlight(color: Variant, energy: float = -1.0) -> void:
 	if color == null:
 		# 현재 타일 속성에 맞는 색상 자동 선택
 		var tier := GameManager.get_tile_tier(midi_note)
 		var is_key_root := (midi_note - GameManager.current_key) % 12 == 0
 		var is_scale_tone := GameManager.is_in_scale(midi_note)
 		color = _get_tier_color(tier, is_key_root, is_scale_tone)
+	
+	if energy < 0:
+		energy = attack_energy
 		
 	_overlay_active = true
 	_overlay_color = color
@@ -145,7 +157,7 @@ func _show_chord_shape_preview() -> void:
 	if _is_within_focus():
 		var tier := GameManager.get_tile_tier(midi_note)
 		if tier <= 2:
-			apply_sequencer_highlight(null, 0.5)
+			apply_sequencer_highlight(null, sustain_energy)
 
 ## 시퀀서 하이라이트 해제 → 기존 시각화로 복귀
 func clear_sequencer_highlight() -> void:
@@ -169,12 +181,12 @@ func _apply_overlay(color: Color, energy: float) -> void:
 	mat.emission_enabled = true
 	_overlay_tween.tween_property(mat, "emission", color, 0.08)
 	_overlay_tween.tween_property(mat, "emission_energy_multiplier", energy, 0.08)
-	# [v0.3] 플래시 효과: 강하게 켜졌다가(energy) 은은하게 유지(0.5)
-	# 중요: 플래시 후에는 '지속 에너지(0.5)'를 _overlay_energy로 업데이트하여
+	# [v0.3] 플래시 효과: 강하게 켜졌다가(energy) 은은하게 유지(sustain_energy)
+	# 중요: 플래시 후에는 '지속 에너지'를 _overlay_energy로 업데이트하여
 	#       _reapply 호출 시 다시 번쩍이지 않고 유지되도록 함
-	_overlay_tween.chain().tween_property(mat, "emission_energy_multiplier", 0.5, 0.4) \
+	_overlay_tween.chain().tween_property(mat, "emission_energy_multiplier", sustain_energy, 0.4) \
 		.set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT)
-	_overlay_tween.tween_callback(func(): _overlay_energy = 0.5)
+	_overlay_tween.tween_callback(func(): _overlay_energy = sustain_energy)
 
 ## _refresh_visuals 후 시퀀서가 재생 중이고 오버레이가 활성이면 다시 적용
 func _reapply_overlay_if_active() -> void:
