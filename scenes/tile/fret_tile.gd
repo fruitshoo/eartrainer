@@ -8,6 +8,12 @@ extends Area3D
 var string_index: int = 0
 var fret_index: int = 0
 var midi_note: int = 0
+@export_group("Theme Colors")
+@export var root_color: Color = Color(1.0, 0.8, 0.2)
+@export var chord_color: Color = Color(0.3, 0.8, 1.0)
+@export var scale_color: Color = Color(0.4, 0.4, 0.4)
+@export var avoid_color: Color = Color(0.05, 0.05, 0.05)
+
 @export_group("Focus Settings")
 @export var idle_energy: float = 0.05
 @export var root_focus_energy: float = 1.0
@@ -98,12 +104,12 @@ func _refresh_visuals() -> void:
 
 func _get_tier_color(tier: int, is_key_root: bool, is_scale_tone: bool) -> Color:
 	if is_key_root:
-		return Color(1.0, 0.8, 0.2) # 북극성 (황금)
+		return root_color
 	elif tier <= 2:
-		return Color(0.3, 0.8, 1.0) # 코드톤 (하늘색)
+		return chord_color
 	elif is_scale_tone:
-		return Color(0.4, 0.4, 0.4) # 스케일톤 (회색)
-	return Color(0.05, 0.05, 0.05) # 어보이드
+		return scale_color
+	return avoid_color
 
 func _apply_glow(color: Color, energy: float) -> void:
 	var mat := mesh.get_surface_override_material(0)

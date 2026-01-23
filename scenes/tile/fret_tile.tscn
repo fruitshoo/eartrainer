@@ -14,6 +14,7 @@ size = Vector3(1.4, 0.1, 1.4)
 
 [node name="FretTile" type="Area3D" unique_id=403137249 groups=["fret_tiles"]]
 script = ExtResource("1_jtpmk")
+chord_color = Color(0.3019608, 0.8, 1, 1)
 sustain_energy = 1.5
 
 [node name="MeshInstance3D" type="MeshInstance3D" parent="." unique_id=207382635]
