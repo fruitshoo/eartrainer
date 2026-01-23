@@ -26,6 +26,9 @@ var _overlay_tween: Tween = null
 var _overlay_color: Color = Color.TRANSPARENT
 var _overlay_energy: float = 0.0
 
+# [v0.3] 애니메이션 전용 상태 (충돌 방지)
+var _anim_tween: Tween = null
+
 # ============================================================
 # LIFECYCLE
 # ============================================================
@@ -131,6 +134,7 @@ func apply_sequencer_highlight(color: Variant, energy: float) -> void:
 	_overlay_color = color
 	_overlay_energy = energy
 	_apply_overlay(color, energy)
+	_animate_press() # [v0.3] 연주 시 '눌림' 효과 추가
 
 ## [v0.3] 코드 모양 미리보기 (Beat 0)
 func _show_chord_shape_preview() -> void:
@@ -193,6 +197,7 @@ func _input_event(_camera: Camera3D, event: InputEvent, _pos: Vector3, _normal: 
 		var is_shift := Input.is_key_pressed(KEY_SHIFT)
 		var is_alt := Input.is_key_pressed(KEY_ALT)
 		_on_clicked(is_shift, is_alt)
+		_animate_press() # [v0.3] 클릭 시 '눌림' 효과
 
 func _on_clicked(is_shift: bool, is_alt: bool) -> void:
 	# [v0.3] 모든 직접 호출 제거 → EventBus로 이벤트만 발생
@@ -211,3 +216,23 @@ func _is_within_focus() -> bool:
 
 func _is_key_root() -> bool:
 	return (midi_note - GameManager.current_key) % 12 == 0
+
+## [v0.3] 물리적 눌림 효과 (Press & Pop)
+func _animate_press() -> void:
+	if _anim_tween:
+		_anim_tween.kill()
+	
+	# Position으로 확실한 깊이감 + Scale로 쫀득함 추가
+	_anim_tween = create_tween()
+	
+	# 1. Press (Down): 빠르고 깊게 (-0.1)
+	_anim_tween.tween_property(mesh, "position:y", -0.1, 0.05) \
+		.set_trans(Tween.TRANS_QUART).set_ease(Tween.EASE_OUT)
+	_anim_tween.parallel().tween_property(mesh, "scale", Vector3(0.95, 0.95, 0.95), 0.05) \
+		.set_trans(Tween.TRANS_QUART).set_ease(Tween.EASE_OUT)
+	
+	# 2. Pop (Up): 탄력 있게 복귀 (TRANS_BACK)
+	_anim_tween.tween_property(mesh, "position:y", 0.0, 0.15) \
+		.set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	_anim_tween.parallel().tween_property(mesh, "scale", Vector3.ONE, 0.15) \
+		.set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
