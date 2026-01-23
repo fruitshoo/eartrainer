@@ -11,8 +11,12 @@ enum ScaleMode {MAJOR, MINOR}
 # ============================================================
 # CONSTANTS - 음이름
 # ============================================================
-const NOTE_NAMES_CDE: Array[String] = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"]
-const NOTE_NAMES_DOREMI: Array[String] = ["도", "도#", "레", "레#", "미", "파", "파#", "솔", "솔#", "라", "라#", "시"]
+const NOTE_NAMES_SHARP: Array[String] = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"]
+const NOTE_NAMES_FLAT: Array[String] = ["C", "Db", "D", "Eb", "E", "F", "Gb", "G", "Ab", "A", "Bb", "B"]
+const NOTE_NAMES_CDE: Array[String] = NOTE_NAMES_SHARP
+const NOTE_NAMES_DOREMI_SHARP: Array[String] = ["도", "도#", "레", "레#", "미", "파", "파#", "솔", "솔#", "라", "라#", "시"]
+const NOTE_NAMES_DOREMI_FLAT: Array[String] = ["도", "레b", "레", "미b", "미", "파", "솔b", "솔", "라b", "라", "시b", "시"]
+const NOTE_NAMES_DOREMI: Array[String] = NOTE_NAMES_DOREMI_SHARP
 
 # ============================================================
 # CONSTANTS - 스케일 & 코드
@@ -23,8 +27,8 @@ const SCALE_INTERVALS := {
 }
 
 const CHORD_INTERVALS := {
-	"Maj7": [0, 4, 7, 11],
-	"Dom7": [0, 4, 7, 10],
+	"M7": [0, 4, 7, 11],
+	"7": [0, 4, 7, 10],
 	"m7": [0, 3, 7, 10],
 	"m7b5": [0, 3, 6, 10]
 }
@@ -39,22 +43,22 @@ const OPEN_STRING_MIDI := [40, 45, 50, 55, 59, 64]
 # ============================================================
 const DIATONIC_MAP := {
 	ScaleMode.MAJOR: {
-		KEY_1: [0, "Maj7", "I"],
+		KEY_1: [0, "M7", "I"],
 		KEY_2: [2, "m7", "ii"],
 		KEY_3: [4, "m7", "iii"],
-		KEY_4: [5, "Maj7", "IV"],
-		KEY_5: [7, "Dom7", "V"],
+		KEY_4: [5, "M7", "IV"],
+		KEY_5: [7, "7", "V"],
 		KEY_6: [9, "m7", "vi"],
 		KEY_7: [11, "m7b5", "vii°"]
 	},
 	ScaleMode.MINOR: {
 		KEY_1: [0, "m7", "i"],
 		KEY_2: [2, "m7b5", "ii°"],
-		KEY_3: [3, "Maj7", "bIII"],
+		KEY_3: [3, "M7", "bIII"],
 		KEY_4: [5, "m7", "iv"],
 		KEY_5: [7, "m7", "v"],
-		KEY_6: [8, "Maj7", "bVI"],
-		KEY_7: [10, "Dom7", "bVII"]
+		KEY_6: [8, "M7", "bVI"],
+		KEY_7: [10, "7", "bVII"]
 	}
 }
 
@@ -77,22 +81,50 @@ const DEGREE_LABELS := {
 # ============================================================
 const VOICING_SHAPES := {
 	"6th_string": {
-		"Maj7": [[0, 0], [2, 1], [3, 1], [4, 0]],
-		"Dom7": [[0, 0], [2, 0], [3, 1], [4, 0]],
+		"M7": [[0, 0], [2, 1], [3, 1], [4, 0]],
+		"7": [[0, 0], [2, 0], [3, 1], [4, 0]],
 		"m7": [[0, 0], [2, 0], [3, 0], [4, 0]],
 		"m7b5": [[0, 0], [2, 0], [3, 0], [4, -1]]
 	},
 	"5th_string": {
-		"Maj7": [[0, 0], [1, 2], [2, 1], [3, 2]],
-		"Dom7": [[0, 0], [1, 2], [2, 0], [3, 2]],
+		"M7": [[0, 0], [1, 2], [2, 1], [3, 2]],
+		"7": [[0, 0], [1, 2], [2, 0], [3, 2]],
 		"m7": [[0, 0], [1, 2], [2, 0], [3, 1]],
 		"m7b5": [[0, 0], [1, 1], [2, 0], [3, 1]]
 	}
 }
 
 # ============================================================
-# STATIC FUNCTIONS - 스케일 & 코드 판별
+# STATIC FUNCTIONS - 음이름 & 표기법
 # ============================================================
+
+## 현재 키/모드에 따라 Flat 표기를 사용할지 결정
+static func should_use_flats(key_root: int, mode: ScaleMode) -> bool:
+	var root_index := key_root % 12
+	if mode == ScaleMode.MAJOR:
+		# F(5), Bb(10), Eb(3), Ab(8), Db(1), Gb(6) Major -> Flat
+		return root_index in [1, 3, 5, 6, 8, 10]
+	else:
+		# C(0), D(2), Eb(3), F(5), G(7), Bb(10) Minor -> Flat
+		# (Note: Minor keys relative to Major flat keys)
+		return root_index in [0, 2, 3, 5, 7, 10]
+
+## MIDI 노트 번호에 해당하는 음이름 반환 (Flat/Sharp 자동 처리)
+static func get_note_name(midi_note: int, use_flats: bool = false) -> String:
+	var index := midi_note % 12
+	if use_flats:
+		return NOTE_NAMES_FLAT[index]
+	return NOTE_NAMES_SHARP[index]
+
+## DoReMi 표기법 반환 (Flat/Sharp 자동 처리)
+static func get_doremi_name(relative_note: int, use_flats: bool = false) -> String:
+	var index := relative_note % 12
+	# 음수 인덱스 처리
+	if index < 0: index += 12
+		
+	if use_flats:
+		return NOTE_NAMES_DOREMI_FLAT[index]
+	return NOTE_NAMES_DOREMI_SHARP[index]
 
 ## 해당 음이 스케일에 포함되는지 확인
 static func is_in_scale(midi_note: int, key_root: int, mode: ScaleMode) -> bool:
@@ -124,18 +156,18 @@ static func get_diatonic_type(midi_note: int, key_root: int, mode: ScaleMode) ->
 	for key_code in DIATONIC_MAP[mode]:
 		var data: Array = DIATONIC_MAP[mode][key_code]
 		if data[0] == interval:
-			return data[1] # "Maj7", "m7" 등
+			return data[1] # "M7", "m7" 등
 	
-	return "Maj7" # 크로매틱 음에 대한 기본값
+	return "M7" # 크로매틱 음에 대한 기본값
 
 ## Maj7 ↔ m7 토글 (Alt 키용)
 static func toggle_quality(current_type: String) -> String:
 	match current_type:
-		"Maj7": return "m7"
-		"m7": return "Maj7"
-		"Dom7": return "m7"
+		"M7": return "m7"
+		"m7": return "M7"
+		"7": return "m7"
 		"m7b5": return "m7"
-		_: return "Maj7"
+		_: return "M7"
 
 # ============================================================
 # STATIC FUNCTIONS - 도수 레이블

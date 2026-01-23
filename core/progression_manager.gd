@@ -58,7 +58,7 @@ func set_slot_from_tile(midi_note: int, string_index: int, is_shift: bool, is_al
 	
 	# 2. 보조키 수정자 적용
 	if is_shift:
-		chord_type = "Dom7"
+		chord_type = "7"
 	elif is_alt:
 		chord_type = MusicTheory.toggle_quality(chord_type)
 	

@@ -47,7 +47,7 @@ var current_chord_root: int = 0:
 		current_chord_root = value
 		settings_changed.emit()
 
-var current_chord_type: String = "Maj7":
+var current_chord_type: String = "M7":
 	set(value):
 		current_chord_type = value
 		settings_changed.emit()
@@ -100,14 +100,15 @@ func get_tile_tier(midi_note: int) -> int:
 
 ## 음 이름 반환 (노테이션 모드에 따라)
 func get_note_label(midi_note: int) -> String:
-	var pitch_class := midi_note % 12
-	# [수정] := 대신 : String = 을 사용하여 타입을 명시합니다.
-	var fixed_name: String = MusicTheory.NOTE_NAMES_CDE[pitch_class]
+	var use_flats := MusicTheory.should_use_flats(current_key, current_mode)
 	
+	# 1. CDE 표기 (Fixed)
+	var fixed_name: String = MusicTheory.get_note_name(midi_note, use_flats)
+	
+	# 2. DoReMi 표기 (Relative)
 	var relative := (midi_note - current_key) % 12
 	if relative < 0: relative += 12
-	# [수정] 여기도 타입을 명시합니다.
-	var movable_name: String = MusicTheory.NOTE_NAMES_DOREMI[relative]
+	var movable_name: String = MusicTheory.get_doremi_name(relative, use_flats)
 	
 	match current_notation:
 		MusicTheory.NotationMode.CDE:
