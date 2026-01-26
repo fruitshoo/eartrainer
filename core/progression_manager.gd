@@ -48,6 +48,7 @@ func _ready() -> void:
 		for i in range(bar_count):
 			bar_densities.append(1)
 	_resize_slots()
+	call_deferred("load_session") # [Persistence] Auto-load last session
 
 func _on_tile_clicked(midi_note: int, string_index: int, modifiers: Dictionary) -> void:
 	var is_shift: bool = modifiers.get("shift", false)
@@ -73,6 +74,7 @@ func update_settings(new_bar_count: int, _dummy_density: int = 1) -> void:
 	
 	_resize_slots()
 	settings_updated.emit(bar_count, 1) # 두 번째 인자는 이제 의미 없음
+	save_session()
 
 ## 특정 마디의 분할 상태 토글 (1 <-> 2)
 func toggle_bar_split(bar_index: int) -> void:
@@ -87,6 +89,7 @@ func toggle_bar_split(bar_index: int) -> void:
 	# 여기서는 "전체 재구성" 로직이 필요함.
 	_reconstruct_slots()
 	settings_updated.emit(bar_count, 1)
+	save_session()
 
 ## 슬롯 인덱스로부터 해당 슬롯의 박자 길이(Duration) 반환
 func get_beats_for_slot(slot_index: int) -> int:
@@ -139,6 +142,8 @@ func set_slot_from_tile(midi_note: int, string_index: int, is_shift: bool, is_al
 	# 4. 입력 완료 → 선택 해제
 	selected_index = -1
 	selection_cleared.emit()
+	
+	save_session()
 
 ## 특정 슬롯의 데이터 반환
 func get_slot(index: int) -> Variant:
@@ -152,6 +157,7 @@ func clear_all() -> void:
 		slots[i] = null
 		slot_updated.emit(i, {}) # UI 갱신용 빈 데이터
 	selected_index = -1
+	save_session()
 
 ## 특정 슬롯 초기화
 func clear_slot(index: int) -> void:
@@ -161,6 +167,7 @@ func clear_slot(index: int) -> void:
 		if selected_index == index:
 			selected_index = -1
 			selection_cleared.emit()
+	save_session()
 
 ## 내부: 슬롯 배열 완전히 재구성 (Split 변경 시)
 ## 주의: 기존 데이터 위치가 밀릴 수 있음. (간단하게 구현: 리사이즈만 하고 데이터 이동은 일단 패스?)
@@ -184,3 +191,77 @@ func _resize_slots() -> void:
 	
 	if selected_index >= new_total:
 		selected_index = -1
+
+# ============================================================
+# PERSISTENCE (Auto-save)
+# ============================================================
+const SAVE_PATH_SESSION = "user://last_session.json"
+
+func _notification(what: int) -> void:
+	if what == NOTIFICATION_WM_CLOSE_REQUEST:
+		save_session()
+
+## 세션 자동 저장
+func save_session() -> void:
+	var data = {
+		"version": 1,
+		"bar_count": bar_count,
+		"bar_densities": bar_densities,
+		"slots": slots
+	}
+	_save_json(SAVE_PATH_SESSION, data)
+	print("[ProgressionManager] Session saved.")
+
+## 세션 자동 불러오기
+func load_session() -> void:
+	if not FileAccess.file_exists(SAVE_PATH_SESSION):
+		return
+		
+	var data = _load_json(SAVE_PATH_SESSION)
+	if data:
+		_deserialize_data(data)
+		print("[ProgressionManager] Session loaded.")
+
+func _deserialize_data(data: Dictionary) -> void:
+	bar_count = data.get("bar_count", 4)
+	
+	var saved_densities = data.get("bar_densities", [])
+	if saved_densities.size() > 0:
+		bar_densities.clear()
+		for d in saved_densities:
+			bar_densities.append(int(d))
+	else:
+		# Fallback
+		bar_densities.clear()
+		for i in range(bar_count):
+			bar_densities.append(1)
+	
+	_resize_slots()
+	
+	var saved_slots = data.get("slots", [])
+	for i in range(min(slots.size(), saved_slots.size())):
+		slots[i] = saved_slots[i]
+	
+	# UI 리프레시를 위해 시그널 방출
+	settings_updated.emit(bar_count, 1) # Note: second arg unused now
+	for i in range(slots.size()):
+		slot_updated.emit(i, slots[i] if slots[i] else {})
+
+# --- File I/O Helpers ---
+
+func _save_json(path: String, data: Dictionary) -> void:
+	var file = FileAccess.open(path, FileAccess.WRITE)
+	if file:
+		file.store_string(JSON.stringify(data, "\t"))
+		file.close()
+
+func _load_json(path: String) -> Variant:
+	var file = FileAccess.open(path, FileAccess.READ)
+	if file:
+		var text = file.get_as_text()
+		file.close()
+		var json = JSON.new()
+		var error = json.parse(text)
+		if error == OK:
+			return json.data
+	return null
