@@ -29,10 +29,15 @@ func _ready() -> void:
 	_sync_from_game_manager()
 	_connect_signals()
 	
+	visibility_changed.connect(_on_visibility_changed)
 	visible = false
 
 func _on_request_toggle_settings() -> void:
 	visible = !visible
+
+func _on_visibility_changed() -> void:
+	if visible:
+		_sync_from_game_manager()
 
 # ============================================================
 # SETUP

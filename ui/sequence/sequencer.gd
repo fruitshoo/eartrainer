@@ -78,44 +78,47 @@ func stop_and_reset() -> void:
 # ============================================================
 # PLAYBACK CONTROL
 # ============================================================
+# ============================================================
+# PLAYBACK CONTROL
+# ============================================================
 func _resume_playback() -> void:
 	var beat_duration := 60.0 / GameManager.bpm
 	
 	if not _is_paused:
 		# 처음 시작
-		current_step = 0
-		current_beat = 0
-		_play_current_bar()
+		current_step = 0 # Slot Index
+		current_beat = 0 # Beat within current slot
+		_play_current_step()
 	else:
-		# 일시정지 해제: 현재 상태에서 계속 진행
+		# 일시정지 해제
 		if current_beat == 0:
-			# 마디 시작점이면 전체 로직 실행
-			_play_current_bar()
+			_play_current_step()
 		else:
-			# 마디 중간이면 타이머만 재개 (다음 박자 대기)
 			_beat_timer.start(beat_duration)
 
 func _pause_playback() -> void:
 	_is_paused = true
 	_beat_timer.stop()
-	# 하이라이트와 비트 인디케이터는 끄지 않음 (위치 확인용)
 
 # ============================================================
 # PLAYBACK LOGIC
 # ============================================================
-func _play_current_bar() -> void:
+func _play_current_step() -> void:
 	_clear_all_highlights()
 	
-	# 1. 게임 상태 업데이트 (Beat 0 이전에 최신 코드 정보 반영)
+	# 1. 게임 상태 업데이트
 	_update_game_state_from_slot()
 	
-	# 2. 첫 번째 비트(0) 처리 및 신호 발송 (타일 청소 -> 새 코드 모양 표시)
+	# 2. 첫 번째 비트 처리
 	current_beat = 0
 	_emit_beat()
 	
-	# 3. 실제 아르페지오 재생 (이미 켜진 불빛 위에 강조 효과)
+	# 3. 아르페지오 재생
 	_play_slot_strum()
 	
+	# 슬롯 변경 알림 (UI 하이라이트용)
+	# EventBus.bar_changed -> 이름을 slot_changed로 바꾸면 좋겠지만 
+	# 호환성을 위해 의미만 슬롯 인덱스로 사용
 	EventBus.bar_changed.emit(current_step)
 	
 	# 타이머 시작
@@ -124,14 +127,37 @@ func _play_current_bar() -> void:
 
 func _on_beat_tick() -> void:
 	current_beat += 1
+	var density = ProgressionManager.chords_per_bar
+	var beats_per_slot = int(beats_per_bar / density)
 	
-	if current_beat >= beats_per_bar:
-		# 마디 끝 -> 다음 마디로
-		current_step = (current_step + 1) % ProgressionManager.SLOT_COUNT
-		_play_current_bar()
+	if current_beat >= beats_per_slot:
+		# 슬롯 종료 -> 다음 슬롯으로
+		current_step = (current_step + 1) % ProgressionManager.total_slots
+		_play_current_step()
 	else:
-		# 마디 내 박자 진행
+		# 슬롯 내 박자 진행
 		_emit_beat()
+
+func _emit_beat() -> void:
+	# UI에 표시할 "마디 내 현재 박자" 계산
+	# 예: 4/4박자, 2분할 시
+	# 슬롯 0 (첫 2박): current_beat 0 -> bar_beat 0
+	#                current_beat 1 -> bar_beat 1
+	# 슬롯 1 (뒛 2박): current_beat 0 -> bar_beat 2
+	#                current_beat 1 -> bar_beat 3
+	var density = ProgressionManager.chords_per_bar
+	var beats_per_slot = int(beats_per_bar / density)
+	
+	# 현재 슬롯이 마디의 몇 번째 파트인지 확인
+	# 슬롯 인덱스 % density 하면 됨
+	# density=1 이면 항상 0
+	# density=2 이면 0(앞), 1(뒤)
+	var sub_index = current_step % density
+	var bar_relative_beat = (sub_index * beats_per_slot) + current_beat
+	
+	# EventBus에 전달
+	EventBus.beat_updated.emit(bar_relative_beat, beats_per_bar)
+	EventBus.beat_pulsed.emit()
 
 func _update_game_state_from_slot() -> void:
 	var data = ProgressionManager.get_slot(current_step)
@@ -172,10 +198,3 @@ func _clear_all_highlights() -> void:
 		if is_instance_valid(tile):
 			tile.clear_sequencer_highlight()
 	_highlighted_tiles.clear()
-
-## 현재 비트 정보를 EventBus에 알리고 펄스 신호를 발생시킵니다.
-func _emit_beat() -> void:
-	# EventBus에 현재 비트 인덱스와 전체 비트 수를 전달 (도트 업데이트용)
-	EventBus.beat_updated.emit(current_beat, beats_per_bar)
-	# 메트로놈과 HUD 애니메이션을 위한 펄스 신호 발생
-	EventBus.beat_pulsed.emit()

@@ -1,8 +1,7 @@
 [gd_scene format=3 uid="uid://bkug7wowkh7rj"]
 
 [ext_resource type="Script" uid="uid://bsdpwnsgbewcs" path="res://ui/settings/settings_ui.gd" id="1_mv08y"]
-[ext_resource type="Theme" path="res://ui/resources/main_theme.tres" id="2_1ub5d"]
-[ext_resource type="LabelSettings" path="res://ui/resources/settings_label_style.tres" id="2_hmly7"]
+[ext_resource type="Theme" uid="uid://b6x5n4w0q2x3" path="res://ui/resources/main_theme.tres" id="2_1ub5d"]
 
 [node name="SettingsUI" type="CanvasLayer" unique_id=77076675]
 script = ExtResource("1_mv08y")
@@ -24,7 +23,6 @@ layout_mode = 2
 [node name="Label" type="Label" parent="RootMargin/PanelContainer/VBoxContainer" unique_id=2065183710]
 layout_mode = 2
 text = "Settings"
-label_settings = ExtResource("2_hmly7")
 horizontal_alignment = 1
 
 [node name="KeySetting" type="HBoxContainer" parent="RootMargin/PanelContainer/VBoxContainer" unique_id=1171006614]
@@ -34,7 +32,6 @@ layout_mode = 2
 custom_minimum_size = Vector2(140, 0)
 layout_mode = 2
 text = "Root Key"
-label_settings = ExtResource("2_hmly7")
 
 [node name="KeyOptionButton" type="OptionButton" parent="RootMargin/PanelContainer/VBoxContainer/KeySetting" unique_id=1622448657]
 unique_name_in_owner = true
@@ -48,7 +45,6 @@ layout_mode = 2
 custom_minimum_size = Vector2(140, 0)
 layout_mode = 2
 text = "Scale Mode"
-label_settings = ExtResource("2_hmly7")
 
 [node name="ModeOptionButton" type="OptionButton" parent="RootMargin/PanelContainer/VBoxContainer/ModeSetting" unique_id=246102457]
 unique_name_in_owner = true
@@ -62,7 +58,6 @@ layout_mode = 2
 custom_minimum_size = Vector2(140, 0)
 layout_mode = 2
 text = "Notation"
-label_settings = ExtResource("2_hmly7")
 
 [node name="NotationOptionButton" type="OptionButton" parent="RootMargin/PanelContainer/VBoxContainer/NotationSetting" unique_id=1647387007]
 unique_name_in_owner = true
@@ -76,7 +71,6 @@ layout_mode = 2
 custom_minimum_size = Vector2(140, 0)
 layout_mode = 2
 text = "Show Label"
-label_settings = ExtResource("2_hmly7")
 
 [node name="HintCheckButton" type="CheckButton" parent="RootMargin/PanelContainer/VBoxContainer/HintSetting" unique_id=1286333677]
 unique_name_in_owner = true
@@ -103,7 +97,6 @@ unique_name_in_owner = true
 custom_minimum_size = Vector2(20, 0)
 layout_mode = 2
 text = "3"
-label_settings = ExtResource("2_hmly7")
 horizontal_alignment = 1
 vertical_alignment = 1
 
@@ -133,7 +126,6 @@ layout_mode = 2
 custom_minimum_size = Vector2(140, 0)
 layout_mode = 2
 text = "Metronome"
-label_settings = ExtResource("2_hmly7")
 
 [node name="MetronomeToggle" type="CheckButton" parent="RootMargin/PanelContainer/VBoxContainer/HBoxContainer" unique_id=1863015900]
 unique_name_in_owner = true
