@@ -29,8 +29,8 @@ fov = 12.0
 size = 12.0
 script = ExtResource("3_l3cfh")
 
-[node name="SettingsUI" parent="." unique_id=77076675 instance=ExtResource("3_k2fmo")]
+[node name="HUD" parent="." unique_id=867313363 instance=ExtResource("6_hujxm")]
 
 [node name="SequenceUI" parent="." unique_id=1004823414 instance=ExtResource("6_ow5a4")]
 
-[node name="HUD" parent="." unique_id=867313363 instance=ExtResource("6_hujxm")]
+[node name="SettingsUI" parent="." unique_id=77076675 instance=ExtResource("3_k2fmo")]

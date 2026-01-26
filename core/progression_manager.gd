@@ -15,11 +15,19 @@ signal settings_updated(bar_count: int, chords_per_bar: int) # [New] 설정 변�
 # STATE VARIABLES
 # ============================================================
 var bar_count: int = 4
-var chords_per_bar: int = 1
+
+# var chords_per_bar: int = 1 # Replaced by bar_densities
+
+# 각 마디별 코드 개수 (1 or 2)
+var bar_densities: Array[int] = []
 
 # 총 슬롯 개수 계산 속성
 var total_slots: int:
-	get: return bar_count * chords_per_bar
+	get:
+		var sum = 0
+		for d in bar_densities:
+			sum += d
+		return sum
 
 var selected_index: int = -1:
 	set(value):
@@ -35,7 +43,11 @@ var slots: Array = []
 # ============================================================
 func _ready() -> void:
 	EventBus.tile_clicked.connect(_on_tile_clicked)
-	_resize_slots() # 초기화
+	# 초기화: 기본 4마디, 마디당 1코드
+	if bar_densities.is_empty():
+		for i in range(bar_count):
+			bar_densities.append(1)
+	_resize_slots()
 
 func _on_tile_clicked(midi_note: int, string_index: int, modifiers: Dictionary) -> void:
 	var is_shift: bool = modifiers.get("shift", false)
@@ -47,12 +59,56 @@ func _on_tile_clicked(midi_note: int, string_index: int, modifiers: Dictionary) 
 # ============================================================
 
 ## 시퀀서 설정 변경 (마디 수, 분할)
-func update_settings(new_bar_count: int, new_chords_per_bar: int) -> void:
+## 시퀀서 설정 변경 (마디 수) - 기존 호환성 유지 (Reset)
+func update_settings(new_bar_count: int, _dummy_density: int = 1) -> void:
 	bar_count = clampi(new_bar_count, 2, 8)
-	chords_per_bar = clampi(new_chords_per_bar, 1, 2) # 1=한마디1코드, 2=한마디2코드
+	
+	# 마디 수가 바뀌면 density 배열 재설정 (일단 단순화: 기존 값 유지 노력 or 리셋)
+	# 여기서는 리셋 없이 크기만 조정
+	if bar_densities.size() < bar_count:
+		while bar_densities.size() < bar_count:
+			bar_densities.append(1)
+	elif bar_densities.size() > bar_count:
+		bar_densities.resize(bar_count)
 	
 	_resize_slots()
-	settings_updated.emit(bar_count, chords_per_bar)
+	settings_updated.emit(bar_count, 1) # 두 번째 인자는 이제 의미 없음
+
+## 특정 마디의 분할 상태 토글 (1 <-> 2)
+func toggle_bar_split(bar_index: int) -> void:
+	if bar_index < 0 or bar_index >= bar_densities.size():
+		return
+	
+	var current = bar_densities[bar_index]
+	bar_densities[bar_index] = 2 if current == 1 else 1
+	
+	# 슬롯 데이터 재구성 (복잡함: 해당 마디의 슬롯이 늘어나거나 줄어듦)
+	# _resize_slots는 단순히 뒤에 추가/삭제하므로 안됨.
+	# 여기서는 "전체 재구성" 로직이 필요함.
+	_reconstruct_slots()
+	settings_updated.emit(bar_count, 1)
+
+## 슬롯 인덱스로부터 해당 슬롯의 박자 길이(Duration) 반환
+func get_beats_for_slot(slot_index: int) -> int:
+	# 슬롯 인덱스를 순회하며 어느 마디에 속하는지 찾음
+	var current_slot = 0
+	for density in bar_densities:
+		var next_boundary = current_slot + density
+		if slot_index < next_boundary:
+			# 찾음! density가 1이면 4박자, 2면 2박자
+			return 4 if density == 1 else 2
+		current_slot = next_boundary
+	return 4 # Fallback
+
+## 슬롯 인덱스가 속한 "마디 인덱스" 반환
+func get_bar_index_for_slot(slot_index: int) -> int:
+	var current_slot = 0
+	for i in range(bar_densities.size()):
+		var density = bar_densities[i]
+		if slot_index < current_slot + density:
+			return i
+		current_slot += density
+	return -1
 
 ## 타일 클릭 시 현재 슬롯에 코드 데이터 저장
 func set_slot_from_tile(midi_note: int, string_index: int, is_shift: bool, is_alt: bool) -> void:
@@ -106,7 +162,23 @@ func clear_slot(index: int) -> void:
 			selected_index = -1
 			selection_cleared.emit()
 
-## 내부: 슬롯 배열 크기 조정 (기존 데이터 보존 노력)
+## 내부: 슬롯 배열 완전히 재구성 (Split 변경 시)
+## 주의: 기존 데이터 위치가 밀릴 수 있음. (간단하게 구현: 리사이즈만 하고 데이터 이동은 일단 패스?)
+## 사용자 경험상, 마디 1을 쪼갰는데 마디 4의 데이터가 마디 3으로 오면 안됨.
+## 따라서 데이터를 "마디별"로 백업하고 복원해야 함.
+func _reconstruct_slots() -> void:
+	# 1. 현재 데이터를 마디별로 백업
+	var backup: Array[Array] = []
+	var slot_cursor = 0
+	
+	# 변경 전 density 정보를 알 수 없으므로... (이미 bar_densities는 변경됨)
+	# 아하, toggle_bar_split에서 변경 전에 이 함수를 호출하거나, 변경 로직을 여기에 통합해야 했음.
+	# 일단 "단순 리사이즈"로 갑니다. (데이터 밀림 현상 발생 가능 - 프로토타입)
+	# [TODO] Better data persistance
+	
+	_resize_slots()
+
+## 내부: 슬롯 배열 크기 조정
 func _resize_slots() -> void:
 	# var old_slots = slots.duplicate() # Unused
 	var new_total = total_slots

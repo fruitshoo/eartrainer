@@ -15,6 +15,7 @@ const BEAT_DOT_OFF_COLOR := Color(0.3, 0.3, 0.3, 0.5)
 @onready var key_label: Label = %KeyLabel
 @onready var chord_label: Label = %ChordLabel
 @onready var beat_container: HBoxContainer = %BeatContainer # 비트 도트 컨테이너
+@onready var settings_button: Button = %SettingsButton # [New]
 
 # ============================================================
 # STATE
@@ -33,6 +34,11 @@ func _ready() -> void:
 	EventBus.beat_pulsed.connect(_on_beat_pulsed)
 	EventBus.bar_changed.connect(_on_bar_changed)
 	EventBus.beat_updated.connect(_on_beat_updated)
+	EventBus.settings_visibility_changed.connect(_on_settings_visibility_changed)
+	
+	if settings_button:
+		settings_button.pressed.connect(func(): EventBus.request_toggle_settings.emit())
+
 	_setup_visual_style()
 	_setup_beat_indicators()
 	call_deferred("_delayed_setup")
@@ -163,6 +169,10 @@ func _on_beat_pulsed() -> void:
 func _on_bar_changed(slot_index: int) -> void:
 	_current_sequencer_step = slot_index
 	_update_display()
+
+func _on_settings_visibility_changed(is_visible: bool) -> void:
+	if settings_button:
+		settings_button.visible = !is_visible # 설정창 열리면 버튼 숨김
 
 func _fade_out_chord_label() -> void:
 	var fade_tween := create_tween()

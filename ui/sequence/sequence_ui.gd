@@ -16,7 +16,8 @@ var slot_button_scene: PackedScene = preload("res://ui/sequence/slot_button.tscn
 
 # Controls
 @onready var bar_count_spin_box: SpinBox = %BarCountSpinBox
-@onready var split_check_button: CheckButton = %SplitCheckButton
+# @onready var split_check_button: CheckButton = %SplitCheckButton
+@onready var split_bar_button: Button = %SplitBarButton # [New]
 @onready var bpm_spin_box: SpinBox = %BPMSpinBox
 
 # ============================================================
@@ -41,8 +42,14 @@ func _ready() -> void:
 	
 	# UI Controls
 	bar_count_spin_box.value_changed.connect(_on_bar_count_changed)
-	split_check_button.toggled.connect(_on_split_toggled)
+	# split_check_button.toggled.connect(_on_split_toggled)
+	if split_bar_button:
+		split_bar_button.pressed.connect(_on_split_bar_pressed)
+		
 	bpm_spin_box.value_changed.connect(_on_bpm_changed)
+	
+	# [New] Step/Beat Update Listener
+	EventBus.sequencer_step_beat_changed.connect(_on_step_beat_changed)
 	
 	# Initial Setup
 	_sync_ui_from_manager()
@@ -54,8 +61,10 @@ func _ready() -> void:
 
 func _sync_ui_from_manager() -> void:
 	bar_count_spin_box.set_value_no_signal(ProgressionManager.bar_count)
-	split_check_button.set_pressed_no_signal(ProgressionManager.chords_per_bar == 2)
+	# split_check_button.set_pressed_no_signal(ProgressionManager.chords_per_bar == 2)
 	bpm_spin_box.set_value_no_signal(GameManager.bpm)
+	
+	_update_split_button_state()
 
 func _rebuild_slots() -> void:
 	# 1. 기존 슬롯 제거
@@ -69,9 +78,22 @@ func _rebuild_slots() -> void:
 		var btn = slot_button_scene.instantiate()
 		slot_container.add_child(btn)
 		
+		# [Updated] Beats count fetch
+		var beats = ProgressionManager.get_beats_for_slot(i)
+		
+		# [New] Dynamic Sizing
+		# Full Slot (4 beats) = 140px
+		# Split Slot (2 beats) = 65px
+		var width = 140.0 if beats >= 4 else 65.0
+		btn.custom_minimum_size = Vector2(width, 80)
+		
 		# 설정 (Duck typing usage)
 		if btn.has_method("setup"):
-			btn.setup(i)
+			btn.setup(i, beats)
+			
+		# [New] Beat Click Connect
+		if btn.has_signal("beat_clicked"):
+			btn.beat_clicked.connect(_on_slot_beat_clicked)
 		
 		btn.pressed.connect(_on_slot_clicked.bind(i))
 		if btn.has_signal("right_clicked"):
@@ -90,11 +112,20 @@ func _on_settings_updated(_bar_count: int, _chords_per_bar: int) -> void:
 # CONTROL CALLBACKS
 # ============================================================
 func _on_bar_count_changed(value: float) -> void:
-	ProgressionManager.update_settings(int(value), ProgressionManager.chords_per_bar)
+	ProgressionManager.update_settings(int(value))
 
-func _on_split_toggled(toggled: bool) -> void:
-	var density = 2 if toggled else 1
-	ProgressionManager.update_settings(ProgressionManager.bar_count, density)
+# func _on_split_toggled(toggled: bool) -> void: ... (Removed)
+
+func _on_split_bar_pressed() -> void:
+	var idx = ProgressionManager.selected_index
+	if idx < 0: return
+	
+	var bar_idx = ProgressionManager.get_bar_index_for_slot(idx)
+	if bar_idx >= 0:
+		ProgressionManager.toggle_bar_split(bar_idx)
+		
+		# 리빌드 후 선택 복원 시도? (인덱스가 바뀌므로 복잡, 일단 해제)
+		# ProgressionManager에서 이미 리셋됨
 
 func _on_bpm_changed(value: float) -> void:
 	GameManager.bpm = int(value)
@@ -110,6 +141,12 @@ func _on_slot_clicked(index: int) -> void:
 		ProgressionManager.selected_index = -1
 	else:
 		ProgressionManager.selected_index = index
+	
+	_update_split_button_state()
+
+func _on_slot_beat_clicked(slot_idx: int, beat_idx: int) -> void:
+	# [New] Seek Playhead
+	%Sequencer.seek(slot_idx, beat_idx)
 
 func _on_slot_right_clicked(index: int) -> void:
 	ProgressionManager.clear_slot(index)
@@ -148,6 +185,32 @@ func _highlight_playing(playing_step: int) -> void:
 			btn.set_highlight("selected")
 		else:
 			btn.set_highlight("none")
+			
+func _on_step_beat_changed(step: int, beat: int) -> void:
+	# 각 슬롯 버튼에게 Playhead 업데이트 요청
+	var children = slot_container.get_children()
+	for i in range(children.size()):
+		var btn = children[i]
+		if not btn.has_method("update_playhead"): continue
+		
+		if i == step:
+			btn.update_playhead(beat)
+		else:
+			btn.update_playhead(-1) # inactive
+
+func _update_split_button_state() -> void:
+	if not split_bar_button: return
+	
+	var idx = ProgressionManager.selected_index
+	if idx < 0:
+		split_bar_button.disabled = true
+		split_bar_button.text = "Split/Merge Bar"
+		return
+		
+	split_bar_button.disabled = false
+	var bar_idx = ProgressionManager.get_bar_index_for_slot(idx)
+	var density = ProgressionManager.bar_densities[bar_idx]
+	split_bar_button.text = "Merge Bar" if density == 2 else "Split Bar"
 
 func _on_sequencer_playing_changed(is_playing: bool) -> void:
 	play_button.text = "PAUSE" if is_playing else "PLAY"
@@ -170,3 +233,4 @@ func _on_stop_button_pressed() -> void:
 
 func _on_selection_cleared():
 	_highlight_selected(-1)
+	_update_split_button_state()

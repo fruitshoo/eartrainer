@@ -79,8 +79,8 @@ func _refresh_visuals() -> void:
 	
 	if not is_in_focus:
 		label.visible = false
-		if is_key_root:
-			_apply_glow(color, 0.3) # 희미한 북극성 -> TODO: 이것도 변수화 고려
+		if tier == 1:
+			_apply_glow(color, 0.3) # 희미한 루트 (북극성)
 		elif is_scale_tone:
 			_apply_glow(color, idle_energy) # 가로등
 		else:
@@ -91,8 +91,8 @@ func _refresh_visuals() -> void:
 	# 포커스 영역 내
 	label.visible = true
 	
-	if is_key_root:
-		_apply_glow(color, root_focus_energy) # 북극성 (황금)
+	if tier == 1:
+		_apply_glow(color, root_focus_energy) # 현재 화음의 루트 (황금)
 	elif tier <= 2:
 		_apply_glow(color, chord_focus_energy) # 코드톤 (하늘색)
 	elif is_scale_tone:
@@ -103,8 +103,8 @@ func _refresh_visuals() -> void:
 	
 	_reapply_overlay_if_active()
 
-func _get_tier_color(tier: int, is_key_root: bool, is_scale_tone: bool) -> Color:
-	if is_key_root:
+func _get_tier_color(tier: int, _p_is_key_root: bool, is_scale_tone: bool) -> Color:
+	if tier == 1:
 		return root_color
 	elif tier <= 2:
 		return chord_color

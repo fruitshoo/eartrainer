@@ -11,6 +11,7 @@ signal tile_clicked(midi_note: int, string_index: int, modifiers: Dictionary)
 # UI SIGNALS
 # ============================================================
 signal request_toggle_settings
+signal settings_visibility_changed(is_visible: bool)
 
 
 # ============================================================
@@ -25,4 +26,5 @@ signal request_toggle_playback # 재생/일시정지 토글 요청
 signal request_stop_playback # 정지 및 리셋 요청
 signal bar_changed(slot_index: int)
 signal beat_pulsed # 메트로놈 비트 펄스
+signal sequencer_step_beat_changed(step: int, beat: int) # [New]
 signal beat_updated(beat_index: int, total_beats: int) # 박자 진행 정보

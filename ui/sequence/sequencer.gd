@@ -64,6 +64,20 @@ func reset_position() -> void:
 	_clear_all_highlights()
 	EventBus.beat_updated.emit(-1, beats_per_bar) # UI 리셋
 	EventBus.bar_changed.emit(current_step)
+	
+## [New] 특정 위치로 이동 (재생 중이면 즉시 이동)
+func seek(step: int, beat: int) -> void:
+	current_step = step
+	current_beat = beat
+	
+	if is_playing:
+		# 현재 진행 중인 타이머 리셋하고 즉시 재생
+		_beat_timer.stop()
+		_play_current_step(true) # true = resume from mid-beat logic
+	else:
+		# 정지 상태면 위치만 업데이트하고 UI 갱신
+		EventBus.bar_changed.emit(current_step)
+		# TODO: beat update signal for UI preview?
 
 ## 완전 정지 및 리셋 (Stop 버튼용)
 func stop_and_reset() -> void:
@@ -84,17 +98,16 @@ func stop_and_reset() -> void:
 func _resume_playback() -> void:
 	var beat_duration := 60.0 / GameManager.bpm
 	
-	if not _is_paused:
-		# 처음 시작
-		current_step = 0 # Slot Index
-		current_beat = 0 # Beat within current slot
-		_play_current_step()
+	# Resume 조건: 일시정지 상태이거나, 사용자가 수동으로 위치를 지정한 경우(Step/Beat != 0)
+	if _is_paused or current_step > 0 or current_beat > 0:
+		# 현재 위치에서 즉시 재생
+		# Seek의 경우 _is_paused가 false일 수 있으므로 여기서 강제로 true 처리하는 셈
+		_play_current_step(true)
 	else:
-		# 일시정지 해제
-		if current_beat == 0:
-			_play_current_step()
-		else:
-			_beat_timer.start(beat_duration)
+		# 완전 초기 시작
+		current_step = 0
+		current_beat = 0
+		_play_current_step(false)
 
 func _pause_playback() -> void:
 	_is_paused = true
@@ -103,22 +116,30 @@ func _pause_playback() -> void:
 # ============================================================
 # PLAYBACK LOGIC
 # ============================================================
-func _play_current_step() -> void:
+# ============================================================
+# PLAYBACK LOGIC
+# ============================================================
+func _play_current_step(is_seek: bool = false) -> void:
 	_clear_all_highlights()
 	
 	# 1. 게임 상태 업데이트
 	_update_game_state_from_slot()
 	
-	# 2. 첫 번째 비트 처리
-	current_beat = 0
+	# 2. 첫 번째 비트(또는 Seek된 비트) 처리
+	# seek가 아니면 0부터 시작
+	if not is_seek:
+		current_beat = 0
+	
 	_emit_beat()
 	
-	# 3. 아르페지오 재생
-	_play_slot_strum()
+	# 3. 아르페지오 vs 블록 코드 재생
+	# 첫 박자면 아르페지오, 중간 박자면 쾅(Block Chord) 찍어서 컨텍스트 제공
+	if current_beat == 0:
+		_play_slot_strum()
+	elif is_seek:
+		_play_block_chord()
 	
-	# 슬롯 변경 알림 (UI 하이라이트용)
-	# EventBus.bar_changed -> 이름을 slot_changed로 바꾸면 좋겠지만 
-	# 호환성을 위해 의미만 슬롯 인덱스로 사용
+	# 슬롯 변경 알림
 	EventBus.bar_changed.emit(current_step)
 	
 	# 타이머 시작
@@ -127,36 +148,33 @@ func _play_current_step() -> void:
 
 func _on_beat_tick() -> void:
 	current_beat += 1
-	var density = ProgressionManager.chords_per_bar
-	var beats_per_slot = int(beats_per_bar / density)
+	var slot_beats = ProgressionManager.get_beats_for_slot(current_step)
 	
-	if current_beat >= beats_per_slot:
+	if current_beat >= slot_beats:
 		# 슬롯 종료 -> 다음 슬롯으로
 		current_step = (current_step + 1) % ProgressionManager.total_slots
+		current_beat = 0 # 다음 슬롯의 0번 박자
 		_play_current_step()
 	else:
 		# 슬롯 내 박자 진행
 		_emit_beat()
 
 func _emit_beat() -> void:
-	# UI에 표시할 "마디 내 현재 박자" 계산
-	# 예: 4/4박자, 2분할 시
-	# 슬롯 0 (첫 2박): current_beat 0 -> bar_beat 0
-	#                current_beat 1 -> bar_beat 1
-	# 슬롯 1 (뒛 2박): current_beat 0 -> bar_beat 2
-	#                current_beat 1 -> bar_beat 3
-	var density = ProgressionManager.chords_per_bar
-	var beats_per_slot = int(beats_per_bar / density)
+	# UI에 표시할 "마디 내 현재 박자" 계산 (이전 복잡한 로직 대체 필요)
+	# 이제 Slot UI가 직접 박자를 그리므로, Sequencer는 "현재 슬롯의 몇 번째 박자"만 알려주면 됨
+	# 하지만 HUD 호환성을 위해 기존 signal도 유지해야 할 수 있음.
+	# New Signal: 슬롯 내 박자 업데이트 (SlotButton용 via SequenceUI)
+	# EventBus에 beat_progressed(step, beat) 추가 필요
+	# 임시로 bar_changed를 재활용하거나 새로 만듬.
+	# 기존 HUD용 (4/4박자 기준) 로직은 복잡해짐 (마디 길이가 가변이므로)
+	# 일단 기존 signal은 유지하되, 값을 대강 맞춰서 보냄
+	EventBus.beat_updated.emit(current_beat, 4) # dummy
+	EventBus.beat_pulsed.emit()
 	
-	# 현재 슬롯이 마디의 몇 번째 파트인지 확인
-	# 슬롯 인덱스 % density 하면 됨
-	# density=1 이면 항상 0
-	# density=2 이면 0(앞), 1(뒤)
-	var sub_index = current_step % density
-	var bar_relative_beat = (sub_index * beats_per_slot) + current_beat
-	
-	# EventBus에 전달
-	EventBus.beat_updated.emit(bar_relative_beat, beats_per_bar)
+	# 시퀀서 UI에 직접 전달 (나중에 EventBus로 격상 가능)
+	# SequenceUI가 이 signal을 들어야 함.
+	# 하지만 Sequencer.gd는 EventBus를 통해 통신하는게 원칙.
+	EventBus.sequencer_step_beat_changed.emit(current_step, current_beat)
 	EventBus.beat_pulsed.emit()
 
 func _update_game_state_from_slot() -> void:
@@ -188,7 +206,28 @@ func _play_strum(data: Dictionary) -> void:
 			tile.apply_sequencer_highlight(null)
 			_highlighted_tiles.append(tile)
 		
+		
 		await get_tree().create_timer(0.05).timeout
+
+## [New] 동시에 모든 음 재생 (중간 재생 시 컨텍스트 제공용)
+func _play_block_chord() -> void:
+	var data = ProgressionManager.get_slot(current_step)
+	if data == null:
+		return
+		
+	var root_fret := MusicTheory.get_fret_position(data.root, data.string)
+	var voicing_key := MusicTheory.get_voicing_key(data.string)
+	var offsets: Array = MusicTheory.VOICING_SHAPES.get(voicing_key, {}).get(data.type, [[0, 0]])
+	
+	for offset in offsets:
+		var target_string: int = data.string + offset[0]
+		var target_fret: int = root_fret + offset[1]
+		
+		var tile = GameManager.find_tile(target_string, target_fret)
+		if tile and is_instance_valid(tile):
+			AudioEngine.play_note(tile.midi_note)
+			tile.apply_sequencer_highlight(null, 0.5) # 짧게 하이라이트
+			_highlighted_tiles.append(tile)
 
 # ============================================================
 # HIGHLIGHT MANAGEMENT

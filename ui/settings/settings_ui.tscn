@@ -7,11 +7,15 @@
 script = ExtResource("1_mv08y")
 
 [node name="RootMargin" type="MarginContainer" parent="." unique_id=673016896]
-offset_right = 40.0
+anchors_preset = 1
+anchor_left = 1.0
+anchor_right = 1.0
+offset_left = -40.0
 offset_bottom = 40.0
+grow_horizontal = 0
 theme = ExtResource("2_1ub5d")
-theme_override_constants/margin_left = 40
-theme_override_constants/margin_top = 40
+theme_override_constants/margin_top = 20
+theme_override_constants/margin_right = 20
 
 [node name="PanelContainer" type="PanelContainer" parent="RootMargin" unique_id=1477117314]
 layout_mode = 2
@@ -106,18 +110,7 @@ custom_minimum_size = Vector2(20, 0)
 layout_mode = 2
 text = "+"
 
-[node name="VBoxContainer" type="VBoxContainer" parent="RootMargin/PanelContainer/VBoxContainer" unique_id=1281877439]
-layout_mode = 2
 
-[node name="BPMLabel" type="LineEdit" parent="RootMargin/PanelContainer/VBoxContainer/VBoxContainer" unique_id=1591180107]
-unique_name_in_owner = true
-layout_mode = 2
-text = "120"
-alignment = 1
-
-[node name="BPMSlider" type="HSlider" parent="RootMargin/PanelContainer/VBoxContainer/VBoxContainer" unique_id=1973247866]
-unique_name_in_owner = true
-layout_mode = 2
 
 [node name="HBoxContainer" type="HBoxContainer" parent="RootMargin/PanelContainer/VBoxContainer" unique_id=1685542694]
 layout_mode = 2

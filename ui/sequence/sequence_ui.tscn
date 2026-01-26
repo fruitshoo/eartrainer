@@ -64,10 +64,11 @@ value = 4.0
 layout_mode = 2
 theme_override_constants/separation = 20
 
-[node name="SplitCheckButton" type="CheckButton" parent="RootMargin/VBoxContainer/PanelContainer/InnerMargin/VBoxContainer/ControlsContainer" unique_id=293847102]
+[node name="SplitBarButton" type="Button" parent="RootMargin/VBoxContainer/PanelContainer/InnerMargin/VBoxContainer/ControlsContainer" unique_id=293847102]
 unique_name_in_owner = true
 layout_mode = 2
-text = "Split Bars (2 chords)"
+text = "Split/Merge Bar"
+disabled = true
 
 [node name="VSeparator2" type="VSeparator" parent="RootMargin/VBoxContainer/PanelContainer/InnerMargin/VBoxContainer/ControlsContainer" unique_id=987654321]
 layout_mode = 2

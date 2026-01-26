@@ -36,6 +36,7 @@ func _on_request_toggle_settings() -> void:
 	visible = !visible
 
 func _on_visibility_changed() -> void:
+	EventBus.settings_visibility_changed.emit(visible)
 	if visible:
 		_sync_from_game_manager()
 
@@ -63,12 +64,9 @@ func _sync_from_game_manager() -> void:
 	hint_toggle.button_pressed = GameManager.show_hints
 	_update_range_label()
 	
+	_update_range_label()
+	
 	# 메트로놈 동기화
-	if bpm_slider:
-		bpm_slider.min_value = 40
-		bpm_slider.max_value = 240
-		bpm_slider.value = GameManager.bpm
-	_update_bpm_display()
 	if metronome_toggle:
 		metronome_toggle.button_pressed = GameManager.is_metronome_enabled
 
@@ -84,11 +82,6 @@ func _connect_signals() -> void:
 		plus_btn.pressed.connect(_on_range_increase)
 	
 	# 메트로놈 시그널
-	if bpm_slider:
-		bpm_slider.value_changed.connect(_on_bpm_slider_changed)
-	if bpm_input:
-		bpm_input.text_submitted.connect(_on_bpm_text_submitted)
-		bpm_input.focus_exited.connect(_on_bpm_focus_exited)
 	if metronome_toggle:
 		metronome_toggle.toggled.connect(_on_metronome_toggled)
 	
@@ -122,20 +115,6 @@ func _on_range_increase() -> void:
 func _on_close_button_pressed() -> void:
 	visible = false
 
-## 슬라이더 → 입력칸 동기화
-func _on_bpm_slider_changed(value: float) -> void:
-	GameManager.bpm = int(value)
-	_update_bpm_display()
-
-## 입력칸 → 슬라이더 동기화 (엔터 눌렀을 때)
-func _on_bpm_text_submitted(text: String) -> void:
-	_apply_bpm_from_text(text)
-
-## 입력칸 포커스 아웃 시 적용
-func _on_bpm_focus_exited() -> void:
-	if bpm_input:
-		_apply_bpm_from_text(bpm_input.text)
-
 func _on_metronome_toggled(enabled: bool) -> void:
 	GameManager.is_metronome_enabled = enabled
 
@@ -145,25 +124,3 @@ func _on_metronome_toggled(enabled: bool) -> void:
 func _update_range_label() -> void:
 	if range_label:
 		range_label.text = str(GameManager.focus_range)
-
-func _update_bpm_display() -> void:
-	if bpm_input:
-		bpm_input.text = str(GameManager.bpm)
-
-## 텍스트 입력값을 BPM으로 변환 및 검증
-func _apply_bpm_from_text(text: String) -> void:
-	var parsed := text.to_int()
-	
-	# 숫자가 아니거나 0이면 현재 값 유지
-	if parsed <= 0:
-		_update_bpm_display()
-		return
-	
-	# 40-240 범위로 클램핑
-	var clamped := clampi(parsed, 40, 240)
-	GameManager.bpm = clamped
-	
-	# 슬라이더와 입력칸 동기화
-	if bpm_slider:
-		bpm_slider.value = clamped
-	_update_bpm_display()
