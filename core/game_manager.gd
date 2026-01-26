@@ -27,9 +27,25 @@ var current_notation: MusicTheory.NotationMode = MusicTheory.NotationMode.BOTH:
 		current_notation = value
 		settings_changed.emit()
 
-var show_hints: bool = false:
+# Visualization Settings
+var show_note_labels: bool = true:
 	set(value):
-		show_hints = value
+		show_note_labels = value
+		settings_changed.emit()
+
+var highlight_root: bool = true:
+	set(value):
+		highlight_root = value
+		settings_changed.emit()
+
+var highlight_chord: bool = true:
+	set(value):
+		highlight_chord = value
+		settings_changed.emit()
+
+var highlight_scale: bool = true:
+	set(value):
+		highlight_scale = value
 		settings_changed.emit()
 
 var is_metronome_enabled: bool = true # 메트로놈 소리 켜기/끄기
@@ -68,6 +84,16 @@ var player_fret: int = 0:
 var focus_range: int = 3:
 	set(value):
 		focus_range = value
+		settings_changed.emit()
+
+var camera_deadzone: float = 4.0:
+	set(value):
+		camera_deadzone = clampf(value, 0.0, 10.0)
+		settings_changed.emit()
+
+var is_rhythm_mode_enabled: bool = false:
+	set(value):
+		is_rhythm_mode_enabled = value
 		settings_changed.emit()
 
 # settings_ui_ref 제거됨

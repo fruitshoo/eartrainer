@@ -64,51 +64,49 @@ func setup(s_idx: int, f_idx: int, note_val: int) -> void:
 func _refresh_visuals() -> void:
 	label.text = GameManager.get_note_label(midi_note)
 	
-	if not GameManager.show_hints:
-		label.visible = false
-		_apply_glow(Color(0.1, 0.1, 0.1), 0.0)
-		_reapply_overlay_if_active()
-		return
-	
 	var is_in_focus := _is_within_focus()
-	var is_key_root := _is_key_root()
 	var tier := GameManager.get_tile_tier(midi_note)
 	var is_scale_tone := GameManager.is_in_scale(midi_note)
 	
-	var color := _get_tier_color(tier, is_key_root, is_scale_tone)
+	# 1. Highlight Logic (Hierarchy with Fallback)
+	var visual_tier := 4 # Default: Avoid (No light)
 	
-	if not is_in_focus:
-		label.visible = false
-		if tier == 1:
-			_apply_glow(color, 0.3) # 희미한 루트 (북극성)
-		elif is_scale_tone:
-			_apply_glow(color, idle_energy) # 가로등
-		else:
-			_apply_glow(Color(0.05, 0.05, 0.05), 0.0)
-		_reapply_overlay_if_active()
-		return
+	if tier == 1 and GameManager.highlight_root:
+		visual_tier = 1
+	elif tier <= 2 and GameManager.highlight_chord:
+		visual_tier = 2
+	elif is_scale_tone and GameManager.highlight_scale:
+		visual_tier = 3
 	
-	# 포커스 영역 내
-	label.visible = true
+	# 2. Label Visibility
+	# Only show if in focus, setting enabled, AND note is visually active
+	label.visible = is_in_focus and GameManager.show_note_labels and (visual_tier < 4)
 	
-	if tier == 1:
-		_apply_glow(color, root_focus_energy) # 현재 화음의 루트 (황금)
-	elif tier <= 2:
-		_apply_glow(color, chord_focus_energy) # 코드톤 (하늘색)
-	elif is_scale_tone:
-		_apply_glow(color, scale_focus_energy) # 스케일톤 (회색)
-	else:
-		label.visible = false
-		_apply_glow(Color(0.05, 0.05, 0.05), 0.0) # 어보이드
+	# 3. Apply Style
+	var color := _get_tier_color(visual_tier, false, true) # scale_tone param affects color for tier 3
+	var energy := 0.0
 	
+	if visual_tier == 1:
+		energy = root_focus_energy if is_in_focus else 0.3
+	elif visual_tier == 2:
+		energy = chord_focus_energy if is_in_focus else 0.0
+	elif visual_tier == 3:
+		energy = scale_focus_energy if is_in_focus else idle_energy
+		
+	if energy <= 0.0:
+		color = avoid_color # Force dark if no energy
+		
+	_apply_glow(color, energy)
 	_reapply_overlay_if_active()
-
-func _get_tier_color(tier: int, _p_is_key_root: bool, is_scale_tone: bool) -> Color:
+	
+func _get_tier_color(tier: int, _p_is_key_root: bool, _is_scale_tone: bool) -> Color:
 	if tier == 1:
 		return root_color
 	elif tier <= 2:
 		return chord_color
-	elif is_scale_tone:
+	elif tier == 3: # Explicit scale tier
+		return scale_color
+	elif _is_scale_tone: # Fallback for old calls
 		return scale_color
 	return avoid_color
 
@@ -219,6 +217,14 @@ func _input_event(_camera: Camera3D, event: InputEvent, _pos: Vector3, _normal: 
 		_animate_press() # [v0.3] 클릭 시 '눌림' 효과
 
 func _on_clicked(is_shift: bool, is_alt: bool) -> void:
+	# [New] Rhythm Training Check
+	if GameManager.is_rhythm_mode_enabled and EventBus.is_sequencer_playing:
+		var sequencer = get_tree().get_first_node_in_group("sequencer")
+		if sequencer and sequencer.has_method("check_rhythm_timing"):
+			var result = sequencer.check_rhythm_timing()
+			if result.valid:
+				_show_rhythm_feedback(result)
+
 	# [v0.3] 모든 직접 호출 제거 → EventBus로 이벤트만 발생
 	EventBus.tile_clicked.emit(midi_note, string_index, {
 		"shift": is_shift,
@@ -226,6 +232,27 @@ func _on_clicked(is_shift: bool, is_alt: bool) -> void:
 		"fret_index": fret_index,
 		"position": global_position
 	})
+
+## [New] 리듬 판정 피드백 표시 (플로팅 텍스트)
+func _show_rhythm_feedback(result: Dictionary) -> void:
+	var score_label := Label3D.new()
+	add_child(score_label)
+	
+	score_label.text = result.rating
+	score_label.modulate = result.color
+	score_label.font_size = 64
+	score_label.outline_render_priority = 0
+	score_label.outline_size = 4
+	score_label.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+	score_label.position = Vector3(0, 0.5, 0)
+	score_label.no_depth_test = true # 항상 위에 표시
+	
+	# Tween Animation: 위로 떠오르며 페이드 아웃
+	var tween := create_tween()
+	tween.set_parallel(true)
+	tween.tween_property(score_label, "position:y", 1.5, 0.8).set_trans(Tween.TRANS_QUART).set_ease(Tween.EASE_OUT)
+	tween.tween_property(score_label, "modulate:a", 0.0, 0.8).set_trans(Tween.TRANS_EXPO).set_ease(Tween.EASE_IN)
+	tween.chain().tween_callback(score_label.queue_free)
 
 # ============================================================
 # HELPER METHODS

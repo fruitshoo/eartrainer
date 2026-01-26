@@ -11,6 +11,7 @@ signal tile_clicked(midi_note: int, string_index: int, modifiers: Dictionary)
 # UI SIGNALS
 # ============================================================
 signal request_toggle_settings
+signal request_toggle_help # [New]
 signal settings_visibility_changed(is_visible: bool)
 
 

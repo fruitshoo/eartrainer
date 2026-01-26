@@ -19,6 +19,7 @@ var current_step: int = 0
 var current_beat: int = 0 # 현재 마디 내 박자 (0-3)
 var is_playing: bool = false
 var _is_paused: bool = false # 일시정지 상태 추적
+var _last_beat_time_ms: int = 0 # 리듬 판정용 시간 기록
 
 # ============================================================
 # PRIVATE
@@ -145,9 +146,11 @@ func _play_current_step(is_seek: bool = false) -> void:
 	# 타이머 시작
 	var beat_duration := 60.0 / GameManager.bpm
 	_beat_timer.start(beat_duration)
+	_last_beat_time_ms = Time.get_ticks_msec() # [New] Rhythm Timing
 
 func _on_beat_tick() -> void:
 	current_beat += 1
+	_last_beat_time_ms = Time.get_ticks_msec() # [New] Rhythm Timing
 	var slot_beats = ProgressionManager.get_beats_for_slot(current_step)
 	
 	if current_beat >= slot_beats:
@@ -195,6 +198,7 @@ func _play_strum(data: Dictionary) -> void:
 	var root_fret := MusicTheory.get_fret_position(data.root, data.string)
 	var voicing_key := MusicTheory.get_voicing_key(data.string)
 	var offsets: Array = MusicTheory.VOICING_SHAPES.get(voicing_key, {}).get(data.type, [[0, 0]])
+	# (Strum logic...)
 	
 	for offset in offsets:
 		var target_string: int = data.string + offset[0]
@@ -208,6 +212,56 @@ func _play_strum(data: Dictionary) -> void:
 		
 		
 		await get_tree().create_timer(0.05).timeout
+
+# ============================================================
+# RHYTHM TRAINING LOGIC
+# ============================================================
+## 비트 판정 (4분/8분 지원)
+func check_rhythm_timing() -> Dictionary:
+	if not is_playing:
+		return {"valid": false}
+		
+	var now := Time.get_ticks_msec()
+	var elapsed := now - _last_beat_time_ms
+	var beat_duration_ms: float = (60.0 / GameManager.bpm) * 1000.0
+	
+	# 8분음표(반박자) 지원 여부에 따라 간격 결정
+	var interval := beat_duration_ms
+	var subdivision := 2 # 1=4분음표, 2=8분음표
+	var target_interval := interval / subdivision
+	
+	# 오차 계산
+	var offset: float = fmod(elapsed, target_interval)
+	var deviation: float = offset
+	if offset > target_interval / 2.0:
+		deviation = offset - target_interval
+		
+	# 판정
+	var abs_dev := absf(deviation)
+	var rating := "Miss"
+	var color := Color.GRAY
+	
+	if abs_dev < 40.0:
+		rating = "Perfect!"
+		color = Color.CYAN
+	elif abs_dev < 80.0:
+		rating = "Great"
+		color = Color.GREEN
+	elif abs_dev < 120.0:
+		rating = "Good"
+		color = Color.YELLOW
+	elif abs_dev < 200.0:
+		rating = "Bad"
+		color = Color.ORANGE
+		
+	return {
+		"valid": true,
+		"deviation": deviation,
+		"rating": rating,
+		"color": color,
+		"ms_error": int(deviation)
+	}
+	
 
 ## [New] 동시에 모든 음 재생 (중간 재생 시 컨텍스트 제공용)
 func _play_block_chord() -> void:

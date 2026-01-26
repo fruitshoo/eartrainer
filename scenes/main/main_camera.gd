@@ -37,9 +37,12 @@ func _process(delta):
 		var current_center = global_position - base_offset - drag_offset
 		var to_player = player_pos - current_center
 		var distance = to_player.length()
+		
+		# [Updated] Use GameManager setting
+		var deadzone = GameManager.camera_deadzone
 
-		if distance > deadzone_radius:
-			var overflow = to_player.normalized() * (distance - deadzone_radius)
+		if distance > deadzone:
+			var overflow = to_player.normalized() * (distance - deadzone)
 			var smooth_target = global_position + overflow
 			global_position = global_position.lerp(smooth_target, delta * follow_speed)
 

@@ -167,27 +167,20 @@ func clear_slot(index: int) -> void:
 ## 사용자 경험상, 마디 1을 쪼갰는데 마디 4의 데이터가 마디 3으로 오면 안됨.
 ## 따라서 데이터를 "마디별"로 백업하고 복원해야 함.
 func _reconstruct_slots() -> void:
-	# 1. 현재 데이터를 마디별로 백업
-	var backup: Array[Array] = []
-	var slot_cursor = 0
-	
-	# 변경 전 density 정보를 알 수 없으므로... (이미 bar_densities는 변경됨)
-	# 아하, toggle_bar_split에서 변경 전에 이 함수를 호출하거나, 변경 로직을 여기에 통합해야 했음.
-	# 일단 "단순 리사이즈"로 갑니다. (데이터 밀림 현상 발생 가능 - 프로토타입)
-	# [TODO] Better data persistance
+	# 데이터 유지를 위한 임시 저장
+	var old_slots = slots.duplicate()
 	
 	_resize_slots()
+	
+	# 가능한 만큼 복원 (단순 인덱스 매핑)
+	for i in range(min(old_slots.size(), slots.size())):
+		slots[i] = old_slots[i]
+		slot_updated.emit(i, slots[i] if slots[i] else {})
 
 ## 내부: 슬롯 배열 크기 조정
 func _resize_slots() -> void:
-	# var old_slots = slots.duplicate() # Unused
 	var new_total = total_slots
-	
 	slots.resize(new_total)
 	
-	# 크기가 늘어난 경우 null로 초기화 (resize가 알아서 해주긴 함)
-	# 크기가 줄어든 경우 데이터는 잘림
-	
-	# 선택 인덱스가 범위 밖이면 해제
 	if selected_index >= new_total:
 		selected_index = -1

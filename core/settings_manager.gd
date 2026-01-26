@@ -37,10 +37,19 @@ func save_settings() -> void:
 	_config.set_value("Music", "key", GameManager.current_key)
 	_config.set_value("Music", "mode", int(GameManager.current_mode))
 	_config.set_value("Music", "notation", int(GameManager.current_notation))
-	_config.set_value("Display", "show_hints", GameManager.show_hints)
+	
+	# [New] Visual Settings
+	_config.set_value("Display", "show_note_labels", GameManager.show_note_labels)
+	_config.set_value("Display", "highlight_root", GameManager.highlight_root)
+	_config.set_value("Display", "highlight_chord", GameManager.highlight_chord)
+	_config.set_value("Display", "highlight_scale", GameManager.highlight_scale)
+	
 	_config.set_value("Display", "focus_range", GameManager.focus_range)
 	_config.set_value("Audio", "bpm", GameManager.bpm)
 	_config.set_value("Audio", "metronome_enabled", GameManager.is_metronome_enabled)
+	_config.set_value("Audio", "rhythm_mode", GameManager.is_rhythm_mode_enabled)
+	_config.set_value("Display", "camera_deadzone", GameManager.camera_deadzone)
+	
 	_config.set_value("Player", "last_string", last_string)
 	_config.set_value("Player", "last_fret", last_fret)
 	_config.save(SAVE_PATH)
@@ -52,15 +61,23 @@ func load_settings() -> void:
 		return # 파일 없으면 기본값 사용
 	
 	GameManager.current_key = _config.get_value("Music", "key", 0)
-	# [수정] int → enum 명시적 캐스팅
 	var mode_int: int = _config.get_value("Music", "mode", 0)
 	GameManager.current_mode = mode_int as MusicTheory.ScaleMode
 	var notation_int: int = _config.get_value("Music", "notation", 2)
 	GameManager.current_notation = notation_int as MusicTheory.NotationMode
-	GameManager.show_hints = _config.get_value("Display", "show_hints", false)
+	
+	# [New] Visual Settings
+	GameManager.show_note_labels = _config.get_value("Display", "show_note_labels", true)
+	GameManager.highlight_root = _config.get_value("Display", "highlight_root", true)
+	GameManager.highlight_chord = _config.get_value("Display", "highlight_chord", true)
+	GameManager.highlight_scale = _config.get_value("Display", "highlight_scale", true)
+	
 	GameManager.focus_range = _config.get_value("Display", "focus_range", 3)
 	GameManager.bpm = _config.get_value("Audio", "bpm", 120)
 	GameManager.is_metronome_enabled = _config.get_value("Audio", "metronome_enabled", true)
+	GameManager.is_rhythm_mode_enabled = _config.get_value("Audio", "rhythm_mode", false)
+	GameManager.camera_deadzone = _config.get_value("Display", "camera_deadzone", 4.0)
+	
 	last_string = _config.get_value("Player", "last_string", DEFAULT_STRING)
 	last_fret = _config.get_value("Player", "last_fret", DEFAULT_FRET)
 
@@ -74,10 +91,17 @@ func reset_to_defaults() -> void:
 	GameManager.current_key = 0 # C
 	GameManager.current_mode = MusicTheory.ScaleMode.MAJOR
 	GameManager.current_notation = MusicTheory.NotationMode.BOTH
-	GameManager.show_hints = false
+	
+	GameManager.show_note_labels = true
+	GameManager.highlight_root = true
+	GameManager.highlight_chord = true
+	GameManager.highlight_scale = true
+	
 	GameManager.focus_range = 3
 	GameManager.bpm = 120
 	GameManager.is_metronome_enabled = true
+	GameManager.is_rhythm_mode_enabled = false
+
 	last_string = DEFAULT_STRING
 	last_fret = DEFAULT_FRET
 	print("[SettingsManager] Reset to defaults: C Major, Fret 5")

@@ -68,18 +68,58 @@ unique_name_in_owner = true
 layout_mode = 2
 size_flags_horizontal = 3
 
-[node name="HintSetting" type="HBoxContainer" parent="RootMargin/PanelContainer/VBoxContainer" unique_id=1745078294]
+[node name="RhythmSetting" type="HBoxContainer" parent="RootMargin/PanelContainer/VBoxContainer" unique_id=2083167520]
 layout_mode = 2
 
-[node name="Label" type="Label" parent="RootMargin/PanelContainer/VBoxContainer/HintSetting" unique_id=1401972763]
+[node name="Label" type="Label" parent="RootMargin/PanelContainer/VBoxContainer/RhythmSetting" unique_id=2083167521]
 custom_minimum_size = Vector2(140, 0)
 layout_mode = 2
-text = "Show Label"
+text = "Rhythm Mode"
 
-[node name="HintCheckButton" type="CheckButton" parent="RootMargin/PanelContainer/VBoxContainer/HintSetting" unique_id=1286333677]
+[node name="RhythmCheckButton" type="CheckButton" parent="RootMargin/PanelContainer/VBoxContainer/RhythmSetting" unique_id=2083167522]
 unique_name_in_owner = true
 layout_mode = 2
 size_flags_horizontal = 3
+
+[node name="VizDivider" type="HSeparator" parent="RootMargin/PanelContainer/VBoxContainer" unique_id=987654322]
+layout_mode = 2
+theme_override_constants/separation = 10
+
+[node name="VizLabel" type="Label" parent="RootMargin/PanelContainer/VBoxContainer" unique_id=987654323]
+layout_mode = 2
+text = "Visuals:"
+horizontal_alignment = 1
+
+[node name="VizGrid" type="GridContainer" parent="RootMargin/PanelContainer/VBoxContainer" unique_id=987654324]
+layout_mode = 2
+columns = 2
+
+[node name="NoteLabelCheck" type="CheckBox" parent="RootMargin/PanelContainer/VBoxContainer/VizGrid" unique_id=987654325]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+text = "Note Labels"
+button_pressed = true
+
+[node name="RootCheck" type="CheckBox" parent="RootMargin/PanelContainer/VBoxContainer/VizGrid" unique_id=987654326]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+text = "Root Only"
+button_pressed = true
+
+[node name="ChordCheck" type="CheckBox" parent="RootMargin/PanelContainer/VBoxContainer/VizGrid" unique_id=987654327]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+text = "Chord Tones"
+button_pressed = true
+
+[node name="ScaleCheck" type="CheckBox" parent="RootMargin/PanelContainer/VBoxContainer/VizGrid" unique_id=987654328]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+text = "Scale Tones"
 button_pressed = true
 
 [node name="FocusRangeRow" type="HBoxContainer" parent="RootMargin/PanelContainer/VBoxContainer" unique_id=1457383314]
@@ -105,6 +145,34 @@ horizontal_alignment = 1
 vertical_alignment = 1
 
 [node name="PlusButton" type="Button" parent="RootMargin/PanelContainer/VBoxContainer/FocusRangeRow" unique_id=2146148037]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(20, 0)
+layout_mode = 2
+text = "+"
+
+[node name="DeadzoneRow" type="HBoxContainer" parent="RootMargin/PanelContainer/VBoxContainer" unique_id=38472910]
+layout_mode = 2
+
+[node name="Label" type="Label" parent="RootMargin/PanelContainer/VBoxContainer/DeadzoneRow" unique_id=38472911]
+custom_minimum_size = Vector2(140, 0)
+layout_mode = 2
+text = "Cam Deadzone"
+
+[node name="DeadzoneMinus" type="Button" parent="RootMargin/PanelContainer/VBoxContainer/DeadzoneRow" unique_id=38472912]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(20, 0)
+layout_mode = 2
+text = "-"
+
+[node name="DeadzoneValue" type="Label" parent="RootMargin/PanelContainer/VBoxContainer/DeadzoneRow" unique_id=38472913]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(30, 0)
+layout_mode = 2
+text = "4.0"
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="DeadzonePlus" type="Button" parent="RootMargin/PanelContainer/VBoxContainer/DeadzoneRow" unique_id=38472914]
 unique_name_in_owner = true
 custom_minimum_size = Vector2(20, 0)
 layout_mode = 2

@@ -1,7 +1,6 @@
 [gd_scene format=3 uid="uid://bc2b508jstjar"]
 
-[ext_resource type="Script" path="res://ui/hud/hud_ui.gd" id="1_dwx17"]
-
+[ext_resource type="Script" uid="uid://c6gyovtu652tg" path="res://ui/hud/hud_ui.gd" id="1_dwx17"]
 
 [node name="HUD" type="CanvasLayer" unique_id=867313363]
 script = ExtResource("1_dwx17")
@@ -39,14 +38,12 @@ alignment = 1
 unique_name_in_owner = true
 layout_mode = 2
 text = "현재 Key 표시"
-
 horizontal_alignment = 1
 
 [node name="ChordLabel" type="Label" parent="MainContainer/InfoPanel/VBoxContainer" unique_id=1603013253]
 unique_name_in_owner = true
 layout_mode = 2
 text = "현재 Chord 표시"
-
 horizontal_alignment = 1
 
 [node name="BeatContainer" type="HBoxContainer" parent="MainContainer/InfoPanel/VBoxContainer" unique_id=2141948552]
@@ -55,6 +52,7 @@ layout_mode = 2
 size_flags_horizontal = 4
 size_flags_vertical = 4
 alignment = 1
+
 [node name="SettingsContainer" type="MarginContainer" parent="." unique_id=981273981]
 anchors_preset = 1
 anchor_left = 1.0
@@ -65,7 +63,16 @@ grow_horizontal = 0
 theme_override_constants/margin_top = 20
 theme_override_constants/margin_right = 20
 
-[node name="SettingsButton" type="Button" parent="SettingsContainer" unique_id=1849203845]
+[node name="TopRightButtons" type="HBoxContainer" parent="SettingsContainer" unique_id=1849203846]
+layout_mode = 2
+theme_override_constants/separation = 10
+
+[node name="HelpButton" type="Button" parent="SettingsContainer/TopRightButtons" unique_id=1849203847]
+unique_name_in_owner = true
+layout_mode = 2
+text = "?"
+
+[node name="SettingsButton" type="Button" parent="SettingsContainer/TopRightButtons" unique_id=1849203845]
 unique_name_in_owner = true
 layout_mode = 2
 text = "설정"
