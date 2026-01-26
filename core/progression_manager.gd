@@ -9,6 +9,7 @@ extends Node
 signal slot_selected(index: int)
 signal slot_updated(index: int, data: Dictionary)
 signal selection_cleared
+signal loop_range_changed(start: int, end: int) # [New] 루프 구간 변경 알림
 signal settings_updated(bar_count: int, chords_per_bar: int) # [New] 설정 변경 알림
 
 # ============================================================
@@ -35,6 +36,10 @@ var selected_index: int = -1:
 		slot_selected.emit(selected_index)
 		if selected_index == -1:
 			selection_cleared.emit()
+
+# Loop Range (-1 means no loop)
+var loop_start_index: int = -1
+var loop_end_index: int = -1
 
 var slots: Array = []
 
@@ -145,6 +150,23 @@ func set_slot_from_tile(midi_note: int, string_index: int, is_shift: bool, is_al
 	
 	save_session()
 
+## 루프 구간 설정
+func set_loop_range(start: int, end: int) -> void:
+	if start < 0 or end < 0 or start > end or end >= total_slots:
+		return
+		
+	loop_start_index = start
+	loop_end_index = end
+	loop_range_changed.emit(loop_start_index, loop_end_index)
+	save_session()
+
+## 루프 구간 해제
+func clear_loop_range() -> void:
+	loop_start_index = -1
+	loop_end_index = -1
+	loop_range_changed.emit(-1, -1)
+	save_session()
+
 ## 특정 슬롯의 데이터 반환
 func get_slot(index: int) -> Variant:
 	if index >= 0 and index < slots.size():
@@ -191,6 +213,10 @@ func _resize_slots() -> void:
 	
 	if selected_index >= new_total:
 		selected_index = -1
+	
+	# 루프 범위가 새 크기를 벗어나면 초기화
+	if loop_end_index >= new_total:
+		clear_loop_range()
 
 # ============================================================
 # PERSISTENCE (Auto-save)
@@ -207,7 +233,9 @@ func save_session() -> void:
 		"version": 1,
 		"bar_count": bar_count,
 		"bar_densities": bar_densities,
-		"slots": slots
+		"slots": slots,
+		"loop_start": loop_start_index,
+		"loop_end": loop_end_index
 	}
 	_save_json(SAVE_PATH_SESSION, data)
 	print("[ProgressionManager] Session saved.")
@@ -238,12 +266,18 @@ func _deserialize_data(data: Dictionary) -> void:
 	
 	_resize_slots()
 	
+	
 	var saved_slots = data.get("slots", [])
 	for i in range(min(slots.size(), saved_slots.size())):
 		slots[i] = saved_slots[i]
 	
+	# Loop Range 복원
+	loop_start_index = data.get("loop_start", -1)
+	loop_end_index = data.get("loop_end", -1)
+	
 	# UI 리프레시를 위해 시그널 방출
 	settings_updated.emit(bar_count, 1) # Note: second arg unused now
+	loop_range_changed.emit(loop_start_index, loop_end_index)
 	for i in range(slots.size()):
 		slot_updated.emit(i, slots[i] if slots[i] else {})
 

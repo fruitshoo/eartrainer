@@ -97,8 +97,7 @@ func stop_and_reset() -> void:
 # PLAYBACK CONTROL
 # ============================================================
 func _resume_playback() -> void:
-	var beat_duration := 60.0 / GameManager.bpm
-	
+	# var beat_duration := 60.0 / GameManager.bpm # Unused
 	# Resume 조건: 일시정지 상태이거나, 사용자가 수동으로 위치를 지정한 경우(Step/Beat != 0)
 	if _is_paused or current_step > 0 or current_beat > 0:
 		# 현재 위치에서 즉시 재생
@@ -108,6 +107,12 @@ func _resume_playback() -> void:
 		# 완전 초기 시작
 		current_step = 0
 		current_beat = 0
+		
+		# [New] Loop Start Check
+		var loop_start = ProgressionManager.loop_start_index
+		if loop_start != -1:
+			current_step = loop_start
+			
 		_play_current_step(false)
 
 func _pause_playback() -> void:
@@ -155,7 +160,24 @@ func _on_beat_tick() -> void:
 	
 	if current_beat >= slot_beats:
 		# 슬롯 종료 -> 다음 슬롯으로
-		current_step = (current_step + 1) % ProgressionManager.total_slots
+		var next_step = current_step + 1
+		
+		# [New] Loop Range 처리
+		var loop_start = ProgressionManager.loop_start_index
+		var loop_end = ProgressionManager.loop_end_index
+		
+		if loop_start != -1 and loop_end != -1:
+			# 루프 구간이 유효하고, 현재 슬롯이 루프 구간 내에 있을 때
+			if next_step > loop_end:
+				next_step = loop_start
+			elif current_step < loop_start:
+				# (혹시라도 루프 바깥에서 시작했으면 루프 시작점으로 진입)
+				next_step = loop_start
+		else:
+			# 기본 전체 루프
+			next_step = next_step % ProgressionManager.total_slots
+			
+		current_step = next_step
 		current_beat = 0 # 다음 슬롯의 0번 박자
 		_play_current_step()
 	else:

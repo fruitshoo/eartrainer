@@ -39,9 +39,11 @@ func _ready() -> void:
 	
 	if settings_button:
 		settings_button.pressed.connect(func(): EventBus.request_toggle_settings.emit())
+		settings_button.focus_mode = Control.FOCUS_NONE
 		
 	if help_button:
 		help_button.pressed.connect(func(): EventBus.request_toggle_help.emit())
+		help_button.focus_mode = Control.FOCUS_NONE
 
 	_setup_visual_style()
 	_setup_beat_indicators()
@@ -178,9 +180,9 @@ func _on_bar_changed(slot_index: int) -> void:
 
 # ...
 
-func _on_settings_visibility_changed(is_visible: bool) -> void:
+func _on_settings_visibility_changed(visible_state: bool) -> void:
 	if top_right_buttons:
-		top_right_buttons.visible = !is_visible # 설정창 열리면 버튼들 숨김
+		top_right_buttons.visible = !visible_state # 설정창 열리면 버튼들 숨김
 
 func _fade_out_chord_label() -> void:
 	var fade_tween := create_tween()

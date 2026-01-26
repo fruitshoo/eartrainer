@@ -29,13 +29,17 @@ func _ready() -> void:
 	ProgressionManager.slot_updated.connect(_update_slot_label)
 	ProgressionManager.selection_cleared.connect(_on_selection_cleared)
 	ProgressionManager.settings_updated.connect(_on_settings_updated) # New
+	ProgressionManager.loop_range_changed.connect(_on_loop_range_changed)
 	
 	GameManager.settings_changed.connect(_sync_ui_from_manager) # Update BPM/etc from global settings
 	
 	# Playback Signals
 	play_button.pressed.connect(_toggle_playback)
+	play_button.focus_mode = Control.FOCUS_NONE
+	
 	if stop_button:
 		stop_button.pressed.connect(_on_stop_button_pressed)
+		stop_button.focus_mode = Control.FOCUS_NONE
 	
 	EventBus.bar_changed.connect(_highlight_playing)
 	EventBus.sequencer_playing_changed.connect(_on_sequencer_playing_changed)
@@ -45,6 +49,7 @@ func _ready() -> void:
 	# split_check_button.toggled.connect(_on_split_toggled)
 	if split_bar_button:
 		split_bar_button.pressed.connect(_on_split_bar_pressed)
+		split_bar_button.focus_mode = Control.FOCUS_NONE
 		
 	bpm_spin_box.value_changed.connect(_on_bpm_changed)
 	
@@ -76,6 +81,7 @@ func _rebuild_slots() -> void:
 	
 	for i in range(total_slots):
 		var btn = slot_button_scene.instantiate()
+		btn.focus_mode = Control.FOCUS_NONE # [New] Prevent Focus Stealing
 		slot_container.add_child(btn)
 		
 		# [Updated] Beats count fetch
@@ -137,10 +143,26 @@ func _on_slot_clicked(index: int) -> void:
 	if index >= ProgressionManager.total_slots:
 		return
 	
-	if ProgressionManager.selected_index == index:
-		ProgressionManager.selected_index = -1
+	if Input.is_key_pressed(KEY_SHIFT):
+		# [New] Shift+Click: Loop Selection
+		if ProgressionManager.selected_index != -1:
+			# 기존 선택이 있으면 거기서부터 현재까지 범위 지정
+			var start = min(ProgressionManager.selected_index, index)
+			var end = max(ProgressionManager.selected_index, index)
+			ProgressionManager.set_loop_range(start, end)
+		else:
+			# 선택된 게 없으면 그냥 단일 선택 처리와 동일하게 가거나, 자기 자신만 루프 걸 수도 있음
+			# 여기서는 그냥 일반 선택으로 fallback
+			ProgressionManager.selected_index = index
+			ProgressionManager.clear_loop_range()
 	else:
-		ProgressionManager.selected_index = index
+		# Normal Click: Clear Loop & Toggle Select
+		ProgressionManager.clear_loop_range()
+		
+		if ProgressionManager.selected_index == index:
+			ProgressionManager.selected_index = -1
+		else:
+			ProgressionManager.selected_index = index
 	
 	_update_split_button_state()
 
@@ -151,14 +173,28 @@ func _on_slot_beat_clicked(slot_idx: int, beat_idx: int) -> void:
 func _on_slot_right_clicked(index: int) -> void:
 	ProgressionManager.clear_slot(index)
 
+func _on_loop_range_changed(_start: int, _end: int) -> void:
+	# 루프 범위가 바뀌면 하이라이트 갱신
+	_highlight_selected(ProgressionManager.selected_index)
+
 func _highlight_selected(selected_idx: int) -> void:
 	var children = slot_container.get_children()
 	for i in range(children.size()):
 		var btn = children[i]
 		if not btn.has_method("set_highlight"): continue
 		
+		# 1. 루프 범위 확인
+		var loop_start = ProgressionManager.loop_start_index
+		var loop_end = ProgressionManager.loop_end_index
+		var is_in_loop = false
+		if loop_start != -1 and loop_end != -1:
+			if i >= loop_start and i <= loop_end:
+				is_in_loop = true
+		
 		if i == selected_idx:
 			btn.set_highlight("selected")
+		elif is_in_loop:
+			btn.set_highlight("selected") # 루프 구간도 선택된 것처럼 표시 (혹은 별도 스타일)
 		else:
 			btn.set_highlight("none")
 
@@ -179,10 +215,20 @@ func _highlight_playing(playing_step: int) -> void:
 		var btn = children[i]
 		if not btn.has_method("set_highlight"): continue
 		
+		# 1. 루프 범위 확인
+		var loop_start = ProgressionManager.loop_start_index
+		var loop_end = ProgressionManager.loop_end_index
+		var is_in_loop = false
+		if loop_start != -1 and loop_end != -1:
+			if i >= loop_start and i <= loop_end:
+				is_in_loop = true
+
 		if i == playing_step:
 			btn.set_highlight("playing")
 		elif i == ProgressionManager.selected_index:
 			btn.set_highlight("selected")
+		elif is_in_loop:
+			btn.set_highlight("selected") # 루프 구간 표시
 		else:
 			btn.set_highlight("none")
 			
