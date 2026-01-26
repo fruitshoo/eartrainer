@@ -1,6 +1,6 @@
 [gd_scene format=3 uid="uid://c0e7i5jgtq023"]
 
-[ext_resource type="Script" uid="uid://g34dj4qcfmgm" path="res://scenes/tile/fret_tile.gd" id="1_jtpmk"]
+[ext_resource type="Script" uid="uid://g34dj4qcfmgm" path="res://scenes/fretboard/tile/fret_tile.gd" id="1_jtpmk"]
 
 [sub_resource type="StandardMaterial3D" id="StandardMaterial3D_jtpmk"]
 resource_local_to_scene = true
@@ -17,12 +17,13 @@ script = ExtResource("1_jtpmk")
 chord_color = Color(0.3019608, 0.8, 1, 1)
 sustain_energy = 1.5
 
+[node name="Label3D" type="Label3D" parent="." unique_id=1410607119]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.25, 0)
+pixel_size = 0.01
+billboard = 1
+
 [node name="MeshInstance3D" type="MeshInstance3D" parent="." unique_id=207382635]
 mesh = SubResource("BoxMesh_lmv8r")
 
 [node name="CollisionShape3D" type="CollisionShape3D" parent="." unique_id=2037351598]
 shape = SubResource("BoxShape3D_lmv8r")
-
-[node name="Label3D" type="Label3D" parent="." unique_id=1410607119]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.1, 0)
-billboard = 1

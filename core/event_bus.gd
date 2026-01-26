@@ -8,6 +8,12 @@ extends Node
 signal tile_clicked(midi_note: int, string_index: int, modifiers: Dictionary)
 
 # ============================================================
+# UI SIGNALS
+# ============================================================
+signal request_toggle_settings
+
+
+# ============================================================
 # SEQUENCER STATE & SIGNALS
 # ============================================================
 var is_sequencer_playing: bool = false # 시퀀서 재생 상태 (전역 접근용)

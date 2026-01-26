@@ -70,14 +70,15 @@ var focus_range: int = 3:
 		focus_range = value
 		settings_changed.emit()
 
-var settings_ui_ref: CanvasLayer = null
+# settings_ui_ref 제거됨
+
 
 # ============================================================
 # INPUT HANDLING
 # ============================================================
 func _unhandled_input(event: InputEvent) -> void:
 	if event.is_action_pressed("ui_cancel"):
-		_toggle_settings()
+		EventBus.request_toggle_settings.emit()
 	
 	if event is InputEventKey and event.pressed:
 		if event.keycode == KEY_M:
@@ -138,9 +139,6 @@ func _toggle_mode() -> void:
 	else:
 		current_mode = MusicTheory.ScaleMode.MAJOR
 
-func _toggle_settings() -> void:
-	if settings_ui_ref:
-		settings_ui_ref.visible = !settings_ui_ref.visible
 
 func _apply_diatonic_chord(keycode: int) -> void:
 	var data := MusicTheory.get_chord_from_keycode(current_mode, keycode)

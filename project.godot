@@ -20,8 +20,12 @@ AudioEngine="*uid://deqauwlbpdo4m"
 GameManager="*uid://cdqhxtp1ctg77"
 QuizManager="*uid://ffwv4s6js4ys"
 ProgressionManager="*uid://cdeqxx32mc6sw"
-SettingsManager="*uid://ewe18xqamltv"
+SettingsManager="*uid://dkv3s8una25s4"
 EventBus="*uid://ckhfi55lgvtft"
+
+[gui]
+
+theme/custom="res://ui/resources/main_theme.tres"
 
 [display]
 

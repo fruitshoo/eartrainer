@@ -1,0 +1,7 @@
+[gd_resource type="Resource" script_class="MusicalPattern" format=3 uid="uid://tjoa3876rt2k"]
+
+[ext_resource type="Script" uid="uid://wr0qq466o7ee" path="res://core/data/musical_pattern.gd" id="1_yy2ec"]
+
+[resource]
+script = ExtResource("1_yy2ec")
+metadata/_custom_type_script = "uid://wr0qq466o7ee"

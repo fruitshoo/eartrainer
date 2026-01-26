@@ -1,7 +1,8 @@
 [gd_scene format=3 uid="uid://bx6tqcwt8wrfi"]
 
 [ext_resource type="Script" uid="uid://cgd5souy3fyph" path="res://ui/sequence/sequence_ui.gd" id="1_2bt3v"]
-[ext_resource type="LabelSettings" uid="uid://kjcfw5e72a5p" path="res://ui/resources/slot_settings.tres" id="3_plaov"]
+[ext_resource type="Theme" path="res://ui/resources/main_theme.tres" id="3_4wjan"]
+[ext_resource type="LabelSettings" path="res://ui/resources/slot_settings.tres" id="3_plaov"]
 [ext_resource type="Script" uid="uid://iw3vuv01bc2e" path="res://ui/sequence/sequencer.gd" id="3_t8hoy"]
 
 [node name="SequenceUI" type="CanvasLayer" unique_id=1004823414]
@@ -22,6 +23,7 @@ offset_top = -40.0
 offset_right = 22.0
 grow_horizontal = 2
 grow_vertical = 0
+theme = ExtResource("3_4wjan")
 theme_override_constants/margin_bottom = 40
 
 [node name="VBoxContainer" type="VBoxContainer" parent="RootMargin" unique_id=139187317]

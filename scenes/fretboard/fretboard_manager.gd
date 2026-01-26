@@ -1,6 +1,6 @@
 extends Node3D
 
-@export var tile_scene: PackedScene = preload("res://scenes/tile/fret_tile.tscn")
+@export var tile_scene: PackedScene = preload("res://scenes/fretboard/tile/fret_tile.tscn")
 
 const STRINGS = 6
 const FRETS = 13 # 0프렛 포함

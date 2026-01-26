@@ -52,10 +52,11 @@ func _ready() -> void:
 	_refresh_visuals()
 
 ## 타일 초기화 (FretboardManager에서 호출)
-func setup(s: int, f: int, note: int) -> void:
-	string_index = s
-	fret_index = f
-	midi_note = note
+## 타일 초기화 (FretboardManager에서 호출)
+func setup(s_idx: int, f_idx: int, note_val: int) -> void:
+	string_index = s_idx
+	fret_index = f_idx
+	midi_note = note_val
 
 # ============================================================
 # VISUAL UPDATE (기존 로직 100% 보존)

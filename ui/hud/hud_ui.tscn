@@ -1,12 +1,10 @@
-[gd_scene format=3 uid="uid://cf4e1drgq7yql"]
+[gd_scene format=3 uid="uid://bc2b508jstjar"]
 
-[ext_resource type="Script" path="res://ui/hud/hud_manager.gd" id="1_q3kxm"]
-[ext_resource type="Theme" path="res://ui/resources/main_theme.tres" id="2_416ln"]
-[ext_resource type="LabelSettings" path="res://ui/resources/chord_label_settings.tres" id="2_dnfae"]
-[ext_resource type="LabelSettings" path="res://ui/resources/key_label_settings.tres" id="2_kanua"]
+[ext_resource type="Script" path="res://ui/hud/hud_ui.gd" id="1_dwx17"]
+
 
 [node name="HUD" type="CanvasLayer" unique_id=867313363]
-script = ExtResource("1_q3kxm")
+script = ExtResource("1_dwx17")
 
 [node name="MainContainer" type="Control" parent="." unique_id=599544182]
 layout_mode = 3
@@ -17,7 +15,6 @@ grow_horizontal = 2
 size_flags_horizontal = 4
 size_flags_vertical = 4
 mouse_filter = 2
-theme = ExtResource("2_416ln")
 
 [node name="InfoPanel" type="MarginContainer" parent="MainContainer" unique_id=1583880336]
 layout_mode = 1
@@ -42,14 +39,14 @@ alignment = 1
 unique_name_in_owner = true
 layout_mode = 2
 text = "현재 Key 표시"
-label_settings = ExtResource("2_kanua")
+
 horizontal_alignment = 1
 
 [node name="ChordLabel" type="Label" parent="MainContainer/InfoPanel/VBoxContainer" unique_id=1603013253]
 unique_name_in_owner = true
 layout_mode = 2
 text = "현재 Chord 표시"
-label_settings = ExtResource("2_dnfae")
+
 horizontal_alignment = 1
 
 [node name="BeatContainer" type="HBoxContainer" parent="MainContainer/InfoPanel/VBoxContainer" unique_id=2141948552]

@@ -22,13 +22,17 @@ extends CanvasLayer
 # LIFECYCLE
 # ============================================================
 func _ready() -> void:
-	GameManager.settings_ui_ref = self
+	# GameManager.settings_ui_ref = self # 제거됨
+	EventBus.request_toggle_settings.connect(_on_request_toggle_settings)
 	
 	_populate_options()
 	_sync_from_game_manager()
 	_connect_signals()
 	
 	visible = false
+
+func _on_request_toggle_settings() -> void:
+	visible = !visible
 
 # ============================================================
 # SETUP

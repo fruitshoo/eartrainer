@@ -1,10 +1,10 @@
 [gd_scene format=3 uid="uid://de4ok38d5lbo8"]
 
-[ext_resource type="PackedScene" uid="uid://dfr2ddt5ck8x0" path="res://scenes/fretboard/fretboard_manger.tscn" id="1_iuonh"]
+[ext_resource type="PackedScene" uid="uid://dysc3i00s5p1l" path="res://scenes/fretboard/fretboard_manager.tscn" id="1_ow5a4"]
 [ext_resource type="PackedScene" uid="uid://bt7f8k18nm6ga" path="res://scenes/player/player.tscn" id="2_k2fmo"]
 [ext_resource type="PackedScene" uid="uid://bkug7wowkh7rj" path="res://ui/settings/settings_ui.tscn" id="3_k2fmo"]
 [ext_resource type="Script" uid="uid://ddy07ttvmepmc" path="res://scenes/main/main_camera.gd" id="3_l3cfh"]
-[ext_resource type="PackedScene" uid="uid://gpehw4doyrkv" path="res://ui/hud/hud_manager.tscn" id="5_6q06x"]
+[ext_resource type="PackedScene" uid="uid://bc2b508jstjar" path="res://ui/hud/hud_ui.tscn" id="6_hujxm"]
 [ext_resource type="PackedScene" uid="uid://bx6tqcwt8wrfi" path="res://ui/sequence/sequence_ui.tscn" id="6_ow5a4"]
 
 [sub_resource type="Environment" id="Environment_vom5j"]
@@ -12,7 +12,7 @@ ssao_enabled = true
 
 [node name="Main" type="Node3D" unique_id=1566035042]
 
-[node name="FretboardManger" parent="." unique_id=1419062901 instance=ExtResource("1_iuonh")]
+[node name="FretboardManger" parent="." unique_id=1419062901 instance=ExtResource("1_ow5a4")]
 
 [node name="Player" parent="." unique_id=1910528158 instance=ExtResource("2_k2fmo")]
 
@@ -31,6 +31,6 @@ script = ExtResource("3_l3cfh")
 
 [node name="SettingsUI" parent="." unique_id=77076675 instance=ExtResource("3_k2fmo")]
 
-[node name="HUD" parent="." unique_id=867313363 instance=ExtResource("5_6q06x")]
-
 [node name="SequenceUI" parent="." unique_id=1004823414 instance=ExtResource("6_ow5a4")]
+
+[node name="HUD" parent="." unique_id=867313363 instance=ExtResource("6_hujxm")]
