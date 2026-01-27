@@ -48,7 +48,11 @@ var highlight_scale: bool = true:
 		highlight_scale = value
 		settings_changed.emit()
 
-var is_metronome_enabled: bool = true # 메트로놈 소리 켜기/끄기
+var is_metronome_enabled: bool = true: # 메트로놈 소리 켜기/끄기
+	set(value):
+		is_metronome_enabled = value
+		if AudioEngine:
+			AudioEngine.set_metronome_enabled(value)
 
 var bpm: int = 120: # 템포 (BPM)
 	set(value):

@@ -3,16 +3,56 @@
 extends Node
 
 # ============================================================
-# CONSTANTS
+# ENUMS
 # ============================================================
-const METRONOME_ACCENT_PITCH := 1.5 # 1박 강조 피치 배율
-const METRONOME_NORMAL_PITCH := 1.0 # 일반 박자 피치
-const METRONOME_DURATION := 0.03 # 클릭 지속 시간 (초)
-const METRONOME_FREQUENCY_ACCENT := 1200.0 # 1박 주파수 (Hz)
-const METRONOME_FREQUENCY_NORMAL := 800.0 # 일반 박자 주파수 (Hz)
+enum Tone {
+	CLEAN,
+	DRIVE
+}
 
+# ============================================================
+# CONSTANTS - METRONOME
+# ============================================================
+const METRONOME_ACCENT_PITCH := 1.5
+const METRONOME_NORMAL_PITCH := 1.0
+const METRONOME_DURATION := 0.03
+const METRONOME_FREQUENCY_ACCENT := 1200.0
+const METRONOME_FREQUENCY_NORMAL := 800.0
+
+# ============================================================
+# CONSTANTS - BUS NAMES
+# ============================================================
 const BUS_CLEAN := "GuitarClean"
 const BUS_DRIVE := "GuitarDrive"
+
+# ============================================================
+# CONSTANTS - EFFECT PARAMETERS
+# ============================================================
+# Compressor
+const COMP_THRESHOLD_CLEAN := -12.0
+const COMP_RATIO_CLEAN := 4.0
+const COMP_THRESHOLD_DRIVE := -15.0
+const COMP_RATIO_DRIVE := 6.0
+const COMP_ATTACK_US := 20000.0 # 20ms
+const COMP_RELEASE_MS := 250.0
+
+# Chorus
+const CHORUS_VOICE_COUNT := 2
+const CHORUS_DRY := 0.8
+const CHORUS_WET := 0.3
+const CHORUS_RATE_HZ := 0.5
+const CHORUS_DEPTH_MS := 1.5
+
+# Reverb
+const REVERB_CLEAN_ROOM := 0.5
+const REVERB_CLEAN_DAMPING := 0.5
+const REVERB_CLEAN_WET := 0.35
+const REVERB_DRIVE_ROOM := 0.3
+const REVERB_DRIVE_WET := 0.2
+
+# Distortion
+const DRIVE_AMOUNT := 0.6
+const DRIVE_POST_GAIN := -2.0
 
 # ============================================================
 # RESOURCES
@@ -22,7 +62,8 @@ var base_sample = preload("res://assets/audio/E2.wav")
 # ============================================================
 # STATE
 # ============================================================
-var current_bus_name: String = BUS_CLEAN
+var current_tone: Tone = Tone.CLEAN
+var is_metronome_enabled: bool = false # 외부 의존성 제거, 자체 상태 관리
 
 # ============================================================
 # LIFECYCLE
@@ -36,82 +77,85 @@ func _ready() -> void:
 # INTERNAL - 오디오 버스 및 이펙트 설정
 # ============================================================
 func _setup_audio_buses() -> void:
-	# 1. Clean Tone Bus Setup
-	if AudioServer.get_bus_index(BUS_CLEAN) == -1:
-		var idx = AudioServer.bus_count
-		AudioServer.add_bus(idx)
-		AudioServer.set_bus_name(idx, BUS_CLEAN)
-		AudioServer.set_bus_send(idx, "Master")
-		
-		# Chain: Compressor -> Chorus -> Reverb -> EQ(Tone shaping)
-		
-		# Effect 1: Compressor (단더하고 고른 소리를 위해 맨 앞단에 배치)
-		var comp = AudioEffectCompressor.new()
-		comp.threshold = -12.0
-		comp.ratio = 4.0
-		comp.attack_us = 20000.0 # 20ms
-		comp.release_ms = 250.0
-		AudioServer.add_bus_effect(idx, comp)
+	_setup_clean_bus()
+	_setup_drive_bus()
 
-		# Effect 2: Chorus (공간감과 색채)
-		var chorus = AudioEffectChorus.new()
-		chorus.voice_count = 2
-		chorus.dry = 0.8
-		chorus.wet = 0.3
-		chorus.set_voice_rate_hz(0, 0.5) # 천천히 우아하게 흔들림
-		chorus.set_voice_depth_ms(0, 1.5) # 과하지 않은 깊이
-		AudioServer.add_bus_effect(idx, chorus)
-		
-		# Effect 3: Reverb (예쁜 잔향 - 필수!)
-		var reverb = AudioEffectReverb.new()
-		reverb.room_size = 0.5 # 적당한 공간감
-		reverb.damping = 0.5 # 따뜻한 잔향
-		reverb.spread = 1.0 # 넓은 스테레오 이미지
-		reverb.hipass = 0.2 # 저음 잔향 제거 (깔끔하게)
-		reverb.dry = 0.7
-		reverb.wet = 0.35
-		AudioServer.add_bus_effect(idx, reverb)
-		
-		# Effect 4: EQ (Lo-fi 느낌을 위한 마무리 톤 쉐이핑)
-		var eq = AudioEffectEQ.new()
-		eq.set_band_gain_db(0, -5.0) # Low cut (Boominess 제거)
-		eq.set_band_gain_db(5, -5.0) # High cut (너무 날카롭지 않게, 부드럽게)
-		AudioServer.add_bus_effect(idx, eq)
+func _setup_clean_bus() -> void:
+	if AudioServer.get_bus_index(BUS_CLEAN) != -1:
+		return
 
-	# 2. Drive Tone Bus Setup
-	if AudioServer.get_bus_index(BUS_DRIVE) == -1:
-		var idx = AudioServer.bus_count
-		AudioServer.add_bus(idx)
-		AudioServer.set_bus_name(idx, BUS_DRIVE)
-		AudioServer.set_bus_send(idx, "Master")
-		
-		# Chain: Distortion -> Compressor -> EQ -> Reverb
-		
-		# Effect 1: Distortion (오버드라이브)
-		var dist = AudioEffectDistortion.new()
-		dist.mode = AudioEffectDistortion.MODE_OVERDRIVE
-		dist.drive = 0.6 # 과하지 않은 크런치 톤
-		dist.post_gain = -2.0
-		AudioServer.add_bus_effect(idx, dist)
-		
-		# Effect 2: Compressor (서스테인 및 레벨 정리)
-		var comp = AudioEffectCompressor.new()
-		comp.threshold = -15.0
-		comp.ratio = 6.0
-		AudioServer.add_bus_effect(idx, comp)
-		
-		# Effect 3: EQ (드라이브 톤의 거친 고음 정리)
-		var eq = AudioEffectEQ.new()
-		eq.set_band_gain_db(5, -6.0) # High cut
-		AudioServer.add_bus_effect(idx, eq)
+	var idx = AudioServer.bus_count
+	AudioServer.add_bus(idx)
+	AudioServer.set_bus_name(idx, BUS_CLEAN)
+	AudioServer.set_bus_send(idx, "Master")
+	
+	# 1. Compressor
+	var comp = AudioEffectCompressor.new()
+	comp.threshold = COMP_THRESHOLD_CLEAN
+	comp.ratio = COMP_RATIO_CLEAN
+	comp.attack_us = COMP_ATTACK_US
+	comp.release_ms = COMP_RELEASE_MS
+	AudioServer.add_bus_effect(idx, comp)
 
-		# Effect 4: Reverb (드라이브에도 약간의 공간감)
-		var reverb = AudioEffectReverb.new()
-		reverb.room_size = 0.3
-		reverb.damping = 0.6
-		reverb.dry = 0.8
-		reverb.wet = 0.2
-		AudioServer.add_bus_effect(idx, reverb)
+	# 2. Chorus
+	var chorus = AudioEffectChorus.new()
+	chorus.voice_count = CHORUS_VOICE_COUNT
+	chorus.dry = CHORUS_DRY
+	chorus.wet = CHORUS_WET
+	chorus.set_voice_rate_hz(0, CHORUS_RATE_HZ)
+	chorus.set_voice_depth_ms(0, CHORUS_DEPTH_MS)
+	AudioServer.add_bus_effect(idx, chorus)
+	
+	# 3. Reverb
+	var reverb = AudioEffectReverb.new()
+	reverb.room_size = REVERB_CLEAN_ROOM
+	reverb.damping = REVERB_CLEAN_DAMPING
+	reverb.spread = 1.0
+	reverb.hipass = 0.2
+	reverb.dry = 0.7
+	reverb.wet = REVERB_CLEAN_WET
+	AudioServer.add_bus_effect(idx, reverb)
+	
+	# 4. EQ
+	var eq = AudioEffectEQ.new()
+	eq.set_band_gain_db(0, -5.0) # Low cut
+	eq.set_band_gain_db(5, -5.0) # High cut
+	AudioServer.add_bus_effect(idx, eq)
+
+func _setup_drive_bus() -> void:
+	if AudioServer.get_bus_index(BUS_DRIVE) != -1:
+		return
+
+	var idx = AudioServer.bus_count
+	AudioServer.add_bus(idx)
+	AudioServer.set_bus_name(idx, BUS_DRIVE)
+	AudioServer.set_bus_send(idx, "Master")
+	
+	# 1. Distortion
+	var dist = AudioEffectDistortion.new()
+	dist.mode = AudioEffectDistortion.MODE_OVERDRIVE
+	dist.drive = DRIVE_AMOUNT
+	dist.post_gain = DRIVE_POST_GAIN
+	AudioServer.add_bus_effect(idx, dist)
+	
+	# 2. Compressor
+	var comp = AudioEffectCompressor.new()
+	comp.threshold = COMP_THRESHOLD_DRIVE
+	comp.ratio = COMP_RATIO_DRIVE
+	AudioServer.add_bus_effect(idx, comp)
+	
+	# 3. EQ
+	var eq = AudioEffectEQ.new()
+	eq.set_band_gain_db(5, -6.0) # High cut
+	AudioServer.add_bus_effect(idx, eq)
+
+	# 4. Reverb
+	var reverb = AudioEffectReverb.new()
+	reverb.room_size = REVERB_DRIVE_ROOM
+	reverb.damping = 0.6
+	reverb.dry = 0.8
+	reverb.wet = REVERB_DRIVE_WET
+	AudioServer.add_bus_effect(idx, reverb)
 
 # ============================================================
 # SIGNAL HANDLERS
@@ -121,8 +165,9 @@ func _on_tile_clicked(midi_note: int, _string_index: int, _modifiers: Dictionary
 
 func _on_beat_updated(beat_index: int, _total_beats: int) -> void:
 	if beat_index < 0:
-		return # 시퀀서 정지 시
-	if not GameManager.is_metronome_enabled:
+		return
+	# 외부 GameManager 의존성 제거됨. 자체 변수 사용.
+	if not is_metronome_enabled:
 		return
 	
 	var is_accent := (beat_index == 0)
@@ -131,20 +176,20 @@ func _on_beat_updated(beat_index: int, _total_beats: int) -> void:
 # ============================================================
 # PUBLIC API - 톤 설정
 # ============================================================
-func set_tone_mode(mode: String) -> void:
-	match mode.to_lower():
-		"clean":
-			current_bus_name = BUS_CLEAN
-		"drive":
-			current_bus_name = BUS_DRIVE
-		_:
-			push_warning("Unknown tone mode: %s" % mode)
+func set_tone(mode: Tone) -> void:
+	current_tone = mode
 
 func toggle_tone() -> void:
-	if current_bus_name == BUS_CLEAN:
-		set_tone_mode("drive")
+	if current_tone == Tone.CLEAN:
+		set_tone(Tone.DRIVE)
 	else:
-		set_tone_mode("clean")
+		set_tone(Tone.CLEAN)
+
+# ============================================================
+# PUBLIC API - 메트로놈 제어
+# ============================================================
+func set_metronome_enabled(enabled: bool) -> void:
+	is_metronome_enabled = enabled
 
 # ============================================================
 # PUBLIC API - 기타 음 재생
@@ -154,8 +199,13 @@ func play_note(midi_note: int) -> void:
 	add_child(player)
 	
 	player.stream = base_sample
-	# 현재 설정된 버스로 출력
-	player.bus = current_bus_name
+	
+	# 현재 설정된 톤에 따라 버스 선택
+	match current_tone:
+		Tone.CLEAN:
+			player.bus = BUS_CLEAN
+		Tone.DRIVE:
+			player.bus = BUS_DRIVE
 	
 	# MIDI 번호 차이를 이용해 피치 계산 (E2 = 40)
 	var pitch_relative = midi_note - 40
