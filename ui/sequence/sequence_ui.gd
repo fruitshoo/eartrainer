@@ -13,6 +13,7 @@ var slot_button_scene: PackedScene = preload("res://ui/sequence/slot_button.tscn
 @onready var slot_container: HBoxContainer = %SlotContainer
 @onready var play_button: Button = %PlayButton
 @onready var stop_button: Button = %StopButton
+@onready var loop_overlay_panel: Panel = %LoopOverlayPanel # [New]
 
 # Controls
 @onready var bar_count_spin_box: SpinBox = %BarCountSpinBox
@@ -57,8 +58,26 @@ func _ready() -> void:
 	EventBus.sequencer_step_beat_changed.connect(_on_step_beat_changed)
 	
 	# Initial Setup
+	_setup_loop_overlay_style()
 	_sync_ui_from_manager()
 	_rebuild_slots()
+
+func _setup_loop_overlay_style() -> void:
+	if not loop_overlay_panel: return
+	
+	var style = StyleBoxFlat.new()
+	style.bg_color = Color(1.0, 0.9, 0.4, 0.15) # 은은한 노란 배경
+	style.border_color = Color(1.0, 0.8, 0.2, 0.8) # 진한 노란 테두리
+	style.border_width_left = 2
+	style.border_width_top = 2
+	style.border_width_right = 2
+	style.border_width_bottom = 2
+	style.corner_radius_top_left = 8
+	style.corner_radius_top_right = 8
+	style.corner_radius_bottom_left = 8
+	style.corner_radius_bottom_right = 8
+	
+	loop_overlay_panel.add_theme_stylebox_override("panel", style)
 
 # ============================================================
 # UI LOGIC
@@ -109,6 +128,8 @@ func _rebuild_slots() -> void:
 		var data = ProgressionManager.get_slot(i)
 		if data and btn.has_method("update_info"):
 			btn.update_info(data)
+	
+	call_deferred("_update_loop_overlay")
 
 func _on_settings_updated(_bar_count: int, _chords_per_bar: int) -> void:
 	_sync_ui_from_manager()
@@ -156,13 +177,20 @@ func _on_slot_clicked(index: int) -> void:
 			ProgressionManager.selected_index = index
 			ProgressionManager.clear_loop_range()
 	else:
-		# Normal Click: Clear Loop & Toggle Select
-		ProgressionManager.clear_loop_range()
+		# Normal Click
+		var loop_start = ProgressionManager.loop_start_index
+		var loop_end = ProgressionManager.loop_end_index
+		var is_loop_active = (loop_start != -1 and loop_end != -1)
 		
-		if ProgressionManager.selected_index == index:
-			ProgressionManager.selected_index = -1
+		if is_loop_active:
+			# [Refinement] 루프가 활성화된 상태라면, 클릭 시 루프만 해제하고 슬롯 선택은 하지 않음
+			ProgressionManager.clear_loop_range()
 		else:
-			ProgressionManager.selected_index = index
+			# 루프가 없는 상태라면 정상적으로 슬롯 선택/해제 토글
+			if ProgressionManager.selected_index == index:
+				ProgressionManager.selected_index = -1
+			else:
+				ProgressionManager.selected_index = index
 	
 	_update_split_button_state()
 
@@ -176,6 +204,49 @@ func _on_slot_right_clicked(index: int) -> void:
 func _on_loop_range_changed(_start: int, _end: int) -> void:
 	# 루프 범위가 바뀌면 하이라이트 갱신
 	_highlight_selected(ProgressionManager.selected_index)
+	_update_loop_overlay()
+
+func _update_loop_overlay() -> void:
+	if not loop_overlay_panel: return
+	
+	# [Fix] Layout update requires waiting for the frame to finish, 
+	# especially after rebuilding slots.
+	await get_tree().process_frame
+	
+	var start = ProgressionManager.loop_start_index
+	var end = ProgressionManager.loop_end_index
+	
+	if start == -1 or end == -1 or start >= slot_container.get_child_count() or end >= slot_container.get_child_count():
+		loop_overlay_panel.visible = false
+		return
+		
+	var start_node = slot_container.get_child(start)
+	var end_node = slot_container.get_child(end)
+	
+	if not (start_node is Control) or not (end_node is Control):
+		loop_overlay_panel.visible = false
+		return
+		
+	loop_overlay_panel.visible = true
+	
+	# Global Position Calculation (Global Rect)
+	var start_rect = start_node.get_global_rect()
+	var end_rect = end_node.get_global_rect()
+	
+	# Merge Rects
+	var full_rect = start_rect.merge(end_rect)
+	
+	# Expand slightly for visual padding
+	var padding = 6.0
+	full_rect = full_rect.grow(padding)
+	
+	# Apply to Panel (Convert global rect back to local position if needed, or just set global)
+	# Since Panel is child of SequenceUI (CanvasLayer), its position is relative to viewport if anchors are top-left?
+	# Wait, our Panel has anchors centered. Let's just set global_position/size.
+	
+	loop_overlay_panel.global_position = full_rect.position
+	loop_overlay_panel.custom_minimum_size = full_rect.size
+	loop_overlay_panel.size = full_rect.size
 
 func _highlight_selected(selected_idx: int) -> void:
 	var children = slot_container.get_children()
@@ -194,7 +265,7 @@ func _highlight_selected(selected_idx: int) -> void:
 		if i == selected_idx:
 			btn.set_highlight("selected")
 		elif is_in_loop:
-			btn.set_highlight("selected") # 루프 구간도 선택된 것처럼 표시 (혹은 별도 스타일)
+			btn.set_highlight("loop") # [Fixed] 루프 구간은 별도 스타일(White) 적용
 		else:
 			btn.set_highlight("none")
 
@@ -228,7 +299,7 @@ func _highlight_playing(playing_step: int) -> void:
 		elif i == ProgressionManager.selected_index:
 			btn.set_highlight("selected")
 		elif is_in_loop:
-			btn.set_highlight("selected") # 루프 구간 표시
+			btn.set_highlight("loop") # [Fixed] 루프 구간 표시
 		else:
 			btn.set_highlight("none")
 			

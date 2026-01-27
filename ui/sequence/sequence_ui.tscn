@@ -12,6 +12,7 @@ script = ExtResource("1_2bt3v")
 unique_name_in_owner = true
 script = ExtResource("3_t8hoy")
 
+
 [node name="RootMargin" type="MarginContainer" parent="." unique_id=80045890]
 anchors_preset = 7
 anchor_left = 0.5
@@ -120,3 +121,20 @@ layout_mode = 2
 size_flags_horizontal = 4
 size_flags_vertical = 4
 text = "Stop"
+
+[node name="LoopOverlayPanel" type="Panel" parent="." unique_id=987123654]
+unique_name_in_owner = true
+visible = false
+modulate = Color(1, 1, 0.5, 0.3)
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -20.0
+offset_top = -20.0
+offset_right = 20.0
+offset_bottom = 20.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2

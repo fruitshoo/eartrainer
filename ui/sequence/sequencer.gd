@@ -100,6 +100,15 @@ func _resume_playback() -> void:
 	# var beat_duration := 60.0 / GameManager.bpm # Unused
 	# Resume 조건: 일시정지 상태이거나, 사용자가 수동으로 위치를 지정한 경우(Step/Beat != 0)
 	if _is_paused or current_step > 0 or current_beat > 0:
+		# [New] Loop Check: 만약 현재 위치가 루프 구간 밖이라면, 루프 시작점으로 강제 이동
+		var loop_start = ProgressionManager.loop_start_index
+		var loop_end = ProgressionManager.loop_end_index
+		
+		if loop_start != -1 and loop_end != -1:
+			if current_step < loop_start or current_step > loop_end:
+				current_step = loop_start
+				current_beat = 0
+		
 		# 현재 위치에서 즉시 재생
 		# Seek의 경우 _is_paused가 false일 수 있으므로 여기서 강제로 true 처리하는 셈
 		_play_current_step(true)

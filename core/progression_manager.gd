@@ -122,6 +122,13 @@ func get_bar_index_for_slot(slot_index: int) -> int:
 func set_slot_from_tile(midi_note: int, string_index: int, is_shift: bool, is_alt: bool) -> void:
 	if selected_index < 0:
 		return
+		
+	# [BugFix] 루프 구간이 설정된 상태(여러 슬롯 선택)라면 코드 입력을 막는다.
+	# 단, 단일 슬롯 선택(Start==End)인 경우는 허용할 수도 있지만,
+	# UI 로직상 Shift+Click으로 구간을 잡으면 Start != End가 됨.
+	if loop_start_index != -1 and loop_end_index != -1:
+		if loop_start_index != loop_end_index:
+			return
 	
 	# 1. 다이어토닉 타입 자동 추론
 	var chord_type := MusicTheory.get_diatonic_type(
@@ -157,6 +164,13 @@ func set_loop_range(start: int, end: int) -> void:
 		
 	loop_start_index = start
 	loop_end_index = end
+	
+	# [Refinement] 루프 구간이 생성되면 기존 단일 슬롯 선택은 해제한다.
+	# (시각적으로 루프 구간(흰색)만 남기고 노란색 슬롯을 없앰)
+	if selected_index != -1:
+		selected_index = -1
+		selection_cleared.emit()
+		
 	loop_range_changed.emit(loop_start_index, loop_end_index)
 	save_session()
 
@@ -269,7 +283,12 @@ func _deserialize_data(data: Dictionary) -> void:
 	
 	var saved_slots = data.get("slots", [])
 	for i in range(min(slots.size(), saved_slots.size())):
-		slots[i] = saved_slots[i]
+		var s = saved_slots[i]
+		if s is Dictionary:
+			# [Fix] JSON loads numbers as floats. Convert to int for safety.
+			if s.has("root"): s["root"] = int(s["root"])
+			if s.has("string"): s["string"] = int(s["string"])
+		slots[i] = s
 	
 	# Loop Range 복원
 	loop_start_index = data.get("loop_start", -1)

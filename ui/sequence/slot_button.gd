@@ -104,7 +104,9 @@ func set_highlight(state: String) -> void:
 		"playing":
 			modulate = Color(0.5, 2.0, 0.5) # 녹색
 		"selected":
-			modulate = Color(1.5, 1.5, 1.0) # 노란색
+			modulate = Color(1.5, 1.5, 1.0) # 노란색 (편집 대기)
+		"loop":
+			modulate = Color(1.0, 1.0, 1.0) # 흰색 (루프 구간 - 오버레이로 표시하므로 버튼은 평범하게)
 		_:
 			modulate = Color.WHITE
 
