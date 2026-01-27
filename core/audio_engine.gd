@@ -214,6 +214,15 @@ func play_note(midi_note: int) -> void:
 	player.play()
 	player.finished.connect(player.queue_free)
 
+func stop_all_notes() -> void:
+	var count = 0
+	for child in get_children():
+		if child is AudioStreamPlayer:
+			child.stop()
+			child.queue_free()
+			count += 1
+	print("[AudioEngine] Stopped %d active note players." % count)
+
 # ============================================================
 # PUBLIC API - 메트로놈 재생
 # ============================================================
@@ -252,4 +261,64 @@ func play_metronome(is_accent: bool) -> void:
 	
 	# 재생 완료 후 삭제
 	await get_tree().create_timer(METRONOME_DURATION + 0.05).timeout
+	player.queue_free()
+
+# ============================================================
+# PUBLIC API - SFX (Synthesized)
+# ============================================================
+func play_sfx(type: String) -> void:
+	var player = AudioStreamPlayer.new()
+	add_child(player)
+	
+	var generator = AudioStreamGenerator.new()
+	generator.mix_rate = 44100.0
+	player.stream = generator
+	player.bus = "Master" # SFX는 이펙트 제외
+	
+	var duration = 0.5
+	var freq_start = 880.0
+	var freq_end = 880.0
+	var vol = 0.5
+	
+	if type == "correct":
+		duration = 0.6
+		freq_start = 1046.5 # C6
+		freq_end = 1046.5
+		vol = 0.4
+	elif type == "wrong":
+		duration = 0.3
+		freq_start = 150.0
+		freq_end = 100.0
+		vol = 0.4
+		
+	player.volume_db = linear_to_db(vol)
+	player.play()
+	
+	var playback: AudioStreamGeneratorPlayback = player.get_stream_playback()
+	var sample_count := int(generator.mix_rate * duration)
+	
+	for i in range(sample_count):
+		var t: float = float(i) / generator.mix_rate
+		var progress: float = float(i) / sample_count
+		
+		# Simple Synthesis
+		var current_freq = lerpf(freq_start, freq_end, progress)
+		var sample: float = 0.0
+		
+		if type == "correct":
+			# Bell-like: Sine + Overtone + Exp Decay
+			var sine = sin(TAU * current_freq * t)
+			var overtone = sin(TAU * (current_freq * 2.0) * t) * 0.5
+			sample = (sine + overtone) * 0.5
+			var envelope = pow(1.0 - progress, 2.0) # Fast decay
+			sample *= envelope
+		elif type == "wrong":
+			# Softer Thud: Low Sine + Fast Decay (No Sawtooth)
+			var sine = sin(TAU * current_freq * t)
+			var envelope = pow(1.0 - progress, 3.0)
+			sample = sine * envelope
+			
+		playback.push_frame(Vector2(sample, sample))
+		
+	await get_tree().create_timer(duration + 0.1).timeout
 	player.queue_free()

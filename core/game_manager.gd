@@ -271,14 +271,25 @@ func _ready() -> void:
 		melody_manager.name = "MelodyManager"
 		add_child(melody_manager)
 		
+		# Connect MelodyManager visual signals
 		melody_manager.visual_note_on.connect(_on_melody_visual_on)
 		melody_manager.visual_note_off.connect(_on_melody_visual_off)
+	
+	# [New] Connect Global EventBus Visuals
+	EventBus.visual_note_on.connect(_on_melody_visual_on)
+	EventBus.visual_note_off.connect(_on_melody_visual_off)
 		
 	# [New] Register SongManager
 	if not has_node("SongManager"):
 		var song_manager = SongManager.new()
 		song_manager.name = "SongManager"
 		add_child(song_manager)
+		
+	# [New] Register RiffManager
+	if not has_node("RiffManager"):
+		var riff_manager = RiffManager.new()
+		riff_manager.name = "RiffManager"
+		add_child(riff_manager)
 
 func _on_melody_visual_on(midi_note: int, string_idx: int) -> void:
 	# 1. Visual Highlight
@@ -293,6 +304,13 @@ func _on_melody_visual_on(midi_note: int, string_idx: int) -> void:
 		AudioEngine.play_note(midi_note)
 
 func _on_melody_visual_off(midi_note: int, string_idx: int) -> void:
+	if midi_note == -1:
+		# Clear ALL visuals (Emergency Stop)
+		for tile in get_tree().get_nodes_in_group("fret_tiles"):
+			if tile.has_method("clear_melody_highlight"):
+				tile.clear_melody_highlight()
+		return
+
 	var fret = MusicTheory.get_fret_position(midi_note, string_idx)
 	var tile = find_tile(string_idx, fret)
 	if tile and is_instance_valid(tile):
