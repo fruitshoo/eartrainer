@@ -91,6 +91,12 @@ const VOICING_SHAPES := {
 		"7": [[0, 0], [1, 2], [2, 0], [3, 2]],
 		"m7": [[0, 0], [1, 2], [2, 0], [3, 1]],
 		"m7b5": [[0, 0], [1, 1], [2, 0], [3, 1]]
+	},
+	"4th_string": {
+		"M7": [[0, 0], [1, 2], [2, 2], [3, 2]], # R(4), 5(3), 7(2), 3(1)
+		"7": [[0, 0], [1, 2], [2, 1], [3, 2]], # R(4), 5(3), b7(2), 3(1)
+		"m7": [[0, 0], [1, 2], [2, 1], [3, 1]], # R(4), 5(3), b7(2), b3(1)
+		"m7b5": [[0, 0], [1, 1], [2, 1], [3, 1]] # R(4), b5(3), b7(2), b3(1)
 	}
 }
 
@@ -188,7 +194,11 @@ static func get_fret_position(midi_note: int, string_index: int) -> int:
 
 ## 루트 줄 번호로 보이싱 키 반환
 static func get_voicing_key(string_index: int) -> String:
-	return "6th_string" if string_index == 0 else "5th_string"
+	match string_index:
+		0: return "6th_string"
+		1: return "5th_string"
+		2: return "4th_string"
+		_: return "6th_string" # Default fallback
 
 ## 키보드 입력 → 코드 데이터 반환 (game_manager용)
 static func get_chord_from_keycode(mode: ScaleMode, keycode: int) -> Array:
