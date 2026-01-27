@@ -311,8 +311,8 @@ func check_rhythm_timing() -> Dictionary:
 	
 	# 8분음표(반박자) 지원 여부에 따라 간격 결정
 	var interval := beat_duration_ms
-	var subdivision := 2 # 1=4분음표, 2=8분음표
-	var target_interval := interval / subdivision
+	# 기본적으로는 4분음표(메트로놈 클릭) 기준으로만 판정 (사용자 편의성)
+	var target_interval := interval
 	
 	# 오차 계산
 	var offset: float = fmod(elapsed, target_interval)
@@ -322,21 +322,21 @@ func check_rhythm_timing() -> Dictionary:
 		
 	# 판정
 	var abs_dev := absf(deviation)
-	var rating := "Miss"
-	var color := Color.GRAY
+	var rating := ""
+	var color := Color.WHITE
 	
 	if abs_dev < 40.0:
 		rating = "Perfect!"
 		color = Color.CYAN
-	elif abs_dev < 80.0:
-		rating = "Great"
-		color = Color.GREEN
-	elif abs_dev < 120.0:
-		rating = "Good"
-		color = Color.YELLOW
-	elif abs_dev < 200.0:
-		rating = "Bad"
+	elif abs_dev < 150.0:
+		rating = "Early" if deviation < 0 else "Late"
+		color = Color.GREEN if abs_dev < 100.0 else Color.YELLOW
+	elif abs_dev < 250.0:
+		rating = "Too Early" if deviation < 0 else "Too Late"
 		color = Color.ORANGE
+	else:
+		rating = "Miss"
+		color = Color.GRAY
 		
 	return {
 		"valid": true,

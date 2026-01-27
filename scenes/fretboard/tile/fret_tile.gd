@@ -239,6 +239,14 @@ func _on_input_event(camera: Node, event: InputEvent, event_position: Vector3, n
 				# But wait, click usually implies down+up.
 				# Existing logic treats "pressed" as click.
 				
+				# Rhythm Check (New)
+				if GameManager.is_rhythm_mode_enabled and EventBus.is_sequencer_playing:
+					var sequencer = get_tree().get_first_node_in_group("sequencer")
+					if sequencer and sequencer.has_method("check_rhythm_timing"):
+						var result = sequencer.check_rhythm_timing()
+						if result.valid:
+							_show_rhythm_feedback(result)
+				
 				EventBus.tile_clicked.emit(midi_note, string_index, modifiers)
 				EventBus.tile_pressed.emit(midi_note, string_index) # [New]
 				
@@ -249,22 +257,6 @@ func _on_input_event(camera: Node, event: InputEvent, event_position: Vector3, n
 				# Mouse Up
 				EventBus.tile_released.emit(midi_note, string_index) # [New]
 
-func _on_clicked(is_shift: bool, is_alt: bool) -> void:
-	# [New] Rhythm Training Check
-	if GameManager.is_rhythm_mode_enabled and EventBus.is_sequencer_playing:
-		var sequencer = get_tree().get_first_node_in_group("sequencer")
-		if sequencer and sequencer.has_method("check_rhythm_timing"):
-			var result = sequencer.check_rhythm_timing()
-			if result.valid:
-				_show_rhythm_feedback(result)
-
-	# [v0.3] 모든 직접 호출 제거 → EventBus로 이벤트만 발생
-	EventBus.tile_clicked.emit(midi_note, string_index, {
-		"shift": is_shift,
-		"alt": is_alt,
-		"fret_index": fret_index,
-		"position": global_position
-	})
 
 ## [New] 리듬 판정 피드백 표시 (플로팅 텍스트)
 func _show_rhythm_feedback(result: Dictionary) -> void:
