@@ -13,7 +13,8 @@ var slot_button_scene: PackedScene = preload("res://ui/sequence/slot_button.tscn
 @onready var slot_container: HBoxContainer = %SlotContainer
 @onready var play_button: Button = %PlayButton
 @onready var stop_button: Button = %StopButton
-@onready var loop_overlay_panel: Panel = %LoopOverlayPanel # [New]
+@onready var record_button: Button = %RecordButton # [New]
+@onready var loop_overlay_panel: Panel = %LoopOverlayPanel
 
 # Controls
 @onready var bar_count_spin_box: SpinBox = %BarCountSpinBox
@@ -32,30 +33,45 @@ func _ready() -> void:
 	ProgressionManager.slot_selected.connect(_highlight_selected)
 	ProgressionManager.slot_updated.connect(_update_slot_label)
 	ProgressionManager.selection_cleared.connect(_on_selection_cleared)
-	ProgressionManager.settings_updated.connect(_on_settings_updated) # New
+	ProgressionManager.settings_updated.connect(_on_settings_updated)
 	ProgressionManager.loop_range_changed.connect(_on_loop_range_changed)
-	
-	GameManager.settings_changed.connect(_sync_ui_from_manager) # Update BPM/etc from global settings
-	
+
+	GameManager.settings_changed.connect(_sync_ui_from_manager)
+
 	# Playback Signals
 	play_button.pressed.connect(_toggle_playback)
 	play_button.focus_mode = Control.FOCUS_NONE
-	
+
 	if stop_button:
 		stop_button.pressed.connect(_on_stop_button_pressed)
 		stop_button.focus_mode = Control.FOCUS_NONE
-	
+
+	if record_button:
+		record_button.toggled.connect(_on_record_toggled)
+		record_button.focus_mode = Control.FOCUS_NONE
+		
+	var clear_melody_button = %ClearMelodyButton
+	if clear_melody_button:
+		clear_melody_button.pressed.connect(_clear_melody)
+		clear_melody_button.focus_mode = Control.FOCUS_NONE
+
+	# MelodyManager Signals (Global)
+	var melody_manager = GameManager.get_node_or_null("MelodyManager")
+	if melody_manager:
+		melody_manager.recording_started.connect(_on_recording_started)
+		melody_manager.recording_stopped.connect(_on_recording_stopped)
+
 	# Library
 	if library_button:
 		library_button.pressed.connect(_toggle_library_panel)
 		library_button.focus_mode = Control.FOCUS_NONE
-		
+
 	if library_panel:
 		library_panel.close_requested.connect(_toggle_library_panel)
-	
+
 	EventBus.bar_changed.connect(_highlight_playing)
 	EventBus.sequencer_playing_changed.connect(_on_sequencer_playing_changed)
-	
+
 	# UI Controls
 	bar_count_spin_box.value_changed.connect(_on_bar_count_changed)
 	# split_check_button.toggled.connect(_on_split_toggled)
@@ -370,13 +386,58 @@ func _unhandled_input(event: InputEvent) -> void:
 		if event.keycode == KEY_SPACE:
 			_toggle_playback()
 			get_viewport().set_input_as_handled()
+		elif event.keycode == KEY_R:
+			_toggle_record_macro()
+			get_viewport().set_input_as_handled()
+		elif event.keycode == KEY_BACKSPACE or event.keycode == KEY_DELETE:
+			# Only if not editing text (simple check: focus mode)
+			# But for now let's be safe and require modifiers or explicit focus check
+			if Input.is_key_pressed(KEY_SHIFT): # Shift + Delete to clear melody
+				_clear_melody()
+				get_viewport().set_input_as_handled()
 
 func _toggle_playback() -> void:
 	EventBus.request_toggle_playback.emit()
 
+func _toggle_record_macro() -> void:
+	if record_button:
+		record_button.button_pressed = !record_button.button_pressed
+
 func _on_stop_button_pressed() -> void:
 	EventBus.request_stop_playback.emit()
 	_highlight_playing(-1)
+
+func _on_record_toggled(toggled: bool) -> void:
+	var melody_manager = GameManager.get_node_or_null("MelodyManager")
+	if melody_manager:
+		if toggled:
+			if not melody_manager.is_recording:
+				melody_manager.start_recording()
+			
+			# [New] Auto-start sequencer with count-in if stopped
+			if not EventBus.is_sequencer_playing:
+				var sequencer = get_tree().get_first_node_in_group("sequencer")
+				if sequencer and sequencer.has_method("start_with_count_in"):
+					sequencer.start_with_count_in()
+		else:
+			if melody_manager.is_recording:
+				melody_manager.stop_recording()
+
+func _clear_melody() -> void:
+	var melody_manager = GameManager.get_node_or_null("MelodyManager")
+	if melody_manager and melody_manager.has_method("clear_melody"):
+		melody_manager.clear_melody()
+		# TODO: Visual feedback via UI toast?
+
+func _on_recording_started() -> void:
+	if record_button:
+		record_button.set_pressed_no_signal(true)
+		record_button.modulate = Color(1.0, 0.3, 0.3) # Red
+
+func _on_recording_stopped() -> void:
+	if record_button:
+		record_button.set_pressed_no_signal(false)
+		record_button.modulate = Color.WHITE
 
 func _on_selection_cleared():
 	_highlight_selected(-1)

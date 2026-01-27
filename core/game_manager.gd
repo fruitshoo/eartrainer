@@ -260,3 +260,37 @@ func _deserialize_settings(data: Dictionary) -> void:
 
 func _ready() -> void:
 	call_deferred("load_settings")
+	
+	# [New] Register MelodyManager
+	if not has_node("MelodyManager"):
+		var melody_manager = MelodyManager.new()
+		melody_manager.name = "MelodyManager"
+		add_child(melody_manager)
+		
+		melody_manager.visual_note_on.connect(_on_melody_visual_on)
+		melody_manager.visual_note_off.connect(_on_melody_visual_off)
+		
+	# [New] Register SongManager
+	if not has_node("SongManager"):
+		var song_manager = SongManager.new()
+		song_manager.name = "SongManager"
+		add_child(song_manager)
+
+func _on_melody_visual_on(midi_note: int, string_idx: int) -> void:
+	# 1. Visual Highlight
+	var fret = MusicTheory.get_fret_position(midi_note, string_idx)
+	var tile = find_tile(string_idx, fret)
+	if tile and is_instance_valid(tile):
+		if tile.has_method("apply_melody_highlight"):
+			tile.apply_melody_highlight()
+	
+	# 2. Audio Playback
+	if AudioEngine:
+		AudioEngine.play_note(midi_note)
+
+func _on_melody_visual_off(midi_note: int, string_idx: int) -> void:
+	var fret = MusicTheory.get_fret_position(midi_note, string_idx)
+	var tile = find_tile(string_idx, fret)
+	if tile and is_instance_valid(tile):
+		if tile.has_method("clear_melody_highlight"):
+			tile.clear_melody_highlight()

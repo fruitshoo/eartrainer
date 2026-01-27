@@ -139,15 +139,18 @@ func _on_tile_clicked(midi_note: int, string_index: int, modifiers: Dictionary) 
 func update_settings(new_bar_count: int, _dummy_density: int = 1) -> void:
 	bar_count = clampi(new_bar_count, 2, 8)
 	
-	# 마디 수가 바뀌면 density 배열 재설정 (일단 단순화: 기존 값 유지 노력 or 리셋)
-	# 여기서는 리셋 없이 크기만 조정
-	if bar_densities.size() < bar_count:
-		while bar_densities.size() < bar_count:
-			bar_densities.append(1)
-	elif bar_densities.size() > bar_count:
-		bar_densities.resize(bar_count)
+	# 초기화: densities
+	if bar_densities.size() != bar_count:
+		var new_densities = []
+		for i in range(bar_count):
+			if i < bar_densities.size():
+				new_densities.append(bar_densities[i])
+			else:
+				new_densities.append(1) # Default
+		bar_densities = new_densities
 	
-	_resize_slots()
+	# 여기서는 "전체 재구성" 로직이 필요함.
+	_reconstruct_slots()
 	settings_updated.emit(bar_count, 1) # 두 번째 인자는 이제 의미 없음
 	save_session()
 
@@ -159,12 +162,17 @@ func toggle_bar_split(bar_index: int) -> void:
 	var current = bar_densities[bar_index]
 	bar_densities[bar_index] = 2 if current == 1 else 1
 	
-	# 슬롯 데이터 재구성 (복잡함: 해당 마디의 슬롯이 늘어나거나 줄어듦)
-	# _resize_slots는 단순히 뒤에 추가/삭제하므로 안됨.
-	# 여기서는 "전체 재구성" 로직이 필요함.
+	# 슬롯 데이터 재구성
 	_reconstruct_slots()
 	settings_updated.emit(bar_count, 1)
 	save_session()
+
+## [New] UI 강제 갱신 (SongManager 등 외부에서 데이터 로드 시 사용)
+func force_refresh_ui() -> void:
+	settings_updated.emit(bar_count, 1)
+	loop_range_changed.emit(loop_start_index, loop_end_index)
+	for i in range(slots.size()):
+		slot_updated.emit(i, slots[i] if slots[i] else {})
 
 ## 슬롯 인덱스로부터 해당 슬롯의 박자 길이(Duration) 반환
 func get_beats_for_slot(slot_index: int) -> int:

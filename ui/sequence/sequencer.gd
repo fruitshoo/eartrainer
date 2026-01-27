@@ -20,6 +20,8 @@ var current_beat: int = 0 # 현재 마디 내 박자 (0-3)
 var is_playing: bool = false
 var _is_paused: bool = false # 일시정지 상태 추적
 var _last_beat_time_ms: int = 0 # 리듬 판정용 시간 기록
+var _is_counting_in: bool = false # [New] 카운트인 상태
+var _count_in_beats_left: int = 0
 
 # ============================================================
 # PRIVATE
@@ -162,9 +164,48 @@ func _play_current_step(is_seek: bool = false) -> void:
 	_beat_timer.start(beat_duration)
 	_last_beat_time_ms = Time.get_ticks_msec() # [New] Rhythm Timing
 
+## [New] 카운트인과 함께 재생 시작
+func start_with_count_in(bars: int = 1) -> void:
+	if is_playing:
+		stop_and_reset()
+	
+	is_playing = true
+	EventBus.is_sequencer_playing = true
+	EventBus.sequencer_playing_changed.emit(true)
+	
+	_is_counting_in = true
+	_count_in_beats_left = bars * beats_per_bar
+	
+	# Start Timer for Count-In
+	var beat_duration := 60.0 / GameManager.bpm
+	_beat_timer.start(beat_duration)
+	
+	# Initial Tick (Count 4)
+	_emit_count_in_signal()
+
+func _emit_count_in_signal() -> void:
+	EventBus.beat_pulsed.emit()
+	if AudioEngine:
+		AudioEngine.play_metronome(true) # Accent for count-in
+	
+	# Optional: Visual Feedback via EventBus?
+	# print("Count-in: ", _count_in_beats_left)
+
 func _on_beat_tick() -> void:
 	current_beat += 1
 	_last_beat_time_ms = Time.get_ticks_msec() # [New] Rhythm Timing
+	
+	# [New] Count-In Logic
+	if _is_counting_in:
+		_count_in_beats_left -= 1
+		if _count_in_beats_left <= 0:
+			_is_counting_in = false
+			current_beat = 0 # Reset for actual start
+			_play_current_step(false) # Start actual playback
+		else:
+			_emit_count_in_signal()
+		return
+	
 	var slot_beats = ProgressionManager.get_beats_for_slot(current_step)
 	
 	if current_beat >= slot_beats:
@@ -209,7 +250,7 @@ func _emit_beat() -> void:
 	# SequenceUI가 이 signal을 들어야 함.
 	# 하지만 Sequencer.gd는 EventBus를 통해 통신하는게 원칙.
 	EventBus.sequencer_step_beat_changed.emit(current_step, current_beat)
-	EventBus.beat_pulsed.emit()
+	# beat_pulsed already emitted above
 
 func _update_game_state_from_slot() -> void:
 	var data = ProgressionManager.get_slot(current_step)
@@ -243,6 +284,18 @@ func _play_strum(data: Dictionary) -> void:
 		
 		
 		await get_tree().create_timer(0.05).timeout
+
+# ============================================================
+# TIME & STATE ACCESS (For MelodyManager)
+# ============================================================
+func get_playback_state() -> Dictionary:
+	return {
+		"is_playing": is_playing,
+		"step": current_step,
+		"beat": current_beat,
+		"last_beat_time": _last_beat_time_ms,
+		"bpm": GameManager.bpm
+	}
 
 # ============================================================
 # RHYTHM TRAINING LOGIC

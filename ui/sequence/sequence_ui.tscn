@@ -133,6 +133,20 @@ size_flags_horizontal = 4
 size_flags_vertical = 4
 text = "Stop"
 
+[node name="RecordButton" type="Button" parent="RootMargin/VBoxContainer/PanelContainer2/InnerMargin/HBoxContainer" unique_id=991238475]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(40, 30)
+layout_mode = 2
+toggle_mode = true
+text = "●"
+
+[node name="ClearMelodyButton" type="Button" parent="RootMargin/VBoxContainer/PanelContainer2/InnerMargin/HBoxContainer" unique_id=881234567]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(40, 30)
+layout_mode = 2
+text = "🗑"
+focus_mode = 0
+
 [node name="LoopOverlayPanel" type="Panel" parent="." unique_id=987123654]
 unique_name_in_owner = true
 visible = false

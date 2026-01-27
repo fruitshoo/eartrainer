@@ -6,6 +6,8 @@ extends Node
 # TILE INTERACTION SIGNALS
 # ============================================================
 signal tile_clicked(midi_note: int, string_index: int, modifiers: Dictionary)
+signal tile_pressed(midi_note: int, string_index: int) # [New]
+signal tile_released(midi_note: int, string_index: int) # [New]
 
 # ============================================================
 # UI SIGNALS

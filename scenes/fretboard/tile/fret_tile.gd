@@ -49,6 +49,10 @@ var _anim_tween: Tween = null
 func _ready() -> void:
 	GameManager.settings_changed.connect(_refresh_visuals)
 	GameManager.player_moved.connect(_refresh_visuals)
+	
+	# Handle Input
+	input_event.connect(_on_input_event)
+	
 	_refresh_visuals()
 
 ## 타일 초기화 (FretboardManager에서 호출)
@@ -171,6 +175,15 @@ func clear_sequencer_highlight() -> void:
 	_overlay_energy = 0.0
 	_refresh_visuals() # 원래 상태로 복귀
 
+# [New] Melody Ghost Note Implementation
+func apply_melody_highlight() -> void:
+	# Purple highlight for ghost notes
+	var ghost_color = Color(0.8, 0.5, 1.0)
+	apply_sequencer_highlight(ghost_color, 2.0)
+
+func clear_melody_highlight() -> void:
+	clear_sequencer_highlight()
+
 ## 오버레이 강제 적용 (별도 Tween 사용)
 func _apply_overlay(color: Color, energy: float) -> void:
 	var mat := mesh.get_surface_override_material(0)
@@ -209,12 +222,32 @@ func update_appearance() -> void:
 # ============================================================
 # INPUT HANDLING
 # ============================================================
-func _input_event(_camera: Camera3D, event: InputEvent, _pos: Vector3, _normal: Vector3, _idx: int) -> void:
-	if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
-		var is_shift := Input.is_key_pressed(KEY_SHIFT)
-		var is_alt := Input.is_key_pressed(KEY_ALT)
-		_on_clicked(is_shift, is_alt)
-		_animate_press() # [v0.3] 클릭 시 '눌림' 효과
+func _on_input_event(camera: Node, event: InputEvent, event_position: Vector3, normal: Vector3, shape_idx: int) -> void:
+	if event is InputEventMouseButton:
+		if event.button_index == MOUSE_BUTTON_LEFT:
+			if event.pressed:
+				# Mouse Down
+				var modifiers = {
+					"shift": event.shift_pressed,
+					"alt": event.alt_pressed,
+					"ctrl": event.ctrl_pressed,
+					"meta": event.meta_pressed,
+					"position": global_position, # [Fix] Added for Player movement
+					"fret_index": fret_index # [Fix] Added for Player logic
+				}
+				# Keep existing clicked signal for backward compatibility/click logic (handled by others)
+				# But wait, click usually implies down+up.
+				# Existing logic treats "pressed" as click.
+				
+				EventBus.tile_clicked.emit(midi_note, string_index, modifiers)
+				EventBus.tile_pressed.emit(midi_note, string_index) # [New]
+				
+				# Visual Feedback (Press)
+				_animate_press()
+				
+			else:
+				# Mouse Up
+				EventBus.tile_released.emit(midi_note, string_index) # [New]
 
 func _on_clicked(is_shift: bool, is_alt: bool) -> void:
 	# [New] Rhythm Training Check
