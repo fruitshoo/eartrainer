@@ -140,12 +140,15 @@ func _on_range_increase() -> void:
 func _on_deadzone_decrease() -> void:
 	GameManager.camera_deadzone = clampf(GameManager.camera_deadzone - 0.5, 0.0, 10.0)
 	_update_deadzone_label()
+	GameManager.save_settings()
 
 func _on_deadzone_increase() -> void:
 	GameManager.camera_deadzone = clampf(GameManager.camera_deadzone + 0.5, 0.0, 10.0)
 	_update_deadzone_label()
+	GameManager.save_settings()
 
 func _on_close_button_pressed() -> void:
+	GameManager.save_settings()
 	visible = false
 
 func _on_metronome_toggled(enabled: bool) -> void:

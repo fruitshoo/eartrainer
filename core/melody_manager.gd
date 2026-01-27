@@ -72,6 +72,33 @@ func clear_melody() -> void:
 	active_notes.clear()
 	print("[MelodyManager] Melody Cleared")
 
+func undo_last_note() -> void:
+	if recorded_notes.size() > 0:
+		var removed = recorded_notes.pop_back()
+		print("[MelodyManager] Undo note at beat %.2f" % removed.start_beat)
+		# Provide some feedback? Signal?
+	else:
+		print("[MelodyManager] Nothing to undo")
+
+func quantize_notes(grid: float = QUANTIZE_GRID) -> void:
+	if recorded_notes.is_empty(): return
+	
+	var count = 0
+	for note in recorded_notes:
+		var orig_start = note.start_beat
+		var orig_dur = note.duration
+		
+		# Snap Start
+		note.start_beat = roundf(orig_start / grid) * grid
+		
+		# Snap Duration (min grid)
+		note.duration = maxf(roundf(orig_dur / grid) * grid, grid)
+		
+		if note.start_beat != orig_start or note.duration != orig_dur:
+			count += 1
+			
+	print("[MelodyManager] Quantized %d notes to grid %.2f" % [count, grid])
+
 # ============================================================
 # INPUT HANDLING (RECORDING)
 # ============================================================

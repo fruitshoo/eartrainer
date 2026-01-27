@@ -54,6 +54,11 @@ func _ready() -> void:
 	if clear_melody_button:
 		clear_melody_button.pressed.connect(_clear_melody)
 		clear_melody_button.focus_mode = Control.FOCUS_NONE
+		
+	var quantize_button = %QuantizeButton
+	if quantize_button:
+		quantize_button.pressed.connect(_on_quantize_pressed)
+		quantize_button.focus_mode = Control.FOCUS_NONE
 
 	# MelodyManager Signals (Global)
 	var melody_manager = GameManager.get_node_or_null("MelodyManager")
@@ -395,6 +400,17 @@ func _unhandled_input(event: InputEvent) -> void:
 			if Input.is_key_pressed(KEY_SHIFT): # Shift + Delete to clear melody
 				_clear_melody()
 				get_viewport().set_input_as_handled()
+		
+		# [New] Quantize (Q)
+		elif event.keycode == KEY_Q:
+			_on_quantize_pressed()
+			get_viewport().set_input_as_handled()
+			
+		# [New] Undo (Ctrl+Z / Cmd+Z)
+		elif event.keycode == KEY_Z:
+			if event.ctrl_pressed or event.meta_pressed:
+				_undo_melody()
+				get_viewport().set_input_as_handled()
 
 func _toggle_playback() -> void:
 	EventBus.request_toggle_playback.emit()
@@ -428,6 +444,16 @@ func _clear_melody() -> void:
 	if melody_manager and melody_manager.has_method("clear_melody"):
 		melody_manager.clear_melody()
 		# TODO: Visual feedback via UI toast?
+
+func _undo_melody() -> void:
+	var melody_manager = GameManager.get_node_or_null("MelodyManager")
+	if melody_manager and melody_manager.has_method("undo_last_note"):
+		melody_manager.undo_last_note()
+
+func _on_quantize_pressed() -> void:
+	var melody_manager = GameManager.get_node_or_null("MelodyManager")
+	if melody_manager and melody_manager.has_method("quantize_notes"):
+		melody_manager.quantize_notes()
 
 func _on_recording_started() -> void:
 	if record_button:

@@ -144,7 +144,16 @@ text = "●"
 unique_name_in_owner = true
 custom_minimum_size = Vector2(40, 30)
 layout_mode = 2
+tooltip_text = "Clear Melody (Shift+Del)"
 text = "🗑"
+focus_mode = 0
+
+[node name="QuantizeButton" type="Button" parent="RootMargin/VBoxContainer/PanelContainer2/InnerMargin/HBoxContainer" unique_id=771234567]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(40, 30)
+layout_mode = 2
+tooltip_text = "Quantize Melody (Q)"
+text = "Q"
 focus_mode = 0
 
 [node name="LoopOverlayPanel" type="Panel" parent="." unique_id=987123654]
