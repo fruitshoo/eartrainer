@@ -97,6 +97,8 @@ func update_info(data: Dictionary) -> void:
 	var degree := MusicTheory.get_degree_label(data.root, GameManager.current_key, GameManager.current_mode)
 	
 	label.text = "%s (%s%s)" % [degree, root_name, data.type]
+	
+	label.text = "%s (%s%s)" % [degree, root_name, data.type]
 
 func set_highlight(state: String) -> void:
 	# state: "playing", "selected", "none"

@@ -1,0 +1,68 @@
+[gd_scene load_steps=2 format=3 uid="uid://librarypanelscene"]
+
+[ext_resource type="Script" path="res://ui/sequence/library_panel/library_panel.gd" id="1_script"]
+
+[node name="LibraryPanel" type="PanelContainer"]
+anchors_preset = 11
+anchor_left = 1.0
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = -300.0
+grow_horizontal = 0
+grow_vertical = 2
+script = ExtResource("1_script")
+
+[node name="VBoxContainer" type="VBoxContainer" parent="."]
+layout_mode = 2
+theme_override_constants/separation = 16
+
+[node name="HeaderContainer" type="HBoxContainer" parent="VBoxContainer"]
+layout_mode = 2
+
+[node name="TitleLabel" type="Label" parent="VBoxContainer/HeaderContainer"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_font_sizes/font_size = 20
+text = "Library"
+
+[node name="CloseButton" type="Button" parent="VBoxContainer/HeaderContainer"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(32, 32)
+layout_mode = 2
+text = "✕"
+
+[node name="ScrollContainer" type="ScrollContainer" parent="VBoxContainer"]
+layout_mode = 2
+size_flags_vertical = 3
+
+[node name="PresetListContainer" type="VBoxContainer" parent="VBoxContainer/ScrollContainer"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 8
+
+[node name="FooterContainer" type="VBoxContainer" parent="VBoxContainer"]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="HSeparator" type="HSeparator" parent="VBoxContainer/FooterContainer"]
+layout_mode = 2
+
+[node name="SaveLabel" type="Label" parent="VBoxContainer/FooterContainer"]
+layout_mode = 2
+text = "Save Current Progression"
+
+[node name="SaveRow" type="HBoxContainer" parent="VBoxContainer/FooterContainer"]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="NameInput" type="LineEdit" parent="VBoxContainer/FooterContainer/SaveRow"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+placeholder_text = "Enter preset name..."
+
+[node name="SaveButton" type="Button" parent="VBoxContainer/FooterContainer/SaveRow"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "Save"

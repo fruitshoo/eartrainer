@@ -2,6 +2,7 @@
 
 [ext_resource type="Script" uid="uid://cgd5souy3fyph" path="res://ui/sequence/sequence_ui.gd" id="1_2bt3v"]
 [ext_resource type="Theme" path="res://ui/resources/main_theme.tres" id="3_4wjan"]
+[ext_resource type="PackedScene" uid="uid://librarypanelscene" path="res://ui/sequence/library_panel/library_panel.tscn" id="4_library"]
 
 [ext_resource type="Script" uid="uid://iw3vuv01bc2e" path="res://ui/sequence/sequencer.gd" id="3_t8hoy"]
 
@@ -86,6 +87,16 @@ min_value = 40.0
 max_value = 240.0
 value = 120.0
 
+[node name="VSeparator3" type="VSeparator" parent="RootMargin/VBoxContainer/PanelContainer/InnerMargin/VBoxContainer/ControlsContainer" unique_id=1122334455]
+layout_mode = 2
+theme_override_constants/separation = 20
+
+[node name="LibraryButton" type="Button" parent="RootMargin/VBoxContainer/PanelContainer/InnerMargin/VBoxContainer/ControlsContainer" unique_id=981237654]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(40, 30)
+layout_mode = 2
+text = "📖"
+
 [node name="SlotContainer" type="HBoxContainer" parent="RootMargin/VBoxContainer/PanelContainer/InnerMargin/VBoxContainer" unique_id=154152354]
 unique_name_in_owner = true
 layout_mode = 2
@@ -138,3 +149,7 @@ offset_bottom = 20.0
 grow_horizontal = 2
 grow_vertical = 2
 mouse_filter = 2
+
+[node name="LibraryPanel" parent="." instance=ExtResource("4_library")]
+unique_name_in_owner = true
+visible = false

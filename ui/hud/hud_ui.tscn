@@ -5,6 +5,15 @@
 [node name="HUD" type="CanvasLayer" unique_id=867313363]
 script = ExtResource("1_dwx17")
 
+[node name="DebugLabel" type="Label" parent="." unique_id=999]
+unique_name_in_owner = true
+offset_left = 20.0
+offset_top = 20.0
+offset_right = 300.0
+offset_bottom = 60.0
+theme_override_colors/font_color = Color(1, 0.3, 0.3, 1)
+text = ""
+
 [node name="MainContainer" type="Control" parent="." unique_id=599544182]
 layout_mode = 3
 anchors_preset = 5

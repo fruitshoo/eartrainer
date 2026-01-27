@@ -11,8 +11,12 @@ signal tile_clicked(midi_note: int, string_index: int, modifiers: Dictionary)
 # UI SIGNALS
 # ============================================================
 signal request_toggle_settings
+signal request_close_settings # [New] Explicit close request
+signal request_close_library # [New] Explicit close request for Library
 signal request_toggle_help # [New]
 signal settings_visibility_changed(is_visible: bool)
+signal game_settings_changed # [Fix] Missing signal for global settings updates
+signal debug_log(message: String) # [New] On-screen debug message
 
 
 # ============================================================

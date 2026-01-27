@@ -166,6 +166,9 @@ func _toggle_mode() -> void:
 		current_mode = MusicTheory.ScaleMode.MAJOR
 
 
+	settings_changed.emit()
+
+
 func _apply_diatonic_chord(keycode: int) -> void:
 	var data := MusicTheory.get_chord_from_keycode(current_mode, keycode)
 	if data.is_empty():
@@ -175,3 +178,85 @@ func _apply_diatonic_chord(keycode: int) -> void:
 	current_chord_type = data[1]
 	current_degree = data[2]
 	settings_changed.emit()
+
+# ============================================================
+# PERSISTENCE
+# ============================================================
+const SAVE_PATH_SETTINGS = "user://game_settings.json"
+
+signal settings_loaded # [New] 초기화 완료 알림
+var is_settings_loaded: bool = false # [New] 상태 플래그
+
+# ... (omitted) ...
+
+# Default Preset
+var default_preset_name: String = "":
+	set(value):
+		default_preset_name = value
+		settings_changed.emit()
+
+# ... (omitted) ...
+
+func save_settings() -> void:
+	var data = {
+		"current_key": current_key,
+		"current_mode": current_mode,
+		"current_notation": current_notation,
+		"bpm": bpm,
+		"show_note_labels": show_note_labels,
+		"highlight_root": highlight_root,
+		"highlight_chord": highlight_chord,
+		"highlight_scale": highlight_scale,
+		"is_metronome_enabled": is_metronome_enabled,
+		"focus_range": focus_range,
+		"camera_deadzone": camera_deadzone,
+		"is_rhythm_mode_enabled": is_rhythm_mode_enabled,
+		"default_preset_name": default_preset_name # [New]
+	}
+	
+	var file = FileAccess.open(SAVE_PATH_SETTINGS, FileAccess.WRITE)
+	if file:
+		file.store_string(JSON.stringify(data, "\t"))
+		file.close()
+		print("[GameManager] Settings saved.")
+
+func load_settings() -> void:
+	if not FileAccess.file_exists(SAVE_PATH_SETTINGS):
+		is_settings_loaded = true # [Fix]
+		settings_loaded.emit() # 파일 없어도 로드 완료로 취급
+		return
+		
+	var file = FileAccess.open(SAVE_PATH_SETTINGS, FileAccess.READ)
+	if file:
+		var text = file.get_as_text()
+		file.close()
+		var json = JSON.new()
+		var error = json.parse(text)
+		if error == OK:
+			var data = json.data
+			if data is Dictionary:
+				_deserialize_settings(data)
+				print("[GameManager] Settings loaded.")
+	
+	is_settings_loaded = true # [Fix]
+	settings_loaded.emit()
+
+func _deserialize_settings(data: Dictionary) -> void:
+	current_key = int(data.get("current_key", 0))
+	current_mode = int(data.get("current_mode", MusicTheory.ScaleMode.MAJOR)) as MusicTheory.ScaleMode
+	current_notation = int(data.get("current_notation", MusicTheory.NotationMode.BOTH)) as MusicTheory.NotationMode
+	bpm = int(data.get("bpm", 120))
+	
+	show_note_labels = data.get("show_note_labels", true)
+	highlight_root = data.get("highlight_root", true)
+	highlight_chord = data.get("highlight_chord", true)
+	highlight_scale = data.get("highlight_scale", true)
+	is_metronome_enabled = data.get("is_metronome_enabled", true)
+	
+	focus_range = int(data.get("focus_range", 3))
+	camera_deadzone = float(data.get("camera_deadzone", 4.0))
+	is_rhythm_mode_enabled = data.get("is_rhythm_mode_enabled", false)
+	default_preset_name = data.get("default_preset_name", "") # [New]
+
+func _ready() -> void:
+	call_deferred("load_settings")

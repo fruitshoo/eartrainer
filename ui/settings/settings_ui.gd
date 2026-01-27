@@ -31,6 +31,7 @@ extends CanvasLayer
 func _ready() -> void:
 	# GameManager.settings_ui_ref = self # 제거됨
 	EventBus.request_toggle_settings.connect(_on_request_toggle_settings)
+	EventBus.request_close_settings.connect(_on_close_button_pressed) # [New] explicit close
 	
 	_populate_options()
 	_sync_from_game_manager()
@@ -41,6 +42,8 @@ func _ready() -> void:
 
 func _on_request_toggle_settings() -> void:
 	visible = !visible
+	if visible:
+		EventBus.request_close_library.emit() # [New] Close Library if Settings open
 
 func _on_visibility_changed() -> void:
 	EventBus.settings_visibility_changed.emit(visible)

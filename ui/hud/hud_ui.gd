@@ -36,6 +36,7 @@ func _ready() -> void:
 	EventBus.bar_changed.connect(_on_bar_changed)
 	EventBus.beat_updated.connect(_on_beat_updated)
 	EventBus.settings_visibility_changed.connect(_on_settings_visibility_changed)
+	EventBus.debug_log.connect(_on_debug_log) # [New]
 	
 	if settings_button:
 		settings_button.pressed.connect(func(): EventBus.request_toggle_settings.emit())
@@ -52,6 +53,36 @@ func _ready() -> void:
 func _delayed_setup() -> void:
 	await get_tree().process_frame
 	_update_display()
+
+func _on_debug_log(msg: String) -> void:
+	var label = %DebugLabel
+	if label:
+		# Append new message with timestamp
+		var time = Time.get_time_string_from_system()
+		var new_line = "[%s] %s" % [time, msg]
+		
+		# Keep only last 5 lines to prevent overflow
+		var lines = label.text.split("\n")
+		# Remove empty first line if any
+		if lines.size() == 1 and lines[0] == "":
+			lines = []
+			
+		lines.append(new_line)
+		if lines.size() > 5:
+			lines = lines.slice(-5)
+			
+		label.text = "\n".join(lines)
+		label.modulate.a = 1.0
+		
+		# Reset tween
+		if _debug_tween:
+			_debug_tween.kill()
+		_debug_tween = create_tween()
+		_debug_tween.tween_interval(5.0) # Show longer
+		_debug_tween.tween_property(label, "modulate:a", 0.0, 1.0)
+		_debug_tween.tween_callback(func(): label.text = "")
+
+var _debug_tween: Tween
 
 # ============================================================
 # VISUAL SETUP

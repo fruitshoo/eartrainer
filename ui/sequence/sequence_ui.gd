@@ -21,6 +21,9 @@ var slot_button_scene: PackedScene = preload("res://ui/sequence/slot_button.tscn
 @onready var split_bar_button: Button = %SplitBarButton # [New]
 @onready var bpm_spin_box: SpinBox = %BPMSpinBox
 
+@onready var library_button: Button = %LibraryButton
+@onready var library_panel: Control = %LibraryPanel
+
 # ============================================================
 # LIFECYCLE
 # ============================================================
@@ -42,6 +45,14 @@ func _ready() -> void:
 		stop_button.pressed.connect(_on_stop_button_pressed)
 		stop_button.focus_mode = Control.FOCUS_NONE
 	
+	# Library
+	if library_button:
+		library_button.pressed.connect(_toggle_library_panel)
+		library_button.focus_mode = Control.FOCUS_NONE
+		
+	if library_panel:
+		library_panel.close_requested.connect(_toggle_library_panel)
+	
 	EventBus.bar_changed.connect(_highlight_playing)
 	EventBus.sequencer_playing_changed.connect(_on_sequencer_playing_changed)
 	
@@ -57,10 +68,29 @@ func _ready() -> void:
 	# [New] Step/Beat Update Listener
 	EventBus.sequencer_step_beat_changed.connect(_on_step_beat_changed)
 	
+	# [New] Close Library Request
+	EventBus.request_close_library.connect(_close_library_panel)
+	
 	# Initial Setup
 	_setup_loop_overlay_style()
 	_sync_ui_from_manager()
 	_rebuild_slots()
+
+func _toggle_library_panel() -> void:
+	if not library_panel: return
+	
+	library_panel.visible = !library_panel.visible
+	
+	if library_panel.visible:
+		# 라이브러리 열리면 세팅창 닫기
+		EventBus.request_close_settings.emit()
+		
+		if library_panel.has_method("refresh_list"):
+			library_panel.refresh_list()
+
+func _close_library_panel() -> void:
+	if library_panel and library_panel.visible:
+		library_panel.visible = false
 
 func _setup_loop_overlay_style() -> void:
 	if not loop_overlay_panel: return

@@ -1,0 +1,69 @@
+[gd_scene load_steps=2 format=3 uid="uid://presetitemscene"]
+
+[ext_resource type="Script" path="res://ui/sequence/library_panel/preset_item.gd" id="1_script"]
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_preset_bg"]
+bg_color = Color(1, 1, 1, 1)
+corner_radius_top_left = 6
+corner_radius_top_right = 6
+corner_radius_bottom_right = 6
+corner_radius_bottom_left = 6
+
+[node name="PresetItem" type="PanelContainer"]
+self_modulate = Color(0.12, 0.12, 0.12, 1)
+custom_minimum_size = Vector2(0, 50)
+anchors_preset = 10
+anchor_right = 1.0
+offset_bottom = 50.0
+grow_horizontal = 2
+theme_override_styles/panel = SubResource("StyleBoxFlat_preset_bg")
+script = ExtResource("1_script")
+
+[node name="MarginContainer" type="MarginContainer" parent="."]
+layout_mode = 2
+theme_override_constants/margin_left = 12
+theme_override_constants/margin_top = 8
+theme_override_constants/margin_right = 12
+theme_override_constants/margin_bottom = 8
+
+[node name="HBoxContainer" type="HBoxContainer" parent="MarginContainer"]
+layout_mode = 2
+theme_override_constants/separation = 12
+
+[node name="DefaultButton" type="Button" parent="MarginContainer/HBoxContainer"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(30, 0)
+layout_mode = 2
+toggle_mode = true
+text = "☆"
+flat = true
+
+[node name="InfoVBox" type="VBoxContainer" parent="MarginContainer/HBoxContainer"]
+layout_mode = 2
+size_flags_horizontal = 3
+alignment = 1
+
+[node name="NameLabel" type="Label" parent="MarginContainer/HBoxContainer/InfoVBox"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "My Jazz Blues"
+
+[node name="DetailsLabel" type="Label" parent="MarginContainer/HBoxContainer/InfoVBox"]
+unique_name_in_owner = true
+modulate = Color(1, 1, 1, 0.6)
+layout_mode = 2
+theme_override_font_sizes/font_size = 12
+text = "C Major · 12 Bars"
+
+[node name="LoadButton" type="Button" parent="MarginContainer/HBoxContainer"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(40, 0)
+layout_mode = 2
+text = "Load"
+
+[node name="DeleteButton" type="Button" parent="MarginContainer/HBoxContainer"]
+unique_name_in_owner = true
+modulate = Color(1, 0.4, 0.4, 1)
+custom_minimum_size = Vector2(30, 0)
+layout_mode = 2
+text = "X"
