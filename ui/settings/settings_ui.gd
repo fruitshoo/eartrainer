@@ -40,6 +40,17 @@ func _ready() -> void:
 	visibility_changed.connect(_on_visibility_changed)
 	visible = false
 
+func _unhandled_input(event: InputEvent) -> void:
+	if not visible: return
+	
+	if event.is_action_pressed("ui_cancel"):
+		# Close settings
+		visible = false
+		get_viewport().set_input_as_handled()
+		# request_close_library logic handled by visibility change? No, explicit check.
+		# But _on_visibility_changed emits signal.
+
+
 func _on_request_toggle_settings() -> void:
 	visible = !visible
 	if visible:

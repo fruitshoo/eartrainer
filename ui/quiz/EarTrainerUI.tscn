@@ -7,7 +7,8 @@
 script = ExtResource("1_script")
 
 [node name="Panel" type="Panel" parent="." unique_id=868852594]
-custom_minimum_size = Vector2(300, 400)
+clip_contents = true
+custom_minimum_size = Vector2(400, 400)
 anchors_preset = 11
 anchor_left = 1.0
 anchor_right = 1.0
@@ -23,6 +24,7 @@ anchor_right = 1.0
 anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
+mouse_filter = 0
 theme_override_constants/margin_left = 20
 theme_override_constants/margin_top = 20
 theme_override_constants/margin_right = 20
@@ -30,6 +32,7 @@ theme_override_constants/margin_bottom = 20
 
 [node name="VBoxContainer" type="VBoxContainer" parent="Panel/MarginContainer" unique_id=1237840963]
 layout_mode = 2
+mouse_filter = 0
 theme_override_constants/separation = 10
 
 [node name="TitleLabel" type="Label" parent="Panel/MarginContainer/VBoxContainer" unique_id=461900505]
@@ -61,8 +64,8 @@ text = "Modes:"
 [node name="AscMode" type="CheckBox" parent="Panel/MarginContainer/VBoxContainer/ModeHBox" unique_id=459287510]
 unique_name_in_owner = true
 layout_mode = 2
-text = "Asc"
 button_pressed = true
+text = "Asc"
 
 [node name="DescMode" type="CheckBox" parent="Panel/MarginContainer/VBoxContainer/ModeHBox" unique_id=581293746]
 unique_name_in_owner = true
@@ -79,6 +82,7 @@ layout_mode = 2
 
 [node name="GridLabel" type="Label" parent="Panel/MarginContainer/VBoxContainer" unique_id=13612744]
 layout_mode = 2
+size_flags_horizontal = 4
 text = "Select Intervals:"
 
 [node name="ScrollContainer" type="ScrollContainer" parent="Panel/MarginContainer/VBoxContainer" unique_id=557560132]
@@ -89,9 +93,7 @@ horizontal_scroll_mode = 0
 [node name="IntervalGrid" type="GridContainer" parent="Panel/MarginContainer/VBoxContainer/ScrollContainer" unique_id=1567442368]
 unique_name_in_owner = true
 layout_mode = 2
-size_flags_horizontal = 3
-size_flags_vertical = 3
-columns = 1
+size_flags_horizontal = 6
 
 [node name="HSeparator3" type="HSeparator" parent="Panel/MarginContainer/VBoxContainer" unique_id=2115912640]
 layout_mode = 2

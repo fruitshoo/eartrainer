@@ -5,65 +5,148 @@ const SAVE_PATH = "user://riffs.json"
 
 # Dictionary of Interval Semitones -> Array of Riff Dictionaries
 # { 4: [{title: "My Riff", notes: [...]}, ...] }
-var user_riffs: Dictionary = {}
+var user_riffs: Dictionary = {} # interval -> list of riffs (Legacy name: user_interval_riffs)
+var user_pitch_riffs: Dictionary = {} # pitch_class -> list of riffs
 
 func _ready():
 	_load_riffs()
 
-func add_riff(interval: int, riff_data: Dictionary) -> void:
-	if not user_riffs.has(interval):
-		user_riffs[interval] = []
-	
+func add_riff(key: int, riff_data: Dictionary, type: String = "interval") -> void:
 	# Add timestamp/ID if needed
 	riff_data["id"] = Time.get_unix_time_from_system()
-	user_riffs[interval].append(riff_data)
+	
+	if type == "pitch":
+		if not user_pitch_riffs.has(key):
+			user_pitch_riffs[key] = []
+		user_pitch_riffs[key].append(riff_data)
+	else:
+		if not user_riffs.has(key):
+			user_riffs[key] = []
+		user_riffs[key].append(riff_data)
+		
 	_save_riffs()
 
-func delete_riff(interval: int, riff_index: int) -> void:
-	if user_riffs.has(interval) and riff_index >= 0 and riff_index < user_riffs[interval].size():
-		user_riffs[interval].remove_at(riff_index)
-		_save_riffs()
+func delete_riff(key: int, riff_index: int, type: String = "interval") -> void:
+	if type == "pitch":
+		if user_pitch_riffs.has(key) and riff_index >= 0 and riff_index < user_pitch_riffs[key].size():
+			user_pitch_riffs[key].remove_at(riff_index)
+			_save_riffs()
+	else:
+		if user_riffs.has(key) and riff_index >= 0 and riff_index < user_riffs[key].size():
+			user_riffs[key].remove_at(riff_index)
+			_save_riffs()
 
-func update_riff(interval: int, riff_index: int, new_data: Dictionary) -> void:
-	if user_riffs.has(interval) and riff_index >= 0 and riff_index < user_riffs[interval].size():
+func update_riff(key: int, riff_index: int, new_data: Dictionary, type: String = "interval") -> void:
+	var target_dict = user_pitch_riffs if type == "pitch" else user_riffs
+	
+	if target_dict.has(key) and riff_index >= 0 and riff_index < target_dict[key].size():
 		# Preserve ID if it exists, or ensure new one?
 		# For now, just overwrite, but maybe keep original ID if useful later.
-		var original = user_riffs[interval][riff_index]
+		var original = target_dict[key][riff_index]
 		if original.has("id"):
 			new_data["id"] = original["id"]
 		else:
 			new_data["id"] = Time.get_unix_time_from_system()
 			
-		user_riffs[interval][riff_index] = new_data
+		target_dict[key][riff_index] = new_data
 		_save_riffs()
 
 func get_riffs_for_interval(interval: int) -> Array:
-	# Only return user riffs as requested
-	var users = user_riffs.get(interval, []).duplicate(true)
-	for u in users: u["source"] = "user"
-	
-	return users
+	return get_riffs(interval, "interval")
+
+func get_riffs(key: int, type: String = "interval") -> Array:
+	if type == "pitch":
+		var users = user_pitch_riffs.get(key, []).duplicate(true)
+		# No builtins for pitch yet
+		return users
+	else:
+		# Interval logic (with builtins)
+		var users = user_riffs.get(key, []).duplicate(true)
+		# Add source for user riffs
+		for u in users: u["source"] = "user"
+		
+		# Placeholder for _get_builtin_riffs, assuming it will be added elsewhere
+		# For now, just return user riffs if _get_builtin_riffs is not defined
+		if has_method("_get_builtin_riffs"):
+			var builtins = _get_builtin_riffs(key)
+			return builtins + users
+		else:
+			return users
 
 func _save_riffs() -> void:
+	var riff_data = {
+		"interval_riffs": user_riffs,
+		"pitch_riffs": user_pitch_riffs
+	}
 	var file = FileAccess.open(SAVE_PATH, FileAccess.WRITE)
 	if file:
-		# JSON doesn't support integer keys nicely (converts to string), so we need to handle that on load
-		file.store_string(JSON.stringify(user_riffs, "\t"))
+		file.store_string(JSON.stringify(riff_data, "\t"))
 		file.close()
 
 func _load_riffs() -> void:
-	if not FileAccess.file_exists(SAVE_PATH):
-		return
-		
+	if not FileAccess.file_exists(SAVE_PATH): return
+	
 	var file = FileAccess.open(SAVE_PATH, FileAccess.READ)
 	if file:
-		var text = file.get_as_text()
 		var json = JSON.new()
-		if json.parse(text) == OK:
+		var error = json.parse(file.get_as_text())
+		if error == OK:
 			var data = json.data
-			if data is Dictionary:
-				user_riffs.clear()
-				# Convert keys back to int
-				for k in data.keys():
-					var interval = int(k)
-					user_riffs[interval] = data[k]
+			if data is Dictionary and data.has("interval_riffs"):
+				# New Format
+				# Convert keys to int as JSON keys are strings
+				user_riffs = {}
+				for k in data["interval_riffs"]:
+					user_riffs[int(k)] = data["interval_riffs"][k]
+					
+				user_pitch_riffs = {}
+				if data.has("pitch_riffs"):
+					for k in data["pitch_riffs"]:
+						user_pitch_riffs[int(k)] = data["pitch_riffs"][k]
+			elif data is Dictionary:
+				# Legacy Format (Direct dictionary of interval riffs)
+				user_riffs = {}
+				for k in data:
+					user_riffs[int(k)] = data[k]
+				user_pitch_riffs = {} # Init empty for migration
+		file.close()
+
+func _get_builtin_riffs(key: int) -> Array:
+	var result = []
+	if IntervalQuizData.INTERVALS.has(key):
+		var info = IntervalQuizData.INTERVALS[key]
+		if info.has("examples"):
+			for ex in info.examples:
+				var riff = {
+					"title": ex.title,
+					"source": "builtin",
+					"id": "builtin_" + ex.title.to_snake_case(),
+					"notes": []
+				}
+				
+				# Convert motif (semitones) to Riff Notes format
+				# For playback, we need valid 'pitch' relative to a root (say 60/C4)
+				# But wait, Riff Playback logic might handle relative notes?
+				# The current _play_riff_snippet expects {pitch, string, start_ms, duration_ms}.
+				# Actually, the built-in motifs are just relative intervals [0, 4, 7].
+				# The system stores them as "notes".
+				# Let's synthesize a default rhythm (quarter notes).
+				
+				if ex.has("motif"):
+					var start_ms = 0
+					var duration = 500 # 0.5s per note
+					for interval in ex.motif:
+						# Store purely relative interval in pitch? Or synthesize a C major root?
+						# Riffs usually store absolute MIDI pitch for user recording.
+						# But for relative display, we might want to transpose?
+						# For now, let's map to C4 (60) + interval.
+						riff.notes.append({
+							"pitch": 60 + interval,
+							"string": - 1, # Auto
+							"start_ms": start_ms,
+							"duration_ms": 400
+						})
+						start_ms += duration
+				
+				result.append(riff)
+	return result

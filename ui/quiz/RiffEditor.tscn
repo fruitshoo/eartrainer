@@ -1,8 +1,8 @@
-[gd_scene load_steps=2 format=3]
+[gd_scene format=3 uid="uid://bq3rhp6il8ew4"]
 
-[ext_resource type="Script" path="res://ui/quiz/riff_editor.gd" id="1_script"]
+[ext_resource type="Script" uid="uid://g0ujmq7uvlqd" path="res://ui/quiz/riff_editor.gd" id="1_script"]
 
-[node name="RiffEditorRoot" type="Control"]
+[node name="RiffEditorRoot" type="Control" unique_id=1489963293]
 layout_mode = 3
 anchors_preset = 15
 anchor_right = 1.0
@@ -11,7 +11,7 @@ grow_horizontal = 2
 grow_vertical = 2
 script = ExtResource("1_script")
 
-[node name="BackgroundDim" type="ColorRect" parent="."]
+[node name="BackgroundDim" type="ColorRect" parent="." unique_id=198260938]
 layout_mode = 1
 anchors_preset = 15
 anchor_right = 1.0
@@ -20,7 +20,7 @@ grow_horizontal = 2
 grow_vertical = 2
 color = Color(0, 0, 0, 0.7)
 
-[node name="RecordingOverlay" type="PanelContainer" parent="."]
+[node name="RecordingOverlay" type="PanelContainer" parent="." unique_id=366103771]
 unique_name_in_owner = true
 visible = false
 layout_mode = 1
@@ -31,21 +31,21 @@ offset_top = 20.0
 offset_bottom = 80.0
 grow_horizontal = 2
 
-[node name="HBox" type="HBoxContainer" parent="RecordingOverlay"]
+[node name="HBox" type="HBoxContainer" parent="RecordingOverlay" unique_id=540369720]
 layout_mode = 2
 theme_override_constants/separation = 20
 
-[node name="Label" type="Label" parent="RecordingOverlay/HBox"]
+[node name="Label" type="Label" parent="RecordingOverlay/HBox" unique_id=451379614]
 layout_mode = 2
 text = "🔴 Recording Riff..."
 
-[node name="StopRecButton" type="Button" parent="RecordingOverlay/HBox"]
+[node name="StopRecButton" type="Button" parent="RecordingOverlay/HBox" unique_id=125125794]
 unique_name_in_owner = true
 custom_minimum_size = Vector2(100, 0)
 layout_mode = 2
 text = "Stop"
 
-[node name="EditorPanel" type="Panel" parent="."]
+[node name="EditorPanel" type="Panel" parent="." unique_id=162242568]
 layout_mode = 1
 anchors_preset = 8
 anchor_left = 0.5
@@ -59,7 +59,7 @@ offset_bottom = 100.0
 grow_horizontal = 2
 grow_vertical = 2
 
-[node name="TitleLabel" type="Label" parent="EditorPanel"]
+[node name="TitleLabel" type="Label" parent="EditorPanel" unique_id=1099510794]
 layout_mode = 1
 anchors_preset = 5
 anchor_left = 0.5
@@ -73,7 +73,7 @@ theme_type_variation = &"HeaderLarge"
 text = "Manage Riffs"
 horizontal_alignment = 1
 
-[node name="HBox" type="HBoxContainer" parent="EditorPanel"]
+[node name="HBox" type="HBoxContainer" parent="EditorPanel" unique_id=1011195959]
 layout_mode = 1
 anchors_preset = 15
 anchor_right = 1.0
@@ -86,43 +86,43 @@ grow_horizontal = 2
 grow_vertical = 2
 theme_override_constants/separation = 20
 
-[node name="LeftPane" type="VBoxContainer" parent="EditorPanel/HBox"]
+[node name="LeftPane" type="VBoxContainer" parent="EditorPanel/HBox" unique_id=987424304]
 layout_mode = 2
 size_flags_horizontal = 3
 size_flags_stretch_ratio = 0.4
 
-[node name="Label" type="Label" parent="EditorPanel/HBox/LeftPane"]
+[node name="Label" type="Label" parent="EditorPanel/HBox/LeftPane" unique_id=260876314]
 layout_mode = 2
 text = "Existing Riffs"
 
-[node name="RiffList" type="ItemList" parent="EditorPanel/HBox/LeftPane"]
+[node name="RiffList" type="ItemList" parent="EditorPanel/HBox/LeftPane" unique_id=1849922746]
 unique_name_in_owner = true
 layout_mode = 2
 size_flags_vertical = 3
 
-[node name="RightPane" type="VBoxContainer" parent="EditorPanel/HBox"]
+[node name="RightPane" type="VBoxContainer" parent="EditorPanel/HBox" unique_id=1648419078]
 layout_mode = 2
 size_flags_horizontal = 3
 
-[node name="TitleBox" type="VBoxContainer" parent="EditorPanel/HBox/RightPane"]
+[node name="TitleBox" type="VBoxContainer" parent="EditorPanel/HBox/RightPane" unique_id=61404556]
 layout_mode = 2
 
-[node name="Label" type="Label" parent="EditorPanel/HBox/RightPane/TitleBox"]
+[node name="Label" type="Label" parent="EditorPanel/HBox/RightPane/TitleBox" unique_id=105768540]
 layout_mode = 2
 text = "Title"
 
-[node name="TitleInput" type="LineEdit" parent="EditorPanel/HBox/RightPane/TitleBox"]
+[node name="TitleInput" type="LineEdit" parent="EditorPanel/HBox/RightPane/TitleBox" unique_id=1911661563]
 unique_name_in_owner = true
 layout_mode = 2
 placeholder_text = "Enter Riff Name..."
 
-[node name="NotesVisual" type="Panel" parent="EditorPanel/HBox/RightPane"]
+[node name="NotesVisual" type="Panel" parent="EditorPanel/HBox/RightPane" unique_id=243919183]
 unique_name_in_owner = true
 layout_mode = 2
 size_flags_vertical = 3
 mouse_filter = 2
 
-[node name="Label" type="Label" parent="EditorPanel/HBox/RightPane/NotesVisual"]
+[node name="Label" type="Label" parent="EditorPanel/HBox/RightPane/NotesVisual" unique_id=1434095880]
 layout_mode = 1
 anchors_preset = 8
 anchor_left = 0.5
@@ -137,35 +137,35 @@ grow_horizontal = 2
 grow_vertical = 2
 text = "(Notes Visualization Placeholder)"
 
-[node name="Controls" type="HBoxContainer" parent="EditorPanel/HBox/RightPane"]
+[node name="Controls" type="HBoxContainer" parent="EditorPanel/HBox/RightPane" unique_id=1705784849]
 layout_mode = 2
 alignment = 1
 
-[node name="RecordButton" type="Button" parent="EditorPanel/HBox/RightPane/Controls"]
+[node name="RecordButton" type="Button" parent="EditorPanel/HBox/RightPane/Controls" unique_id=2061314591]
 unique_name_in_owner = true
 custom_minimum_size = Vector2(120, 40)
 layout_mode = 2
 text = "Record Input"
 
-[node name="PlayButton" type="Button" parent="EditorPanel/HBox/RightPane/Controls"]
+[node name="PlayButton" type="Button" parent="EditorPanel/HBox/RightPane/Controls" unique_id=1427372066]
 unique_name_in_owner = true
 custom_minimum_size = Vector2(120, 40)
 layout_mode = 2
 text = "Play Preview"
 
-[node name="NewButton" type="Button" parent="EditorPanel/HBox/RightPane/Controls"]
+[node name="NewButton" type="Button" parent="EditorPanel/HBox/RightPane/Controls" unique_id=702158086]
 unique_name_in_owner = true
 custom_minimum_size = Vector2(80, 40)
 layout_mode = 2
 text = "New"
 
-[node name="DeleteButton" type="Button" parent="EditorPanel/HBox/RightPane/Controls"]
+[node name="DeleteButton" type="Button" parent="EditorPanel/HBox/RightPane/Controls" unique_id=107810964]
 unique_name_in_owner = true
 custom_minimum_size = Vector2(80, 40)
 layout_mode = 2
 text = "Delete"
 
-[node name="Footer" type="HBoxContainer" parent="EditorPanel"]
+[node name="Footer" type="HBoxContainer" parent="EditorPanel" unique_id=1755629339]
 layout_mode = 1
 anchors_preset = 7
 anchor_left = 0.5
@@ -178,22 +178,22 @@ offset_right = 150.0
 offset_bottom = -20.0
 grow_horizontal = 2
 grow_vertical = 0
-alignment = 1
 theme_override_constants/separation = 20
+alignment = 1
 
-[node name="SaveButton" type="Button" parent="EditorPanel/Footer"]
+[node name="SaveButton" type="Button" parent="EditorPanel/Footer" unique_id=1479759895]
 unique_name_in_owner = true
 custom_minimum_size = Vector2(120, 40)
 layout_mode = 2
 text = "Save"
 
-[node name="CancelButton" type="Button" parent="EditorPanel/Footer"]
+[node name="CancelButton" type="Button" parent="EditorPanel/Footer" unique_id=324919075]
 unique_name_in_owner = true
 custom_minimum_size = Vector2(100, 40)
 layout_mode = 2
 text = "Cancel"
 
-[node name="StatusLabel" type="Label" parent="EditorPanel"]
+[node name="StatusLabel" type="Label" parent="EditorPanel" unique_id=989219921]
 unique_name_in_owner = true
 layout_mode = 1
 anchors_preset = 2

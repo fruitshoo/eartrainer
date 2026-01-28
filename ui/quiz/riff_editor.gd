@@ -25,7 +25,8 @@ signal closed
 # ============================================================
 # STATE
 # ============================================================
-var target_interval: int = 4 # Default Major 3rd
+var target_key: int = 4 # interval or pitch class
+var current_type: String = "interval" # "interval" or "pitch"
 var current_riffs: Array = []
 var selected_riff_index: int = -1
 
@@ -67,10 +68,19 @@ func _on_panel_gui_input(event: InputEvent):
 		if is_dragging:
 			$EditorPanel.global_position = $EditorPanel.get_global_mouse_position() - drag_offset
 
-func setup(interval: int):
-	target_interval = interval
-	var interval_name = IntervalQuizData.INTERVALS.get(interval, {"name": "Unknown"}).name
-	$EditorPanel/TitleLabel.text = "Manage Riffs - %s (%d Semitones)" % [interval_name, interval]
+func setup(key: int, type: String = "interval"):
+	target_key = key
+	current_type = type
+	
+	var label_text = ""
+	if type == "pitch":
+		var info = PitchQuizData.get_pitch_info(key)
+		label_text = "Manage Riffs - Pitch %s" % info.name
+	else:
+		var info = IntervalQuizData.INTERVALS.get(key, {"name": "Unknown"})
+		label_text = "Manage Riffs - %s (%d Semitones)" % [info.name, key]
+		
+	$EditorPanel/TitleLabel.text = label_text
 	_refresh_list()
 
 func _connect_signals():
@@ -247,7 +257,7 @@ func _schedule_note_off(pitch: int, string_idx: int, duration_sec: float):
 func _refresh_list():
 	riff_list.clear()
 	var rm = GameManager.get_node("RiffManager")
-	current_riffs = rm.get_riffs_for_interval(target_interval)
+	current_riffs = rm.get_riffs(target_key, current_type)
 	
 	for i in range(current_riffs.size()):
 		var riff = current_riffs[i]
@@ -296,8 +306,8 @@ func _update_ui_state():
 		var riff = current_riffs[selected_riff_index]
 		is_locked = (riff.get("source") == "builtin")
 	
-	# target_interval unused warning fix
-	if target_interval < 0: pass
+	# target_key unused check (if needed)
+	if target_key < 0: pass
 	
 	play_btn.disabled = not has_notes
 	
@@ -314,43 +324,66 @@ func _update_ui_state():
 
 func _delete_selected():
 	if selected_riff_index == -1: return
+	
 	var riff = current_riffs[selected_riff_index]
-	if riff.get("source") == "builtin": return
+	if riff.get("source") != "user":
+		status_label.text = "Cannot delete built-in riffs."
+		return
+		
+	var rm = GameManager.get_node("RiffManager")
 	
-	# Find real index in user list? RiffManager handles deletion by list index?
-	# Implementation detail: RiffManager expects index in user_riffs array. 
-	# But here we merged lists. We need to find the specific user riff index.
-	# Simplest way: Riff stores ID? logic in RiffManager: delete_riff(interval, riff_data)?
+	# Need accurate index within USER list for RiffManager?
+	# RiffManager expects index in its internal user array.
+	# get_riffs returns [builtins + user].
+	# So we need to calculate local index.
 	
-	# Let's fix RiffManager to delete by ID or Object match to be safe.
-	# For now, let's just assume we pass the item to manager to find and remove.
-	# Actually RiffManager.delete_riff takes index. We must calc index shift.
+	# Count builtins first
+	# TODO: Optimize this, but for now:
+	# Actually RiffManager API: delete_riff(key, index, type) -> index is for the USER list.
 	
-	# Calculate offset
 	var builtins_count = 0
 	for r in current_riffs:
-		if r.source == "builtin": builtins_count += 1
-		
+		if r.get("source") != "user":
+			builtins_count += 1
+			
 	var user_index = selected_riff_index - builtins_count
+	
 	if user_index >= 0:
-		GameManager.get_node("RiffManager").delete_riff(target_interval, user_index)
+		rm.delete_riff(target_key, user_index, current_type)
 		_refresh_list()
+	else:
+		status_label.text = "Error identifying riff."
 
 func _save_current():
-	var title = title_input.text
-	var note_data = recorded_notes.duplicate()
-	
-	var data = {
-		"title": title,
-		"notes": note_data,
+	if title_input.text.strip_edges().is_empty():
+		status_label.text = "Error: Title required."
+		return
+		
+	if recorded_notes.is_empty():
+		status_label.text = "Error: Record notes first."
+		return
+		
+	var rm = GameManager.get_node("RiffManager")
+	var new_data = {
+		"title": title_input.text,
+		"notes": recorded_notes,
 		"source": "user"
 	}
 	
-	# If selecting a user riff, Update. Else Add.
-	if selected_riff_index != -1:
-		var riff = current_riffs[selected_riff_index]
-		if riff.get("source") != "builtin":
-			# Update existing
+	# If selecting a user riff, Update. Else	# Add or Update
+	if selected_riff_index == -1:
+		# Add New
+		rm.add_riff(target_key, new_data, current_type)
+		status_label.text = "Saved!"
+	else:
+		# Update Existing
+		if current_riffs[selected_riff_index].get("source") == "builtin":
+			# Prevent editing builtin directly? Or duplicate as new? 
+			# Logic: If builtin is selected, force "Add New" behavior effectively
+			rm.add_riff(target_key, new_data, current_type)
+			status_label.text = "Saved as New!"
+		else:
+			# Update existing user riff
 			# Need real user index.
 			var builtins_count = 0
 			for r in current_riffs:
@@ -358,18 +391,11 @@ func _save_current():
 			var user_idx = selected_riff_index - builtins_count
 			
 			if user_idx >= 0:
-				GameManager.get_node("RiffManager").update_riff(target_interval, user_idx, data)
+				rm.update_riff(target_key, user_idx, new_data, current_type)
 				status_label.text = "Updated!"
 			else:
 				# Should not happen if source guard works
 				print("[RiffEditor] Error finding user index for update.")
-		else:
-			# Locked item selected -> Create Duplicate (Save As)
-			GameManager.get_node("RiffManager").add_riff(target_interval, data)
-			status_label.text = "Saved as New!"
-	else:
-		# New item
-		GameManager.get_node("RiffManager").add_riff(target_interval, data)
-		status_label.text = "Saved!"
+			# End of user update block
 
 	_refresh_list()
