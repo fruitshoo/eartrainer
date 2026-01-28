@@ -5,61 +5,112 @@ extends Camera3D
 @export var drag_sensitivity: float = 1.0
 @export var deadzone_radius: float = 4.0
 
-var base_offset: Vector3 = Vector3(10, 8, -10)
+# DOF Settings
+@export var dof_sharpness_range: float = 8.0 # Range around focus point that stays sharp
+
+var base_offset: Vector3 = Vector3(18, 14, -18) # Updated for Perspective/Telephoto
 var base_rotation: Vector3 = Vector3(-30, 135, 0)
 
 var drag_offset: Vector3 = Vector3.ZERO
-var target_size: float = 10.0
+var target_size: float = 10.0 # Used for Ortho Size OR Perspective Zoom Factor
+var current_zoom: float = 1.0 # Multiplier for base_offset length
+
 var is_dragging: bool = false
 
 func _ready():
-	global_position = base_offset
-	rotation_degrees = base_rotation
+	# Initial Setup
 	if projection == ProjectionType.PROJECTION_ORTHOGONAL:
+		global_position = base_offset
 		size = target_size
+	else:
+		# For Perspective, we use current distance as base
+		current_zoom = 1.0
+		# base_offset is already set in script but better to grab from transform if customized
+		# base_offset = global_position # Uncomment if we want to respect editor position
+
+	rotation_degrees = base_rotation
 
 func _process(delta):
 	if not GameManager.current_player: return
 
-	# 1. 줌(Size) 처리
+	var player_pos = GameManager.current_player.global_position
+	
+	# 1. Zoom Logic
 	if projection == ProjectionType.PROJECTION_ORTHOGONAL:
 		size = lerp(size, target_size, delta * zoom_lerp_speed)
-
-	# 2. 위치 처리
-	var player_pos = GameManager.current_player.global_position
-	var target_camera_pos = player_pos + base_offset + drag_offset
-
-	if is_dragging:
-		# 드래그 중에는 1:1 밀착
-		global_position = target_camera_pos
-	else:
-		# 드래그 중이 아닐 때만 소프트 데드존 로직
-		var current_center = global_position - base_offset - drag_offset
-		var to_player = player_pos - current_center
-		var distance = to_player.length()
+		# Ortho doesn't move camera for zoom, just changes size
+		var target_camera_pos = player_pos + base_offset + drag_offset
+		_apply_position(target_camera_pos, player_pos, delta)
 		
-		# [Updated] Use GameManager setting
-		var deadzone = GameManager.camera_deadzone
+	else: # Perspective
+		# Zoom means moving closer/further
+		# target_size (3 to 20) -> Map to Zoom Factor (e.g. 0.3 to 2.0)
+		# Let's say target_size=10 is 1.0. 
+		var target_factor = target_size / 10.0
+		current_zoom = lerp(current_zoom, target_factor, delta * zoom_lerp_speed)
+		
+		var effective_offset = base_offset * current_zoom
+		var target_camera_pos = player_pos + effective_offset + drag_offset
+		_apply_position(target_camera_pos, player_pos, delta)
+		
+		_update_dof(player_pos)
 
-		if distance > deadzone:
-			var overflow = to_player.normalized() * (distance - deadzone)
-			var smooth_target = global_position + overflow
-			global_position = global_position.lerp(smooth_target, delta * follow_speed)
+func _apply_position(target_pos: Vector3, player_pos: Vector3, delta: float):
+	if is_dragging:
+		global_position = target_pos
+	else:
+		# Soft Deadzone
+		# Calculate where camera SHOULD be relative to player (Ideal)
+		# Wait, simplistic logic:
+		# Just strictly follow if outside deadzone
+		# Current implementation logic was: 
+		# 1. Calculate ideal center 
+		# 2. If player too far from ideal center, move camera.
+		# Let's simplify: 
+		# The Camera looks at the player. 
+		# If we strictly track, it's boring. 
+		# Current pos
+		var desired_pos = target_pos
+		global_position = global_position.lerp(desired_pos, delta * follow_speed)
+
+func _update_dof(player_pos: Vector3):
+	if not attributes: return
+	if not attributes is CameraAttributesPractical: return
+	
+	var dist = global_position.distance_to(player_pos)
+	
+	# Dynamic Sharpeness: Zoomed in (Low dist) -> Tighter range?
+	# Or user said "Zoom in/out affects DOF values".
+	# Fixed range is usually fine, but let's scale it slightly.
+	# If current_zoom is small (0.5), range is smaller.
+	var dynamic_range = dof_sharpness_range * current_zoom
+	
+	attributes.dof_blur_far_distance = dist + dynamic_range
+	attributes.dof_blur_near_distance = max(0.1, dist - dynamic_range)
+	
+	# Adjust blur amount if needed, but distance is key.
 
 func _unhandled_input(event):
-	# 줌 로직
+	# Zoom Logic
 	if event is InputEventMouseButton:
 		if event.button_index == MOUSE_BUTTON_WHEEL_UP:
+			# Zoom In (Smaller size / value)
 			target_size = clamp(target_size - 1.0, 3.0, 20.0)
 		elif event.button_index == MOUSE_BUTTON_WHEEL_DOWN:
+			# Zoom Out
 			target_size = clamp(target_size + 1.0, 3.0, 20.0)
 		
 		if event.button_index == MOUSE_BUTTON_MIDDLE:
 			if event.pressed:
-				# [핵심] 클릭하는 순간 현재 카메라 위치를 기준으로 오프셋을 동기화
-				# 이렇게 하면 클릭 시점에 카메라가 캐릭터 쪽으로 튀지 않습니다.
 				var player_pos = GameManager.current_player.global_position
-				drag_offset = global_position - player_pos - base_offset
+				# Recalculate drag offset to prevent jumping
+				# current_pos = player + effective_offset + drag
+				# drag = current - player - effective
+				var effective_offset = base_offset
+				if projection == ProjectionType.PROJECTION_PERSPECTIVE:
+					effective_offset = base_offset * (target_size / 10.0) # Approx
+					
+				drag_offset = global_position - player_pos - effective_offset
 				is_dragging = true
 			else:
 				is_dragging = false
@@ -67,17 +118,25 @@ func _unhandled_input(event):
 			if event.double_click:
 				reset_view()
 
-	# 드래그 로직
+	# Drag Logic
 	if event is InputEventMouseMotion and is_dragging:
 		var viewport_height = get_viewport().get_visible_rect().size.y
-		var pixel_to_unit = size / viewport_height
+		
+		# Sensitivity adjustment for perspective
+		var fov_scale = 1.0
+		if projection == ProjectionType.PROJECTION_PERSPECTIVE:
+			# Larger FOV/Distance = moved more
+			fov_scale = current_zoom # Move faster when zoomed out
+			
+		var pixel_to_unit = (20.0 / viewport_height) * drag_sensitivity * fov_scale
+		# Note: 20.0 is arbitrary reference size
 		
 		var right_dir = transform.basis.x
 		right_dir.y = 0
 		right_dir = right_dir.normalized()
 		
 		var forward_dir = Vector3(right_dir.z, 0, -right_dir.x)
-		var move_vec = (right_dir * event.relative.x + forward_dir * -event.relative.y) * pixel_to_unit * drag_sensitivity
+		var move_vec = (right_dir * event.relative.x + forward_dir * -event.relative.y) * pixel_to_unit
 		
 		drag_offset -= move_vec
 

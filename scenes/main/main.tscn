@@ -8,9 +8,8 @@
 [ext_resource type="PackedScene" uid="uid://bx6tqcwt8wrfi" path="res://ui/sequence/sequence_ui.tscn" id="6_ow5a4"]
 [ext_resource type="PackedScene" uid="uid://c8j7x5y403w2" path="res://ui/help/help_ui.tscn" id="7_help"]
 [ext_resource type="PackedScene" uid="uid://fqst8yiycbne" path="res://ui/quiz/EarTrainerUI.tscn" id="8_yyfjg"]
-
-[sub_resource type="Environment" id="Environment_vom5j"]
-ssao_enabled = true
+[ext_resource type="Environment" uid="uid://dhtj1lxktuwca" path="res://environments/cozy_studio.tres" id="10_env"]
+[ext_resource type="CameraAttributesPractical" path="res://environments/cozy_attributes.tres" id="11_attr"]
 
 [node name="Main" type="Node3D" unique_id=1566035042]
 
@@ -19,16 +18,18 @@ ssao_enabled = true
 [node name="Player" parent="." unique_id=1910528158 instance=ExtResource("2_k2fmo")]
 
 [node name="WorldEnvironment" type="WorldEnvironment" parent="." unique_id=1642191298]
-environment = SubResource("Environment_vom5j")
+environment = ExtResource("10_env")
+camera_attributes = ExtResource("11_attr")
 
 [node name="DirectionalLight3D" type="DirectionalLight3D" parent="." unique_id=2065457007]
+light_color = Color(1, 0.93, 0.73, 1)
+shadow_enabled = true
 
 [node name="MainCamera" type="Camera3D" parent="." unique_id=743275868]
-transform = Transform3D(-0.70710677, -0.35355338, 0.6123724, 0, 0.8660254, 0.5, -0.70710677, 0.35355338, -0.6123724, 10, 8, -10)
-projection = 1
+transform = Transform3D(-0.70710677, -0.35355338, 0.6123724, 0, 0.8660254, 0.5, -0.70710677, 0.35355338, -0.6123724, 18, 14, -18)
+attributes = ExtResource("11_attr")
 current = true
-fov = 12.0
-size = 12.0
+fov = 25.0
 script = ExtResource("3_l3cfh")
 
 [node name="SettingsUI" parent="." unique_id=77076675 instance=ExtResource("3_k2fmo")]
