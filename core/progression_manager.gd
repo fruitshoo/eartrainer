@@ -141,7 +141,7 @@ func update_settings(new_bar_count: int, _dummy_density: int = 1) -> void:
 	
 	# 초기화: densities
 	if bar_densities.size() != bar_count:
-		var new_densities = []
+		var new_densities: Array[int] = []
 		for i in range(bar_count):
 			if i < bar_densities.size():
 				new_densities.append(bar_densities[i])
