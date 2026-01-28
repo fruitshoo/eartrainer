@@ -90,3 +90,7 @@ func _on_land() -> void:
 	var juice_tween = create_tween()
 	juice_tween.tween_property(visual, "scale", Vector3(1.3, 0.7, 1.3), 0.04)
 	juice_tween.tween_property(visual, "scale", Vector3(1.0, 1.0, 1.0), 0.08)
+	
+	# [Fix] Force visual update AFTER arrival
+	# Ensures proximity lighting (Flashlight) uses the new position
+	GameManager.player_moved.emit()

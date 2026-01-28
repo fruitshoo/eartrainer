@@ -4,3 +4,7 @@
 
 [node name="FretboardManger" type="Node3D" unique_id=1419062901]
 script = ExtResource("1_t6f2i")
+
+[node name="Labels" type="CanvasLayer" parent="." unique_id=998877665]
+layer = 0
+follow_viewport_enabled = false

@@ -38,6 +38,7 @@ func _setup_mode_switcher():
 	var main_vbox = scroll_container.get_parent()
 	
 	if main_vbox:
+		# 1. Mode Container (Interval / Pitch / Chord) - TOP MSG
 		mode_container = VBoxContainer.new()
 		mode_container.alignment = BoxContainer.ALIGNMENT_CENTER
 		mode_container.add_theme_constant_override("separation", 10) # Reduced separation for vertical
@@ -65,9 +66,39 @@ func _setup_mode_switcher():
 		mode_container.add_child(btn_mode_pitch)
 		mode_container.add_child(btn_mode_chord)
 		
-		# Insert before ScrollContainer
 		main_vbox.add_child(mode_container)
-		main_vbox.move_child(mode_container, scroll_container.get_index())
+		
+		# Move Mode Container to TOP (0) or before Modes Header
+		var target_index = 0
+		if asc_cb:
+			var mode_header = asc_cb.get_parent()
+			if mode_header and mode_header.get_parent() == main_vbox:
+				target_index = mode_header.get_index()
+				
+		main_vbox.move_child(mode_container, target_index)
+		
+		# [v0.4] Difficulty Settings (Easy/Hard Mode) - BELOW Modes Button
+		var diff_hbox = HBoxContainer.new()
+		diff_hbox.alignment = BoxContainer.ALIGNMENT_CENTER
+		
+		var visual_cb = CheckBox.new()
+		visual_cb.text = "Show Target Highlight (Easy Mode)"
+		visual_cb.button_pressed = GameManager.show_target_visual
+		visual_cb.toggled.connect(func(on): GameManager.show_target_visual = on)
+		
+		diff_hbox.add_child(visual_cb)
+		main_vbox.add_child(diff_hbox)
+		
+		# Insert BELOW Modes Header
+		# (Modes Header is at target_index + 1 now because we inserted mode_container at target_index)
+		# Actually, if we insert mode_container at T, modes_header becomes T+1. 
+		# We want diff_hbox at T+2.
+		if target_index < main_vbox.get_child_count():
+			# Safer: Get index of mode_header again
+			if asc_cb:
+				var mode_header = asc_cb.get_parent()
+				if mode_header:
+					main_vbox.move_child(diff_hbox, mode_header.get_index() + 1)
 
 func _set_ui_mode(mode: String):
 	if current_ui_mode == mode: return

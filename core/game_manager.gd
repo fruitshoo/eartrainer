@@ -48,6 +48,12 @@ var highlight_scale: bool = true:
 		highlight_scale = value
 		settings_changed.emit()
 
+# [v0.4] Difficulty Settings
+var show_target_visual: bool = true: # "Easy Mode" vs "Hard Mode"
+	set(value):
+		show_target_visual = value
+		settings_changed.emit()
+
 var is_metronome_enabled: bool = true: # 메트로놈 소리 켜기/끄기
 	set(value):
 		is_metronome_enabled = value
@@ -300,8 +306,10 @@ func _on_melody_visual_on(midi_note: int, string_idx: int) -> void:
 			tile.apply_melody_highlight()
 	
 	# 2. Audio Playback
-	if AudioEngine:
-		AudioEngine.play_note(midi_note)
+	# [Conflict Fix] Audio should be played by the trigger source (QuizManager, RiffEditor),
+	# NOT by the visual event handler. This prevents double triggering.
+	# if AudioEngine:
+	# 	AudioEngine.play_note(midi_note)
 
 func _on_melody_visual_off(midi_note: int, string_idx: int) -> void:
 	if midi_note == -1:

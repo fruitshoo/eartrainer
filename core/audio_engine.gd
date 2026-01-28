@@ -321,4 +321,5 @@ func play_sfx(type: String) -> void:
 		playback.push_frame(Vector2(sample, sample))
 		
 	await get_tree().create_timer(duration + 0.1).timeout
-	player.queue_free()
+	if is_instance_valid(player):
+		player.queue_free()

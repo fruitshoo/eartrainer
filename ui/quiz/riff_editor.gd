@@ -82,6 +82,10 @@ func setup(key: int, type: String = "interval"):
 		
 	$EditorPanel/TitleLabel.text = label_text
 	_refresh_list()
+	
+	# Stop any active quiz so it doesn't interfere with recording
+	# (Prevents "Wrong" answers or new questions appearing while playing)
+	QuizManager.stop_quiz()
 
 func _connect_signals():
 	title_input.text_changed.connect(func(_t): _update_ui_state())
@@ -167,7 +171,7 @@ func _on_tile_pressed(midi: int, string_idx: int):
 	}
 	
 	# Visual Feedback?
-	AudioEngine.play_note(midi)
+	# AudioEngine.play_note(midi) # Handled by Global GameManager/QuizManager feedback
 
 func _on_tile_released(midi: int, string_idx: int):
 	if not is_recording: return
@@ -262,14 +266,10 @@ func _refresh_list():
 	for i in range(current_riffs.size()):
 		var riff = current_riffs[i]
 		var title = riff.get("title", "Untitled")
-		var source = riff.get("source", "user")
-		var label = "%s (%s)" % [title, source]
+		# var source = riff.get("source", "user") # Source concept removed
+		var label = "%s" % [title]
 		riff_list.add_item(label)
-		# Lock builtin?
-		if source == "builtin":
-			riff_list.set_item_metadata(i, {"locked": true})
-			# riff_list.set_item_icon(i, load("res://assets/icons/lock.png")) # Icon missing
-			label += " [Locked]" # Fallback text indicator
+		# No locking logic
 			
 	_clear_editor()
 
@@ -283,11 +283,11 @@ func _on_list_item_selected(index: int):
 	title_input.text = riff.get("title", "")
 	recorded_notes = riff.get("notes", []).duplicate(true)
 	
-	var is_locked = (riff.get("source") == "builtin")
-	title_input.editable = !is_locked
-	record_btn.disabled = is_locked
-	delete_btn.disabled = is_locked
-	save_btn.disabled = is_locked # Saving overwrites? Or creates new?
+	# Unlock All
+	title_input.editable = true
+	record_btn.disabled = false
+	delete_btn.disabled = false
+	save_btn.disabled = false
 	
 	_update_ui_state()
 

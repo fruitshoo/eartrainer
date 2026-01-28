@@ -10,6 +10,8 @@ const SPACING = 1.5
 # MIDI: 40(E2), 45(A2), 50(D3), 55(G3), 59(B3), 64(E4)
 var string_root_notes = [40, 45, 50, 55, 59, 64]
 
+@onready var labels_layer: CanvasLayer = $Labels
+
 func _ready():
 	spawn_fretboard()
 
@@ -31,4 +33,4 @@ func spawn_fretboard():
 			# [타일 정보 설정]
 			# s=0 이 6번줄(낮은 E)이므로 순서대로 매칭
 			var note = string_root_notes[s] + f
-			tile.setup(s, f, note)
+			tile.setup(s, f, note, labels_layer)

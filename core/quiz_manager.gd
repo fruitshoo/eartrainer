@@ -42,6 +42,7 @@ var chord_fixed_root: int = 60 # C4 Middle C
 var one_octave_limit: bool = true
 # Current Question State
 var current_interval_mode: IntervalMode = IntervalMode.ASCENDING
+var _current_root_fret: int = -1 # Used to anchor reward visuals
 
 # ============================================================
 # LIFECYCLE
@@ -50,6 +51,11 @@ func _ready():
 	EventBus.tile_clicked.connect(_on_tile_clicked)
 
 func _on_tile_clicked(note: int, string_idx: int, _modifiers: Dictionary):
+	# Always play sound (Free Play Feedback)
+	# Assuming AudioEngine is an Autoload or accessible singleton
+	if AudioEngine:
+		AudioEngine.play_note(note)
+
 	# Dispatch based on active quiz type
 	if current_quiz_type == QuizType.NOTE_LOCATION:
 		check_note_answer(note)
@@ -71,6 +77,7 @@ var _saved_visual_settings: Dictionary = {}
 
 func start_pitch_quiz():
 	_stop_playback()
+	_clear_markers() # Clear previous question's visual
 	
 	# [New] Auto-Hide Visual Cheats
 	if _saved_visual_settings.is_empty():
@@ -141,7 +148,7 @@ func check_pitch_answer(clicked_note: int, string_idx: int):
 		if tile and tile.has_method("_show_rhythm_feedback"):
 			tile.call("_show_rhythm_feedback", {
 					"rating": "Yes! " + PitchQuizData.get_pitch_info(pitch_target_class).name,
-					"color": Color.GREEN_YELLOW
+					"color": Color.MAGENTA
 				})
 				
 		# Play Reward (Riff for this pitch class)
@@ -253,7 +260,7 @@ func check_chord_answer(start_type: String):
 
 func stop_quiz():
 	current_quiz_type = QuizType.NONE
-	_clear_root_highlight()
+	_clear_markers()
 	
 	# [New] Restore Visual Settings
 	if not _saved_visual_settings.is_empty():
@@ -306,6 +313,7 @@ func check_note_answer(clicked_note: int):
 
 func start_interval_quiz():
 	_stop_playback()
+	_clear_markers() # Clear previous question's visual
 	_is_processing_correct_answer = false
 	
 	current_quiz_type = QuizType.INTERVAL
@@ -373,6 +381,7 @@ func start_interval_quiz():
 			interval_target_note = candidate_target
 			final_string_idx = root_string
 			final_fret_idx = root_fret
+			_current_root_fret = final_fret_idx
 			valid_found = true
 			break
 			
@@ -385,8 +394,11 @@ func start_interval_quiz():
 		if pos.valid:
 			final_string_idx = pos.string
 			final_fret_idx = pos.fret
+			_current_root_fret = final_fret_idx
 
-	_highlight_tile(final_string_idx, final_fret_idx, Color.ORANGE)
+	# [v0.4] Maintained Effect: Root stays lit (Marker Layer)
+	# User Request: "Do" should be maintained. "Wrong is not allowed" (Persist until new Q)
+	_highlight_tile(final_string_idx, final_fret_idx, Color.MAGENTA)
 	
 	# 4. Play
 	play_current_interval()
@@ -441,7 +453,7 @@ func _pick_fallback_question(center_fret: int):
 	if interval_target_note < 40: interval_target_note = 40; interval_root_note = 40 + interval_semitones
 	if interval_target_note > 84: interval_target_note = 84; interval_root_note = 84 - interval_semitones
 
-var _last_root_tile: Node = null
+var _active_markers: Array = [] # List of tiles with active markers
 
 # Helper to find a valid string/fret for a given MIDI note
 # Prioritizes positions close to preferred_fret (defaults to player_fret)
@@ -468,59 +480,93 @@ func _find_valid_pos_for_note(midi_note: int, preferred_fret: int = -1) -> Dicti
 
 func _highlight_tile(string_idx: int, fret_idx: int, color: Color):
 	var tile = GameManager.find_tile(string_idx, fret_idx)
-	if tile and tile.has_method("apply_sequencer_highlight"):
-		tile.apply_sequencer_highlight(color, 2.0)
-		_last_root_tile = tile
+	if tile and tile.has_method("set_marker"):
+		tile.set_marker(color, 1.0) # Reduced energy from 2.0 to 1.0 for Magenta compat
+		if not tile in _active_markers:
+			_active_markers.append(tile)
 		
 	# Also ensure camera follows if needed? No, leave camera to user or GameManager logic.
 	# But ensure this tile is the one used for the visual anchor.
 
-func _clear_root_highlight():
-	if _last_root_tile and is_instance_valid(_last_root_tile):
-		if _last_root_tile.has_method("clear_sequencer_highlight"):
-			_last_root_tile.clear_sequencer_highlight()
-	_last_root_tile = null
+func _clear_markers():
+	for tile in _active_markers:
+		if is_instance_valid(tile) and tile.has_method("clear_marker"):
+			tile.clear_marker()
+	_active_markers.clear()
 
 func play_current_interval():
 	# Replay the current interval/note
 	_stop_playback() # Stop any ringing first
 	_play_quiz_sound(current_quiz_type)
 
+func _play_note_with_blink(note: int, duration: float = 0.3, force_visual: bool = true):
+	# Play Audio
+	AudioEngine.play_note(note)
+	
+	# Determine if we should show visual
+	# 1. If 'force_visual' is true (e.g. Root note, or Pitch Quiz), always show.
+	# 2. If 'force_visual' is false (e.g. Target note), show only if 'show_target_visual' is true.
+	var should_show = force_visual or GameManager.show_target_visual
+	
+	if not should_show:
+		return # Audio only
+	
+	# Find best visual target (prioritize active markers)
+	var string_idx = -1
+	
+	for tile in _active_markers:
+		if is_instance_valid(tile) and tile.midi_note == note:
+			string_idx = tile.string_index
+			break
+			
+	if string_idx == -1:
+		# Fallback search
+		var pos = _find_valid_pos_for_note(note, _current_root_fret)
+		string_idx = pos.string if pos.valid else 0
+		
+	# Emit Visual Flash (Magenta via GameManager)
+	EventBus.visual_note_on.emit(note, string_idx)
+	
+	# Schedule Off
+	var my_id = _current_playback_id
+	get_tree().create_timer(duration).timeout.connect(func():
+		if _current_playback_id != my_id: return
+		EventBus.visual_note_off.emit(note, string_idx)
+	)
+
 func _play_quiz_sound(type: QuizType):
 	var my_id = _current_playback_id
 	
 	if type == QuizType.PITCH_CLASS:
-		AudioEngine.play_note(pitch_target_note_actual)
+		_play_note_with_blink(pitch_target_note_actual)
 		return
 		
 	if type == QuizType.CHORD_QUALITY:
 		_play_chord_structure(interval_root_note, chord_target_type)
 		return
 
-	# Pulse the root visual again when playing?
-	if _last_root_tile and is_instance_valid(_last_root_tile):
-		_last_root_tile.apply_sequencer_highlight(Color.YELLOW, 2.0)
+	# Pulse the root visual again when playing? (Optional now that we blink)
+	# for tile in _active_markers: ... (Removed to avoid clutter, blinking is enough)
+	
+	# Note: Root is always forced (force_visual=true). Target is conditional (force_visual=false).
 	
 	if current_interval_mode == IntervalMode.HARMONIC:
-		AudioEngine.play_note(interval_root_note)
-		AudioEngine.play_note(interval_target_note)
+		_play_note_with_blink(interval_root_note, 1.0, true)
+		_play_note_with_blink(interval_target_note, 1.0, false)
 	elif current_interval_mode == IntervalMode.DESCENDING:
-		AudioEngine.play_note(interval_root_note)
-		await get_tree().create_timer(0.6).timeout
-		if _current_playback_id != my_id: return
-		AudioEngine.play_note(interval_target_note) # Ascending logic flipped? Desc should be High -> Low.
-		# Interval Logic: Root is usually lower. Target is higher.
-		# Descending quiz: Play Target then Root?
-		# Or is Root the top note?
-		# Currently: start_interval_quiz calculates target based on root +/- semitones.
-		# If Descending: target = root - semitones. (Target is lower).
-		# Playback: Play Root (High) -> Target (Low).
-		# This matches lines 363-365.
+		_play_note_with_blink(interval_root_note, 0.6, true)
+		
+		get_tree().create_timer(0.6).timeout.connect(func():
+			if _current_playback_id != my_id: return
+			_play_note_with_blink(interval_target_note, 1.0, false)
+		)
 	else: # ASCENDING
-		AudioEngine.play_note(interval_root_note)
-		await get_tree().create_timer(0.6).timeout
-		if _current_playback_id != my_id: return # Abort if interrupted
-		AudioEngine.play_note(interval_target_note)
+		_play_note_with_blink(interval_root_note, 0.6, true)
+		
+		get_tree().create_timer(0.6).timeout.connect(func():
+			if _current_playback_id != my_id: return
+			_play_note_with_blink(interval_target_note, 1.0, false)
+		)
 
 func check_interval_answer(semitones: int):
 	# Legacy/Button based answer
@@ -559,11 +605,20 @@ func check_interval_answer_with_tile(clicked_note: int, string_idx: int):
 				"color": Color.CYAN
 			})
 		
+		# Visual Feedback: Highlight both tiles (Root & Target)
+		# 1. Re-highlight Root (if we know it)
+		var root_pos = _find_valid_pos_for_note(interval_root_note, _current_root_fret)
+		if root_pos.valid:
+			_highlight_tile(root_pos.string, root_pos.fret, Color.MAGENTA)
+			
+		# 2. Highlight Target (Clicked Tile)
+		_highlight_tile(string_idx, fret_idx, Color.MAGENTA)
+		
 		var reward_duration = _play_reward_song(interval_semitones, current_interval_mode)
 		
 		quiz_answered.emit({"correct": true, "interval": interval_semitones})
 		
-		_clear_root_highlight()
+		# _clear_markers() # Keep them lit during reward!
 		
 		# Dynamic delay: Wait for song + buffer
 		var my_id = _current_playback_id
@@ -592,7 +647,14 @@ func check_interval_answer_with_tile(clicked_note: int, string_idx: int):
 				"color": Color.RED
 			})
 			
-		play_current_interval()
+		# Give user time to hear "Wrong" and their note
+		# [User Request] Disable auto-replay on wrong answer. 
+		# Only play if Replay is pressed.
+		
+		# get_tree().create_timer(0.6).timeout.connect(func():
+		# 	if current_quiz_type == QuizType.INTERVAL: # Guard
+		# 		play_current_interval()
+		# )
 		quiz_answered.emit({"correct": false})
 
 func _show_feedback_text_for_note(midi_note: int, text: String, color: Color):
@@ -647,7 +709,8 @@ func _stop_playback():
 	# elif block removed - erroneous placement
 	
 	_current_playback_id += 1 # Invalidate pending callbacks
-	_clear_root_highlight()
+	_current_playback_id += 1 # Invalidate pending callbacks
+	# _clear_root_highlight() # Keep visual hint during playback stops
 		
 	AudioEngine.stop_all_notes() # Kill ringing sounds immediately
 	
@@ -673,7 +736,8 @@ func _play_riff_snippet(notes: Array) -> float:
 	while target_anchor_pitch > 84: target_anchor_pitch -= 12
 	
 	# Determine Optimal String for Anchor
-	var target_anchor_pos = _find_valid_pos_for_note(target_anchor_pitch, GameManager.player_fret)
+	var anchor_fret = _current_root_fret if _current_root_fret != -1 else GameManager.player_fret
+	var target_anchor_pos = _find_valid_pos_for_note(target_anchor_pitch, anchor_fret)
 	var target_anchor_string = target_anchor_pos.string if target_anchor_pos.valid else 0
 	
 	var string_shift = target_anchor_string - first_string_orig
@@ -703,7 +767,8 @@ func _play_riff_snippet(notes: Array) -> float:
 				final_string = proposed_string
 				valid_shape = true
 		if not valid_shape:
-			var fallback = _find_valid_pos_for_note(pitch, GameManager.player_fret)
+			var fallback_fret = _current_root_fret if _current_root_fret != -1 else GameManager.player_fret
+			var fallback = _find_valid_pos_for_note(pitch, fallback_fret)
 			final_string = fallback.string if fallback.valid else 0
 			
 		# Schedule Note

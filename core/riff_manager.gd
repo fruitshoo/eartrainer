@@ -62,16 +62,10 @@ func get_riffs(key: int, type: String = "interval") -> Array:
 	else:
 		# Interval logic (with builtins)
 		var users = user_riffs.get(key, []).duplicate(true)
-		# Add source for user riffs
-		for u in users: u["source"] = "user"
 		
-		# Placeholder for _get_builtin_riffs, assuming it will be added elsewhere
-		# For now, just return user riffs if _get_builtin_riffs is not defined
-		if has_method("_get_builtin_riffs"):
-			var builtins = _get_builtin_riffs(key)
-			return builtins + users
-		else:
-			return users
+		# [User Request] Remove "Locked/Builtin" concept. All riffs are user-editable.
+		# Removed _get_builtin_riffs injection.
+		return users
 
 func _save_riffs() -> void:
 	var riff_data = {

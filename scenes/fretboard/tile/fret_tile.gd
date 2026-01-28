@@ -26,19 +26,27 @@ var midi_note: int = 0
 # ============================================================
 # NODE REFERENCES
 # ============================================================
-@onready var label: Label3D = $Label3D
 @onready var mesh: MeshInstance3D = $MeshInstance3D
 
 # ============================================================
 # PRIVATE STATE
 # ============================================================
 var _active_tween: Tween = null
+var _label_2d: Label = null # 2D Overlay Label
 
-# [v0.3] 시퀀서 오버레이 전용 상태 (기존 로직과 독립)
-var _overlay_active: bool = false
-var _overlay_tween: Tween = null
-var _overlay_color: Color = Color.TRANSPARENT
-var _overlay_energy: float = 0.0
+# [v0.4] 3-Layer Visual System
+# Layer 2: Effect (Melody Playback, Feedback Flash) - Highest Priority
+var _effect_active: bool = false
+var _effect_color: Color = Color.TRANSPARENT
+var _effect_energy: float = 0.0
+
+# Layer 1: Marker (Question Root, User Selection) - Medium Priority
+var _marker_active: bool = false
+var _marker_color: Color = Color.TRANSPARENT
+var _marker_energy: float = 1.0
+
+# Layer 0: Base (Theory Tiers) - Lowest Priority
+# (Calculated dynamically via _get_base_state)
 
 # [v0.3] 애니메이션 전용 상태 (충돌 방지)
 var _anim_tween: Tween = null
@@ -55,24 +63,61 @@ func _ready() -> void:
 	
 	_refresh_visuals()
 
+func _exit_tree():
+	# Use robust validity check
+	if is_instance_valid(_label_2d) and not _label_2d.is_queued_for_deletion():
+		# Only manually free if the parent container is NOT dying.
+		# If parent is dying, it will free the label automatically.
+		var parent = _label_2d.get_parent()
+		if parent and is_instance_valid(parent) and not parent.is_queued_for_deletion():
+			_label_2d.queue_free()
+	_label_2d = null
+
+func _process(delta):
+	if is_instance_valid(_label_2d) and _label_2d.visible:
+		var cam = get_viewport().get_camera_3d()
+		if cam and not cam.is_position_behind(global_position):
+			# Project 3D position to 2D Screen Space
+			# Offset slightly by 0.2 along Y (up) to float above tile
+			var screen_pos = cam.unproject_position(global_position + Vector3(0, 0.15, 0))
+			_label_2d.position = screen_pos - _label_2d.size / 2 # Center the label
+		else:
+			_label_2d.visible = false
+
 ## 타일 초기화 (FretboardManager에서 호출)
-## 타일 초기화 (FretboardManager에서 호출)
-func setup(s_idx: int, f_idx: int, note_val: int) -> void:
+func setup(s_idx: int, f_idx: int, note_val: int, label_container: CanvasLayer = null) -> void:
 	string_index = s_idx
 	fret_index = f_idx
 	midi_note = note_val
+	
+	# Create 2D Label if container provided
+	if label_container:
+		_label_2d = Label.new()
+		label_container.add_child(_label_2d)
+		_label_2d.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		_label_2d.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+		# Style
+		_label_2d.add_theme_font_size_override("font_size", 16)
+		_label_2d.modulate = Color(1, 1, 1, 0.9)
+		# Shadow
+		_label_2d.add_theme_color_override("font_shadow_color", Color.BLACK)
+		_label_2d.add_theme_constant_override("shadow_offset_x", 1)
+		_label_2d.add_theme_constant_override("shadow_offset_y", 1)
+		# Critical fix: Prevent label from blocking mouse input to 3D Area
+		_label_2d.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	
+	_refresh_visuals()
 
 # ============================================================
-# VISUAL UPDATE (기존 로직 100% 보존)
+# VISUAL UPDATE
 # ============================================================
 func _refresh_visuals() -> void:
-	label.text = GameManager.get_note_label(midi_note)
-	
+	# 0. Update Data Logic
 	var is_in_focus := _is_within_focus()
 	var tier := GameManager.get_tile_tier(midi_note)
 	var is_scale_tone := GameManager.is_in_scale(midi_note)
 	
-	# 1. Highlight Logic (Hierarchy with Fallback)
+	# 1. Tier & Hierarchy Logic
 	var visual_tier := 4 # Default: Avoid (No light)
 	
 	if tier == 1 and GameManager.highlight_root:
@@ -82,26 +127,27 @@ func _refresh_visuals() -> void:
 	elif is_scale_tone and GameManager.highlight_scale:
 		visual_tier = 3
 	
-	# 2. Label Visibility
-	# Only show if in focus, setting enabled, AND note is visually active
-	label.visible = is_in_focus and GameManager.show_note_labels and (visual_tier < 4)
+	# can_show logic
+	# [v0.4] Ensure labels show if Marker/Effect is active (e.g. Question Root),
+	# even if base tier is hidden for Anti-Cheat.
+	var can_show = is_in_focus and GameManager.show_note_labels and (visual_tier < 4 or _marker_active or _effect_active)
 	
-	# 3. Apply Style
-	var color := _get_tier_color(visual_tier, false, true) # scale_tone param affects color for tier 3
-	var energy := 0.0
+	# 2. Update Label (2D)
+	if is_instance_valid(_label_2d):
+		if can_show:
+			_label_2d.text = GameManager.get_note_label(midi_note)
+			_label_2d.visible = true
+			
+			# Optional: Color coding for label?
+			if midi_note % 12 == 0: # C
+				_label_2d.modulate = Color(1, 0.8, 0.2, 0.95)
+			else:
+				_label_2d.modulate = Color(1, 1, 1, 0.9)
+		else:
+			_label_2d.visible = false
 	
-	if visual_tier == 1:
-		energy = root_focus_energy if is_in_focus else 0.3
-	elif visual_tier == 2:
-		energy = chord_focus_energy if is_in_focus else 0.0
-	elif visual_tier == 3:
-		energy = scale_focus_energy if is_in_focus else idle_energy
-		
-	if energy <= 0.0:
-		color = avoid_color # Force dark if no energy
-		
-	_apply_glow(color, energy)
-	_reapply_overlay_if_active()
+	# 3. Apply Style (Material) via Layer Resolution
+	_update_material_state()
 	
 func _get_tier_color(tier: int, _p_is_key_root: bool, _is_scale_tone: bool) -> Color:
 	if tier == 1:
@@ -114,7 +160,7 @@ func _get_tier_color(tier: int, _p_is_key_root: bool, _is_scale_tone: bool) -> C
 		return scale_color
 	return avoid_color
 
-func _apply_glow(color: Color, energy: float) -> void:
+func _animate_material(color: Color, energy: float) -> void:
 	var mat := mesh.get_surface_override_material(0)
 	if not mat:
 		mat = mesh.get_active_material(0).duplicate()
@@ -134,176 +180,124 @@ func _apply_glow(color: Color, energy: float) -> void:
 		_active_tween.tween_property(mat, "emission_energy_multiplier", 0.0, 0.2)
 
 # ============================================================
-# SEQUENCER OVERLAY (비파괴적 덧칠 시스템)
+# LAYERED VISUAL SYSTEM (v0.4)
 # ============================================================
 
-## 시퀀서 하이라이트 적용 (기존 시각화 위에 덮어씌움)
-## color가 null이면 현재 타일의 기본 색상을 사용함
-## energy가 -1.0(기본값)이면 Sequencer Settings의 attack_energy를 사용함
+# --- INTERFACE ---
+
+## Layer 2: Effect (Melody / Flash)
+# Compatibility wrapper for old 'apply_sequencer_highlight'
 func apply_sequencer_highlight(color: Variant, energy: float = -1.0) -> void:
-	if color == null:
-		# 현재 타일 속성에 맞는 색상 자동 선택
-		var tier := GameManager.get_tile_tier(midi_note)
-		var is_key_root := (midi_note - GameManager.current_key) % 12 == 0
-		var is_scale_tone := GameManager.is_in_scale(midi_note)
-		color = _get_tier_color(tier, is_key_root, is_scale_tone)
+	if color == null: color = Color.WHITE
+	if energy < 0.0: energy = 2.0
 	
-	if energy < 0:
-		energy = attack_energy
-		
-	_overlay_active = true
-	_overlay_color = color
-	_overlay_energy = energy
-	_apply_overlay(color, energy)
-	_animate_press() # [v0.3] 연주 시 '눌림' 효과 추가
+	_effect_active = true
+	_effect_color = color
+	_effect_energy = energy
+	
+	_refresh_visuals() # Update material AND label
 
-## [v0.3] 코드 모양 미리보기 (Beat 0)
-func _show_chord_shape_preview() -> void:
-	if not GameManager.show_hints:
-		return
-		
-	# 포커스 범위 내의 코드톤(tier <= 2)만 미리 보기에 표시
-	if _is_within_focus():
-		var tier := GameManager.get_tile_tier(midi_note)
-		if tier <= 2:
-			apply_sequencer_highlight(null, sustain_energy)
+func clear_sequencer_highlight(_fade_duration: float = 0.2) -> void:
+	_effect_active = false
+	_refresh_visuals() # Resolve to lower layer
 
-## 시퀀서 하이라이트 해제 → 기존 시각화로 복귀
-func clear_sequencer_highlight() -> void:
-	_overlay_active = false
-	_overlay_color = Color.TRANSPARENT
-	_overlay_energy = 0.0
-	_refresh_visuals() # 원래 상태로 복귀
-
-# [New] Melody Ghost Note Implementation
+## [v0.3.1] Melody Wrapper (GameManager 호환용)
 func apply_melody_highlight() -> void:
-	# Purple highlight for ghost notes
-	var ghost_color = Color(0.8, 0.5, 1.0)
-	apply_sequencer_highlight(ghost_color, 2.0)
+	# 보상음악/멜로디 재생 시 밝은 Magenta 색상으로 강조 (User Request: Avoid Cyan/Yellow)
+	# Energy reduced to 1.2 to avoid white blowout
+	apply_sequencer_highlight(Color.MAGENTA, 1.2)
 
 func clear_melody_highlight() -> void:
 	clear_sequencer_highlight()
 
-## 오버레이 강제 적용 (별도 Tween 사용)
-func _apply_overlay(color: Color, energy: float) -> void:
-	var mat := mesh.get_surface_override_material(0)
-	if not mat:
-		mat = mesh.get_active_material(0).duplicate()
-		mesh.set_surface_override_material(0, mat)
-	
-	if _overlay_tween:
-		_overlay_tween.kill()
-	
-	_overlay_tween = create_tween().set_parallel(true)
-	_overlay_tween.tween_property(mat, "albedo_color", color, 0.08)
-	mat.emission_enabled = true
-	_overlay_tween.tween_property(mat, "emission", color, 0.08)
-	_overlay_tween.tween_property(mat, "emission_energy_multiplier", energy, 0.08)
-	# [v0.3] 플래시 효과: 강하게 켜졌다가(energy) 은은하게 유지(sustain_energy)
-	# 중요: 플래시 후에는 '지속 에너지'를 _overlay_energy로 업데이트하여
-	#       _reapply 호출 시 다시 번쩍이지 않고 유지되도록 함
-	_overlay_tween.chain().tween_property(mat, "emission_energy_multiplier", sustain_energy, 0.4) \
-		.set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT)
-	_overlay_tween.tween_callback(func(): _overlay_energy = sustain_energy)
-
-## _refresh_visuals 후 시퀀서가 재생 중이고 오버레이가 활성이면 다시 적용
-func _reapply_overlay_if_active() -> void:
-	# 시퀀서가 실제로 재생 중일 때만 오버레이 유지
-	if _overlay_active and EventBus.is_sequencer_playing:
-		_apply_overlay(_overlay_color, _overlay_energy)
-
-## 외부에서 호출 가능한 시각 업데이트 (레거시 호환)
-func apply_visual_tier(color: Color, energy: float) -> void:
-	apply_sequencer_highlight(color, energy)
-
-func update_appearance() -> void:
+## Layer 1: Marker (Quiz Root / Lock)
+func set_marker(color: Color, energy: float = 1.5) -> void:
+	_marker_active = true
+	_marker_color = color
+	_marker_energy = energy
 	_refresh_visuals()
 
-# ============================================================
-# INPUT HANDLING
-# ============================================================
-func _on_input_event(camera: Node, event: InputEvent, event_position: Vector3, normal: Vector3, shape_idx: int) -> void:
-	if event is InputEventMouseButton:
-		if event.button_index == MOUSE_BUTTON_LEFT:
-			if event.pressed:
-				# Mouse Down
-				var modifiers = {
-					"shift": event.shift_pressed,
-					"alt": event.alt_pressed,
-					"ctrl": event.ctrl_pressed,
-					"meta": event.meta_pressed,
-					"position": global_position, # [Fix] Added for Player movement
-					"fret_index": fret_index # [Fix] Added for Player logic
-				}
-				# Keep existing clicked signal for backward compatibility/click logic (handled by others)
-				# But wait, click usually implies down+up.
-				# Existing logic treats "pressed" as click.
-				
-				# Rhythm Check (New)
-				if GameManager.is_rhythm_mode_enabled and EventBus.is_sequencer_playing:
-					var sequencer = get_tree().get_first_node_in_group("sequencer")
-					if sequencer and sequencer.has_method("check_rhythm_timing"):
-						var result = sequencer.check_rhythm_timing()
-						if result.valid:
-							_show_rhythm_feedback(result)
-				
-				EventBus.tile_clicked.emit(midi_note, string_index, modifiers)
-				EventBus.tile_pressed.emit(midi_note, string_index) # [New]
-				
-				# Visual Feedback (Press)
-				_animate_press()
-				
-			else:
-				# Mouse Up
-				EventBus.tile_released.emit(midi_note, string_index) # [New]
+func clear_marker() -> void:
+	_marker_active = false
+	_refresh_visuals()
 
+# --- RESOLUTION LOGIC ---
 
-## [New] 리듬 판정 피드백 표시 (플로팅 텍스트)
-func _show_rhythm_feedback(result: Dictionary) -> void:
-	var score_label := Label3D.new()
-	add_child(score_label)
+func _update_material_state() -> void:
+	var final_color: Color
+	var final_energy: float
 	
-	score_label.text = result.rating
-	score_label.modulate = result.color
-	score_label.font_size = 64
-	score_label.outline_render_priority = 0
-	score_label.outline_size = 4
-	score_label.billboard = BaseMaterial3D.BILLBOARD_ENABLED
-	score_label.position = Vector3(0, 0.5, 0)
-	score_label.no_depth_test = true # 항상 위에 표시
+	if _effect_active:
+		# Layer 2: Effect
+		final_color = _effect_color
+		final_energy = _effect_energy
+	elif _marker_active:
+		# Layer 1: Marker
+		final_color = _marker_color
+		final_energy = _marker_energy
+	else:
+		# Layer 0: Base
+		var state = _get_base_state()
+		final_color = state.color
+		final_energy = state.energy
+		
+	_animate_material(final_color, final_energy)
+
+func _get_base_state() -> Dictionary:
+	var visual_tier := 4
+	var tier := GameManager.get_tile_tier(midi_note)
+	var is_scale_tone := GameManager.is_in_scale(midi_note)
+	var is_in_focus := _is_within_focus()
 	
-	# Tween Animation: 위로 떠오르며 페이드 아웃
-	var tween := create_tween()
-	tween.set_parallel(true)
-	tween.tween_property(score_label, "position:y", 1.5, 0.8).set_trans(Tween.TRANS_QUART).set_ease(Tween.EASE_OUT)
-	tween.tween_property(score_label, "modulate:a", 0.0, 0.8).set_trans(Tween.TRANS_EXPO).set_ease(Tween.EASE_IN)
-	tween.chain().tween_callback(score_label.queue_free)
+	# [v0.4.1] Proximity Flashlight Logic
+	# If player is near, reveal the note's true tier even if globally hidden.
+	if tier == 1 and (GameManager.highlight_root or is_in_focus):
+		visual_tier = 1
+	elif tier <= 2 and (GameManager.highlight_chord or is_in_focus):
+		visual_tier = 2
+	elif is_scale_tone and (GameManager.highlight_scale or is_in_focus):
+		visual_tier = 3
+	
+	# Determine Color
+	var color = _get_tier_color(visual_tier, false, true)
+	if visual_tier == 4: color = avoid_color
+	
+	# Determine Energy
+	var energy := 0.0
+	if visual_tier == 1: energy = root_focus_energy if is_in_focus else 0.3
+	elif visual_tier == 2: energy = chord_focus_energy if is_in_focus else 0.0
+	elif visual_tier == 3: energy = scale_focus_energy if is_in_focus else idle_energy
+	
+	if energy <= 0.0: color = avoid_color
+	
+	return {"color": color, "energy": energy}
 
 # ============================================================
-# HELPER METHODS
+# HELPER
 # ============================================================
 func _is_within_focus() -> bool:
-	return abs(fret_index - GameManager.player_fret) <= GameManager.focus_range
+	if not GameManager.current_player: return false
+	
+	# Z축 거리만 고려 (프렛 거리)
+	# 플레이어 위치: Z축이 프렛 축이라고 가정
+	# Tile z_pos = -f * SPACING
+	
+	var player_z = GameManager.current_player.global_position.z
+	var my_z = global_position.z
+	
+	# 4프렛 정도의 거리 (Use Settings Focus Range)
+	return abs(player_z - my_z) <= (float(GameManager.focus_range) * 1.5) # SPACING=1.5
 
-func _is_key_root() -> bool:
-	return (midi_note - GameManager.current_key) % 12 == 0
-
-## [v0.3] 물리적 눌림 효과 (Press & Pop)
-func _animate_press() -> void:
-	if _anim_tween:
-		_anim_tween.kill()
-	
-	# Position으로 확실한 깊이감 + Scale로 쫀득함 추가
-	_anim_tween = create_tween()
-	
-	# 1. Press (Down): 빠르고 깊게 (-0.1)
-	_anim_tween.tween_property(mesh, "position:y", -0.1, 0.05) \
-		.set_trans(Tween.TRANS_QUART).set_ease(Tween.EASE_OUT)
-	_anim_tween.parallel().tween_property(mesh, "scale", Vector3(0.95, 0.95, 0.95), 0.05) \
-		.set_trans(Tween.TRANS_QUART).set_ease(Tween.EASE_OUT)
-	
-	# 2. Pop (Up): 탄력 있게 복귀 (TRANS_BACK)
-	_anim_tween.tween_property(mesh, "position:y", 0.0, 0.15) \
-		.set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
-	_anim_tween.parallel().tween_property(mesh, "scale", Vector3.ONE, 0.15) \
-		.set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+# ============================================================
+# INPUT
+# ============================================================
+func _on_input_event(_camera, event, _event_position, _normal, _shape_idx):
+	if event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT:
+		if event.pressed:
+			EventBus.tile_pressed.emit(midi_note, string_index)
+			EventBus.tile_clicked.emit(midi_note, string_index, {
+				"position": global_position,
+				"fret_index": fret_index
+			})
+		else:
+			EventBus.tile_released.emit(midi_note, string_index)
