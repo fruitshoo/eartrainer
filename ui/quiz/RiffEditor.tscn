@@ -153,6 +153,12 @@ custom_minimum_size = Vector2(120, 40)
 layout_mode = 2
 text = "Play Preview"
 
+[node name="NewButton" type="Button" parent="EditorPanel/HBox/RightPane/Controls"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(80, 40)
+layout_mode = 2
+text = "New"
+
 [node name="DeleteButton" type="Button" parent="EditorPanel/HBox/RightPane/Controls"]
 unique_name_in_owner = true
 custom_minimum_size = Vector2(80, 40)

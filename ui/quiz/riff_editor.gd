@@ -11,6 +11,7 @@ signal closed
 @onready var record_btn: Button = %RecordButton
 @onready var play_btn: Button = %PlayButton
 @onready var delete_btn: Button = %DeleteButton
+@onready var new_btn: Button = %NewButton # [New]
 @onready var save_btn: Button = %SaveButton
 @onready var cancel_btn: Button = %CancelButton
 @onready var status_label: Label = %StatusLabel
@@ -79,10 +80,12 @@ func _connect_signals():
 	record_btn.pressed.connect(_toggle_recording)
 	play_btn.pressed.connect(_play_preview)
 	delete_btn.pressed.connect(_delete_selected)
+	new_btn.pressed.connect(_clear_editor) # [New]
 	
 	save_btn.pressed.connect(_save_current)
 	cancel_btn.pressed.connect(func():
 		if is_recording: _stop_recording()
+		if _is_previewing: _stop_preview()
 		closed.emit()
 		queue_free()
 	)
@@ -178,22 +181,65 @@ func _on_tile_released(midi: int, string_idx: int):
 # ============================================================
 # PLAYBACK LOGIC
 # ============================================================
+var _is_previewing: bool = false
+
 func _play_preview():
+	if _is_previewing:
+		_stop_preview()
+		return
+
 	if recorded_notes.is_empty(): return
 	
+	_is_previewing = true
+	play_btn.text = "Stop Preview"
 	status_label.text = "Playing preview..."
-	for note in recorded_notes:
-		var delay_sec = note.start_ms / 1000.0
-		var dur_sec = note.duration_ms / 1000.0
+	
+	# Create a sorted copy for playback sequence
+	var sequence = recorded_notes.duplicate()
+	sequence.sort_custom(func(a, b): return a.start_ms < b.start_ms)
+	
+	var start_time = Time.get_ticks_msec()
+	
+	for note in sequence:
+		if not _is_previewing: break
 		
-		get_tree().create_timer(delay_sec).timeout.connect(func():
-			AudioEngine.play_note(note.pitch)
-			EventBus.visual_note_on.emit(note.pitch, note.string)
+		# Calculate wait time relative to start
+		var target_time = start_time + note.start_ms
+		var now = Time.get_ticks_msec()
+		var wait_sec = (target_time - now) / 1000.0
+		
+		if wait_sec > 0:
+			await get_tree().create_timer(wait_sec).timeout
 			
-			get_tree().create_timer(dur_sec).timeout.connect(func():
-				EventBus.visual_note_off.emit(note.pitch, note.string)
-			)
-		)
+		if not _is_previewing: break
+		
+		AudioEngine.play_note(note.pitch)
+		EventBus.visual_note_on.emit(note.pitch, note.string)
+		
+		# Schedule Note Off (fire and forget, but check state inside)
+		_schedule_note_off(note.pitch, note.string, note.duration_ms / 1000.0)
+	
+	# Finished or Stopped
+	if _is_previewing:
+		_stop_preview()
+
+func _stop_preview():
+	_is_previewing = false
+	play_btn.text = "Play Preview"
+	status_label.text = "Preview stopped."
+	
+	# Clear all visuals (Assuming GameManager handles -1, -1)
+	EventBus.visual_note_off.emit(-1, -1)
+
+func _schedule_note_off(pitch: int, string_idx: int, duration_sec: float):
+	await get_tree().create_timer(duration_sec).timeout
+	# Only emit off if we are still previewing. 
+	# If we stopped, `_stop_preview` already cleared everything, 
+	# so checking `_is_previewing` prevents turning OFF a potentially new light 
+	# (though unlikely in this context, good practice).
+	# Actually, if we stopped, we want to make sure these don't interfere.
+	if _is_previewing:
+		EventBus.visual_note_off.emit(pitch, string_idx)
 
 # ============================================================
 # DATA MANAGEMENT
@@ -218,6 +264,9 @@ func _refresh_list():
 	_clear_editor()
 
 func _on_list_item_selected(index: int):
+	if _is_previewing:
+		_stop_preview()
+		
 	selected_riff_index = index
 	var riff = current_riffs[index]
 	
@@ -253,8 +302,15 @@ func _update_ui_state():
 	play_btn.disabled = not has_notes
 	
 	# Save conditions: Must have title, notes, and NOT be locked existing item (unless we implement Save As Copy)
-	# For simplicity: If locked, Save creates NEW. If user, Save OVERWRITES.
+	# If locked, Save creates NEW. If user, Save OVERWRITES (Update).
 	save_btn.disabled = not (has_notes and has_title)
+	
+	if is_selected and not is_locked:
+		save_btn.text = "Update"
+		new_btn.disabled = false
+	else:
+		save_btn.text = "Save"
+		new_btn.disabled = not is_selected # Enable New if something selected (to clear)
 
 func _delete_selected():
 	if selected_riff_index == -1: return
@@ -290,12 +346,30 @@ func _save_current():
 		"source": "user"
 	}
 	
-	# If we are selecting a user riff, we overwrite? 
-	# Implementing "Add New" vs "Edit" is tricky with just one Save button.
-	# Let's assume Save always Adds New for now, or Updates if ID matches.
-	# But we didn't store ID in RiffManager properly (just appended).
-	# Let's simple: Save -> Add New. Delete -> Remove old.
-	
-	GameManager.get_node("RiffManager").add_riff(target_interval, data)
+	# If selecting a user riff, Update. Else Add.
+	if selected_riff_index != -1:
+		var riff = current_riffs[selected_riff_index]
+		if riff.get("source") != "builtin":
+			# Update existing
+			# Need real user index.
+			var builtins_count = 0
+			for r in current_riffs:
+				if r.get("source", "user") == "builtin": builtins_count += 1
+			var user_idx = selected_riff_index - builtins_count
+			
+			if user_idx >= 0:
+				GameManager.get_node("RiffManager").update_riff(target_interval, user_idx, data)
+				status_label.text = "Updated!"
+			else:
+				# Should not happen if source guard works
+				print("[RiffEditor] Error finding user index for update.")
+		else:
+			# Locked item selected -> Create Duplicate (Save As)
+			GameManager.get_node("RiffManager").add_riff(target_interval, data)
+			status_label.text = "Saved as New!"
+	else:
+		# New item
+		GameManager.get_node("RiffManager").add_riff(target_interval, data)
+		status_label.text = "Saved!"
+
 	_refresh_list()
-	status_label.text = "Saved!"

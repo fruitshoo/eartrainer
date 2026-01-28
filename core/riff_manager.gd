@@ -24,6 +24,19 @@ func delete_riff(interval: int, riff_index: int) -> void:
 		user_riffs[interval].remove_at(riff_index)
 		_save_riffs()
 
+func update_riff(interval: int, riff_index: int, new_data: Dictionary) -> void:
+	if user_riffs.has(interval) and riff_index >= 0 and riff_index < user_riffs[interval].size():
+		# Preserve ID if it exists, or ensure new one?
+		# For now, just overwrite, but maybe keep original ID if useful later.
+		var original = user_riffs[interval][riff_index]
+		if original.has("id"):
+			new_data["id"] = original["id"]
+		else:
+			new_data["id"] = Time.get_unix_time_from_system()
+			
+		user_riffs[interval][riff_index] = new_data
+		_save_riffs()
+
 func get_riffs_for_interval(interval: int) -> Array:
 	# Only return user riffs as requested
 	var users = user_riffs.get(interval, []).duplicate(true)
