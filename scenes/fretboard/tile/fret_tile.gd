@@ -8,11 +8,8 @@ extends Area3D
 var string_index: int = 0
 var fret_index: int = 0
 var midi_note: int = 0
-@export_group("Theme Colors")
-@export var root_color: Color = Color(1.0, 0.8, 0.2)
-@export var chord_color: Color = Color(0.3, 0.8, 1.0)
-@export var scale_color: Color = Color(0.4, 0.4, 0.4)
-@export var avoid_color: Color = Color(0.05, 0.05, 0.05)
+# Colors are now managed by ThemeManager
+# @export_group("Theme Colors") -> Removed in v0.5
 
 @export_group("Focus Settings")
 @export var idle_energy: float = 0.05
@@ -155,15 +152,26 @@ func _refresh_visuals() -> void:
 	_update_material_state()
 	
 func _get_tier_color(tier: int, _p_is_key_root: bool, _is_scale_tone: bool) -> Color:
+	var theme = GameManager.current_theme_name
+	
 	if tier == 1:
-		return root_color
+		return ThemeManager.get_color(theme, "root")
 	elif tier <= 2:
-		return chord_color
-	elif tier == 3: # Explicit scale tier
-		return scale_color
-	elif _is_scale_tone: # Fallback for old calls
-		return scale_color
-	return avoid_color
+		# Check precise interval for coloring (3rd, 5th, 7th)
+		var interval = GameManager.get_current_chord_interval(midi_note)
+		if interval == 3 or interval == 4:
+			return ThemeManager.get_color(theme, "third")
+		elif interval == 10 or interval == 11:
+			return ThemeManager.get_color(theme, "seventh")
+		else:
+			# 5th (7) or others
+			return ThemeManager.get_color(theme, "fifth")
+	elif tier == 3:
+		return ThemeManager.get_color(theme, "scale")
+	elif _is_scale_tone:
+		return ThemeManager.get_color(theme, "scale")
+		
+	return ThemeManager.get_color(theme, "avoid")
 
 func _animate_material(color: Color, energy: float) -> void:
 	var mat := mesh.get_surface_override_material(0)
@@ -287,7 +295,8 @@ func _get_base_state() -> Dictionary:
 	
 	# Determine Color
 	var color = _get_tier_color(visual_tier, false, true)
-	if visual_tier == 4: color = avoid_color
+	if visual_tier == 4:
+		color = ThemeManager.get_color(GameManager.current_theme_name, "avoid")
 	
 	# Determine Energy
 	var energy := 0.0
@@ -295,7 +304,8 @@ func _get_base_state() -> Dictionary:
 	elif visual_tier == 2: energy = chord_focus_energy if is_in_focus else 0.0
 	elif visual_tier == 3: energy = scale_focus_energy if is_in_focus else idle_energy
 	
-	if energy <= 0.0: color = avoid_color
+	if energy <= 0.0:
+		color = ThemeManager.get_color(GameManager.current_theme_name, "avoid")
 	
 	return {"color": color, "energy": energy}
 

@@ -466,7 +466,8 @@ func _find_valid_pos_for_note(midi_note: int, preferred_fret: int = -1) -> Dicti
 	
 	for s_idx in range(6):
 		var fret = midi_note - open_notes[s_idx]
-		if fret >= 0 and fret <= 19: # 19 frets usually
+		# [Fix] Verify tile actually exists (Max Fret is usually 12, not 19)
+		if fret >= 0 and GameManager.find_tile(s_idx, fret):
 			var dist = abs(fret - preferred_fret)
 			candidates.append({"valid": true, "string": s_idx, "fret": fret, "dist": dist})
 			

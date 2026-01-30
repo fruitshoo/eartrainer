@@ -106,6 +106,13 @@ var is_rhythm_mode_enabled: bool = false:
 		is_rhythm_mode_enabled = value
 		settings_changed.emit()
 
+# [v0.5] Theme Support
+var current_theme_name: String = "Default":
+	set(value):
+		if current_theme_name != value:
+			current_theme_name = value
+			settings_changed.emit()
+
 # settings_ui_ref 제거됨
 
 
@@ -127,6 +134,7 @@ func _unhandled_input(event: InputEvent) -> void:
 # ============================================================
 
 ## 타일의 3-Tier 시각화 계층 반환
+## 타일의 3-Tier 시각화 계층 반환
 func get_tile_tier(midi_note: int) -> int:
 	# [DEBUG] 값 추적 - print 주석 해제하여 사용
 	# print("get_tile_tier -> Note:%d ChordRoot:%d Type:%s Key:%d Mode:%d" % [midi_note, current_chord_root, current_chord_type, current_key, current_mode])
@@ -134,6 +142,12 @@ func get_tile_tier(midi_note: int) -> int:
 		midi_note, current_chord_root, current_chord_type,
 		current_key, current_mode
 	)
+
+## 현재 코드 기준 인터벌 반환 (0=Root, 4=Major3rd, etc.)
+func get_current_chord_interval(midi_note: int) -> int:
+	var diff = (midi_note - current_chord_root) % 12
+	if diff < 0: diff += 12
+	return diff
 
 ## 음 이름 반환 (노테이션 모드에 따라)
 func get_note_label(midi_note: int) -> String:
@@ -221,7 +235,8 @@ func save_settings() -> void:
 		"focus_range": focus_range,
 		"camera_deadzone": camera_deadzone,
 		"is_rhythm_mode_enabled": is_rhythm_mode_enabled,
-		"default_preset_name": default_preset_name # [New]
+		"default_preset_name": default_preset_name,
+		"current_theme_name": current_theme_name # [New]
 	}
 	
 	var file = FileAccess.open(SAVE_PATH_SETTINGS, FileAccess.WRITE)
@@ -266,7 +281,8 @@ func _deserialize_settings(data: Dictionary) -> void:
 	focus_range = int(data.get("focus_range", 3))
 	camera_deadzone = float(data.get("camera_deadzone", 4.0))
 	is_rhythm_mode_enabled = data.get("is_rhythm_mode_enabled", false)
-	default_preset_name = data.get("default_preset_name", "") # [New]
+	default_preset_name = data.get("default_preset_name", "")
+	current_theme_name = data.get("current_theme_name", "Default") # [New]
 
 func _ready() -> void:
 	call_deferred("load_settings")
