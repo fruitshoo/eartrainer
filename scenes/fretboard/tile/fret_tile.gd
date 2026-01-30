@@ -35,7 +35,12 @@ var _active_tween: Tween = null
 var _label_2d: Label = null # 2D Overlay Label
 
 # [v0.4] 3-Layer Visual System
-# Layer 2: Effect (Melody Playback, Feedback Flash) - Highest Priority
+# Layer 3: Flash (Transient Hit Feedback) - Highest Priority
+var _flash_active: bool = false
+var _flash_color: Color = Color.WHITE
+var _flash_energy: float = 3.0
+
+# Layer 2: Effect (Melody Playback, Feedback Flash) - High Priority
 var _effect_active: bool = false
 var _effect_color: Color = Color.TRANSPARENT
 var _effect_energy: float = 0.0
@@ -183,7 +188,25 @@ func _animate_material(color: Color, energy: float) -> void:
 # LAYERED VISUAL SYSTEM (v0.4)
 # ============================================================
 
+# ============================================================
+# LAYERED VISUAL SYSTEM (v0.4)
+# ============================================================
+
 # --- INTERFACE ---
+
+## Layer 3: Flash (Transient)
+func trigger_flash(color: Color = Color.WHITE, duration: float = 0.15, energy: float = 3.0) -> void:
+	_flash_active = true
+	_flash_color = color
+	_flash_energy = energy
+	_refresh_visuals()
+	
+	# Auto-decay
+	get_tree().create_timer(duration).timeout.connect(func():
+		if is_instance_valid(self):
+			_flash_active = false
+			_refresh_visuals()
+	)
 
 ## Layer 2: Effect (Melody / Flash)
 # Compatibility wrapper for old 'apply_sequencer_highlight'
@@ -227,7 +250,11 @@ func _update_material_state() -> void:
 	var final_color: Color
 	var final_energy: float
 	
-	if _effect_active:
+	if _flash_active:
+		# Layer 3: Flash
+		final_color = _flash_color
+		final_energy = _flash_energy
+	elif _effect_active:
 		# Layer 2: Effect
 		final_color = _effect_color
 		final_energy = _effect_energy
@@ -278,15 +305,28 @@ func _get_base_state() -> Dictionary:
 func _is_within_focus() -> bool:
 	if not GameManager.current_player: return false
 	
-	# Z축 거리만 고려 (프렛 거리)
-	# 플레이어 위치: Z축이 프렛 축이라고 가정
-	# Tile z_pos = -f * SPACING
+	# [v0.4.2] Instant Focus (Logical Distance)
+	# Use Logical Fret Distance for instant response (updates on click)
+	# instead of waiting for physical travel.
+	return abs(GameManager.player_fret - fret_index) <= GameManager.focus_range
+
+# ============================================================
+# ANIMATION (JUICE)
+# ============================================================
+func _animate_press() -> void:
+	if _anim_tween and _anim_tween.is_running():
+		_anim_tween.kill()
+		
+	# Mesh만 움직여서 Root(Global Position)는 유지 (플레이어 이동 충돌 방지)
+	_anim_tween = create_tween()
 	
-	var player_z = GameManager.current_player.global_position.z
-	var my_z = global_position.z
+	# Down (Fast)
+	_anim_tween.tween_property(mesh, "position:y", -0.15, 0.05) \
+		.set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
 	
-	# 4프렛 정도의 거리 (Use Settings Focus Range)
-	return abs(player_z - my_z) <= (float(GameManager.focus_range) * 1.5) # SPACING=1.5
+	# Up (Bounce)
+	_anim_tween.tween_property(mesh, "position:y", 0.0, 0.15) \
+		.set_trans(Tween.TRANS_ELASTIC).set_ease(Tween.EASE_OUT)
 
 # ============================================================
 # INPUT
@@ -294,6 +334,8 @@ func _is_within_focus() -> bool:
 func _on_input_event(_camera, event, _event_position, _normal, _shape_idx):
 	if event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT:
 		if event.pressed:
+			_animate_press() # [New] Juice
+			trigger_flash(Color.WHITE, 0.15, 3.0) # [New] Hit Flash (Layer 3)
 			EventBus.tile_pressed.emit(midi_note, string_index)
 			EventBus.tile_clicked.emit(midi_note, string_index, {
 				"position": global_position,
