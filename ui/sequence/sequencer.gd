@@ -278,7 +278,7 @@ func _play_strum(data: Dictionary) -> void:
 		
 		var tile = GameManager.find_tile(target_string, target_fret)
 		if tile and is_instance_valid(tile):
-			AudioEngine.play_note(tile.midi_note)
+			AudioEngine.play_note(tile.midi_note, tile.string_index)
 			tile.apply_sequencer_highlight(null)
 			_highlighted_tiles.append(tile)
 		
@@ -363,7 +363,7 @@ func _play_block_chord() -> void:
 		
 		var tile = GameManager.find_tile(target_string, target_fret)
 		if tile and is_instance_valid(tile):
-			AudioEngine.play_note(tile.midi_note)
+			AudioEngine.play_note(tile.midi_note, tile.string_index)
 			tile.apply_sequencer_highlight(null, 0.5) # 짧게 하이라이트
 			_highlighted_tiles.append(tile)
 

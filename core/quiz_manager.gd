@@ -54,7 +54,7 @@ func _on_tile_clicked(note: int, string_idx: int, _modifiers: Dictionary):
 	# Always play sound (Free Play Feedback)
 	# Assuming AudioEngine is an Autoload or accessible singleton
 	if AudioEngine:
-		AudioEngine.play_note(note)
+		AudioEngine.play_note(note, string_idx)
 
 	# Dispatch based on active quiz type
 	if current_quiz_type == QuizType.NOTE_LOCATION:

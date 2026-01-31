@@ -131,7 +131,7 @@ func _on_tile_pressed(midi_note: int, string_index: int) -> void:
 	# Visual Feedback (Immediate)
 	visual_note_on.emit(midi_note, string_index)
 	# Play Audio (Directly)
-	AudioEngine.play_note(midi_note)
+	AudioEngine.play_note(midi_note, string_index)
 
 func _on_tile_released(midi_note: int, string_index: int) -> void:
 	if not is_recording: return
@@ -200,7 +200,7 @@ func _trigger_visual_note(note: Dictionary) -> void:
 	if not _active_visuals.has(note):
 		_active_visuals[note] = true
 		visual_note_on.emit(note.pitch, note.string)
-		AudioEngine.play_note(note.pitch)
+		AudioEngine.play_note(note.pitch, note.string)
 
 func _release_visual_note(note: Dictionary) -> void:
 	if _active_visuals.has(note):

@@ -29,24 +29,25 @@ const BUS_DRIVE := "GuitarDrive"
 # CONSTANTS - EFFECT PARAMETERS
 # ============================================================
 # Compressor
-const COMP_THRESHOLD_CLEAN := -12.0
-const COMP_RATIO_CLEAN := 4.0
+const COMP_THRESHOLD_CLEAN := -8.0 # [Jazz] Less aggressive
+const COMP_RATIO_CLEAN := 2.5 # [Jazz] Gentle smoothing
 const COMP_THRESHOLD_DRIVE := -15.0
 const COMP_RATIO_DRIVE := 6.0
 const COMP_ATTACK_US := 20000.0 # 20ms
 const COMP_RELEASE_MS := 250.0
+const COMP_GAIN_CLEAN := 6.0 # [Jazz] Make-up Gain for low volume
 
 # Chorus
 const CHORUS_VOICE_COUNT := 2
-const CHORUS_DRY := 0.8
-const CHORUS_WET := 0.3
+const CHORUS_DRY := 1.0
+const CHORUS_WET := 0.0 # [Jazz] No Chorus (Pure Tone)
 const CHORUS_RATE_HZ := 0.5
 const CHORUS_DEPTH_MS := 1.5
 
 # Reverb
-const REVERB_CLEAN_ROOM := 0.5
-const REVERB_CLEAN_DAMPING := 0.5
-const REVERB_CLEAN_WET := 0.35
+const REVERB_CLEAN_ROOM := 0.3 # [Jazz] Small Club / Room
+const REVERB_CLEAN_DAMPING := 0.7 # [Jazz] Darker reverb tails
+const REVERB_CLEAN_WET := 0.15 # [Jazz] Subtle ambience
 const REVERB_DRIVE_ROOM := 0.3
 const REVERB_DRIVE_WET := 0.2
 
@@ -57,7 +58,18 @@ const DRIVE_POST_GAIN := -2.0
 # ============================================================
 # RESOURCES
 # ============================================================
-var base_sample = preload("res://assets/audio/E2.wav")
+var string_samples: Dictionary = {
+	0: preload("res://assets/audio/E2.wav"), # Low E (String 6)
+	1: preload("res://assets/audio/A2.wav"),
+	2: preload("res://assets/audio/D3.wav"),
+	3: preload("res://assets/audio/G3.wav"),
+	4: preload("res://assets/audio/B3.wav"),
+	5: preload("res://assets/audio/E4.wav") # High E (String 1)
+}
+
+# Open String MIDI values (for reference/calculation)
+# [40, 45, 50, 55, 59, 64]
+const OPEN_STRING_MIDI = [40, 45, 50, 55, 59, 64]
 
 # ============================================================
 # STATE
@@ -95,6 +107,7 @@ func _setup_clean_bus() -> void:
 	comp.ratio = COMP_RATIO_CLEAN
 	comp.attack_us = COMP_ATTACK_US
 	comp.release_ms = COMP_RELEASE_MS
+	comp.gain = COMP_GAIN_CLEAN
 	AudioServer.add_bus_effect(idx, comp)
 
 	# 2. Chorus
@@ -116,10 +129,12 @@ func _setup_clean_bus() -> void:
 	reverb.wet = REVERB_CLEAN_WET
 	AudioServer.add_bus_effect(idx, reverb)
 	
-	# 4. EQ
+	# 4. EQ (Tone Knob Rolled Off)
 	var eq = AudioEffectEQ.new()
-	eq.set_band_gain_db(0, -5.0) # Low cut
-	eq.set_band_gain_db(5, -5.0) # High cut
+	eq.set_band_gain_db(0, 2.0) # Low Boost (Warmth)
+	eq.set_band_gain_db(3, -3.0) # Mid scoop/flat
+	eq.set_band_gain_db(4, -8.0) # High Mid Cut
+	eq.set_band_gain_db(5, -12.0) # High Cut (Dark Jazz Tone)
 	AudioServer.add_bus_effect(idx, eq)
 
 func _setup_drive_bus() -> void:
@@ -160,8 +175,8 @@ func _setup_drive_bus() -> void:
 # ============================================================
 # SIGNAL HANDLERS
 # ============================================================
-func _on_tile_clicked(midi_note: int, _string_index: int, _modifiers: Dictionary) -> void:
-	play_note(midi_note)
+func _on_tile_clicked(midi_note: int, string_index: int, _modifiers: Dictionary) -> void:
+	play_note(midi_note, string_index)
 
 func _on_beat_updated(beat_index: int, _total_beats: int) -> void:
 	if beat_index < 0:
@@ -194,21 +209,39 @@ func set_metronome_enabled(enabled: bool) -> void:
 # ============================================================
 # PUBLIC API - 기타 음 재생
 # ============================================================
-func play_note(midi_note: int) -> void:
+func play_note(midi_note: int, string_index: int = -1) -> void:
 	var player = AudioStreamPlayer.new()
 	add_child(player)
 	
-	player.stream = base_sample
+	# Select Sample based on String Index or Pitch
+	var selected_string_idx = 0
 	
-	# 현재 설정된 톤에 따라 버스 선택
+	if string_index != -1:
+		# Use specified string
+		selected_string_idx = clamp(string_index, 0, 5)
+	else:
+		# Auto-select best string (prefer lower positions / avoid excessive down-pitching)
+		# Iterate from High E (5) down to Low E (0)
+		selected_string_idx = 0 # Default to Low E
+		for i in range(5, -1, -1):
+			if midi_note >= OPEN_STRING_MIDI[i]:
+				selected_string_idx = i
+				break
+	
+	player.stream = string_samples.get(selected_string_idx)
+	if player.stream == null:
+		player.stream = string_samples[0] # Fallback
+	
+	# Current Tone Bus
 	match current_tone:
 		Tone.CLEAN:
 			player.bus = BUS_CLEAN
 		Tone.DRIVE:
 			player.bus = BUS_DRIVE
 	
-	# MIDI 번호 차이를 이용해 피치 계산 (E2 = 40)
-	var pitch_relative = midi_note - 40
+	# Calculate Pitch Shift relative to the OPEN STRING of the selected sample
+	var base_midi = OPEN_STRING_MIDI[selected_string_idx]
+	var pitch_relative = midi_note - base_midi
 	player.pitch_scale = pow(2.0, pitch_relative / 12.0)
 	
 	player.play()
