@@ -55,8 +55,11 @@ func _ready() -> void:
 		et_btn.focus_mode = Control.FOCUS_NONE
 		et_btn.pressed.connect(_open_ear_trainer)
 		top_right_buttons.add_child(et_btn)
-		# Move to be first?
-		top_right_buttons.move_child(et_btn, 0)
+		# Move to be second (between Help and Settings)
+		# Assuming Help is 0, Settings is 1. If we add via code it appends (2).
+		# Moving to 1 puts it after Help.
+		# Check actual order in scene: Help, Settings.
+		top_right_buttons.move_child(et_btn, 1)
 
 	_setup_visual_style()
 	_setup_beat_indicators()

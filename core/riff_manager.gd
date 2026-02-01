@@ -54,18 +54,34 @@ func update_riff(key: int, riff_index: int, new_data: Dictionary, type: String =
 func get_riffs_for_interval(interval: int) -> Array:
 	return get_riffs(interval, "interval")
 
-func get_riffs(key: int, type: String = "interval") -> Array:
+func get_riffs(key: int, type: String = "interval", mode: int = -1) -> Array:
 	if type == "pitch":
 		var users = user_pitch_riffs.get(key, []).duplicate(true)
 		# No builtins for pitch yet
 		return users
 	else:
 		# Interval logic (with builtins)
-		var users = user_riffs.get(key, []).duplicate(true)
+		var candidates = user_riffs.get(key, []).duplicate(true)
 		
-		# [User Request] Remove "Locked/Builtin" concept. All riffs are user-editable.
-		# Removed _get_builtin_riffs injection.
-		return users
+		# [v0.6] Direction Filtering
+		# mode: 0 (Ascending), 1 (Descending), 2 (Harmonic->Ascending?)
+		if mode != -1 and not candidates.is_empty():
+			var filtered = []
+			# Map Harmonic (2) to Ascending (0) or Any? Let's say Harmonic can use Ascending.
+			var target_direction = 1 if mode == 1 else 0
+			
+			for riff in candidates:
+				# Default to Ascending (0) if direction missing
+				var dir = riff.get("direction", 0)
+				if dir == target_direction:
+					filtered.append(riff)
+			
+			if not filtered.is_empty():
+				return filtered
+			# If filtered empty, fallback to ALL (User might not have added desc riffs yet)
+			print("[RiffManager] No riffs found for direction %d, falling back to all." % target_direction)
+		
+		return candidates
 
 func _save_riffs() -> void:
 	var riff_data = {

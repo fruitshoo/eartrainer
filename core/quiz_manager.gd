@@ -665,7 +665,7 @@ func _show_feedback_text_for_note(midi_note: int, text: String, color: Color):
 # REWARD SYSTEM
 # ============================================================
 
-func _play_reward_song(key: int, _mode: int) -> float:
+func _play_reward_song(key: int, mode: int) -> float:
 	var type = "interval"
 	if current_quiz_type == QuizType.PITCH_CLASS:
 		type = "pitch"
@@ -676,7 +676,7 @@ func _play_reward_song(key: int, _mode: int) -> float:
 		return 0.0
 		
 	var rm = GameManager.get_node("RiffManager")
-	var candidates = rm.get_riffs(key, type)
+	var candidates = rm.get_riffs(key, type, mode)
 	
 	if candidates.is_empty():
 		print("No reward riff found for key %d (%s)" % [key, type])

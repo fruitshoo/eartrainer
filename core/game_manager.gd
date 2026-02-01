@@ -107,7 +107,7 @@ var is_rhythm_mode_enabled: bool = false:
 		settings_changed.emit()
 
 # [v0.5] Theme Support
-var current_theme_name: String = "Default":
+var current_theme_name: String = "Pastel":
 	set(value):
 		if current_theme_name != value:
 			current_theme_name = value

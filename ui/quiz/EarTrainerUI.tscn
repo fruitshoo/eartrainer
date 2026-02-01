@@ -35,12 +35,22 @@ layout_mode = 2
 mouse_filter = 0
 theme_override_constants/separation = 10
 
-[node name="TitleLabel" type="Label" parent="Panel/MarginContainer/VBoxContainer" unique_id=461900505]
+[node name="HeaderHBox" type="HBoxContainer" parent="Panel/MarginContainer/VBoxContainer" unique_id=987123654]
 layout_mode = 2
-size_flags_horizontal = 4
+
+[node name="TitleLabel" type="Label" parent="Panel/MarginContainer/VBoxContainer/HeaderHBox" unique_id=461900505]
+layout_mode = 2
+size_flags_horizontal = 2
 theme_override_font_sizes/font_size = 24
 text = "Interval Ear Training"
-horizontal_alignment = 1
+horizontal_alignment = 0
+
+[node name="CloseButton" type="Button" parent="Panel/MarginContainer/VBoxContainer/HeaderHBox" unique_id=636136315]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(30, 30)
+layout_mode = 2
+text = "X"
+flat = true
 
 [node name="FeedbackLabel" type="Label" parent="Panel/MarginContainer/VBoxContainer" unique_id=1682193461]
 unique_name_in_owner = true
@@ -112,8 +122,3 @@ text = "Replay"
 unique_name_in_owner = true
 layout_mode = 2
 text = "New Question"
-
-[node name="CloseButton" type="Button" parent="Panel/MarginContainer/VBoxContainer/ActionsHBox" unique_id=636136315]
-unique_name_in_owner = true
-layout_mode = 2
-text = "Close"

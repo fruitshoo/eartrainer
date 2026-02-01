@@ -9,7 +9,7 @@
 [ext_resource type="PackedScene" uid="uid://c8j7x5y403w2" path="res://ui/help/help_ui.tscn" id="7_help"]
 [ext_resource type="PackedScene" uid="uid://fqst8yiycbne" path="res://ui/quiz/EarTrainerUI.tscn" id="8_yyfjg"]
 [ext_resource type="Environment" uid="uid://dhtj1lxktuwca" path="res://environments/cozy_studio.tres" id="10_env"]
-[ext_resource type="CameraAttributesPractical" path="res://environments/cozy_attributes.tres" id="11_attr"]
+[ext_resource type="CameraAttributesPractical" uid="uid://c2tpv54fe4hlo" path="res://environments/cozy_attributes.tres" id="11_attr"]
 
 [node name="Main" type="Node3D" unique_id=1566035042]
 

@@ -28,6 +28,14 @@ const THEMES = {
 		"seventh": Color("#8ec07c"), # Aqua
 		"scale": Color("#928374"), # Gray
 		"avoid": Color("#282828") # Bg
+	},
+	"Pastel": { # Monument Valley Style
+		"root": Color("#FF9AA2"), # Salmon
+		"third": Color("#FFB7B2"), # Peach
+		"fifth": Color("#B5EAD7"), # Mint
+		"seventh": Color("#C7CEEA"), # Periwinkle
+		"scale": Color("#E2F0CB"), # Pale Lime
+		"avoid": Color("#EAE7DC") # Warm Grey (Not Black)
 	}
 }
 

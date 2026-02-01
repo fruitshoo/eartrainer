@@ -22,6 +22,8 @@ func setup(data: Dictionary, index: int) -> void:
 	preset_name = data.get("name", "Untitled")
 	item_index = index
 	name_label.text = preset_name
+	tooltip_text = preset_name # [New] Show full name on hover
+	name_label.tooltip_text = preset_name
 	
 	# Details
 	var key_idx = data.get("key_note", 0)
@@ -88,9 +90,9 @@ func _update_style() -> void:
 	# StyleBoxFlat(White) is now applied to PanelContainer.
 	# We tint it to achieve Dark Mode or Highlight colors.
 	if is_selected:
-		self_modulate = Color(0.2, 0.45, 0.9, 1.0) # Blue Highlight
+		self_modulate = Color(0.9, 0.95, 1.0, 1.0) # Soft Blue Highlight (Light Theme)
 	else:
-		self_modulate = Color(0.12, 0.12, 0.12, 1.0) # Dark Grey (Normal)
+		self_modulate = Color(1, 1, 1, 1.0) # White (Let Theme shine)
 
 func _on_gui_input(event: InputEvent) -> void:
 	if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
@@ -99,8 +101,8 @@ func _on_gui_input(event: InputEvent) -> void:
 # [Optional] Hover effects
 func _on_mouse_entered() -> void:
 	if not is_selected:
-		self_modulate = Color(0.25, 0.25, 0.25, 1.0) # Lighter Dark Grey
+		self_modulate = Color(0.96, 0.96, 0.96, 1.0) # Subtle Dim (Light Theme)
 
 func _on_mouse_exited() -> void:
 	if not is_selected:
-		self_modulate = Color(0.12, 0.12, 0.12, 1.0) # Back to Normal
+		self_modulate = Color(1, 1, 1, 1.0) # Back to White

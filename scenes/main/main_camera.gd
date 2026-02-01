@@ -49,14 +49,20 @@ func _ready():
 	target_pitch = current_pitch
 	target_drag_offset = drag_offset
 	
+	# [v0.8] Monument Valley Style: Orthogonal
+	projection = ProjectionType.PROJECTION_ORTHOGONAL
+	size = target_size # Initialize size
+	
 	_update_transform()
 
 func _process(delta):
 	# -----------------------------------------------
 	# 1. Update Zoom (Smooth)
 	# -----------------------------------------------
-	var target_factor = target_size / 10.0
-	current_zoom = lerp(current_zoom, target_factor, delta * zoom_lerp_speed)
+	# For Orthogonal: 'size' is the view extent. 
+	# We interpolate 'size' directly.
+	size = lerp(size, target_size, delta * zoom_lerp_speed)
+	current_zoom = size / 10.0 # Maintain legacy 'zoom factor' for other calcs if needed
 
 	# -----------------------------------------------
 	# 2. Update Orbit Rotation (Smooth)
@@ -91,10 +97,12 @@ func _process(delta):
 	# -----------------------------------------------
 	_update_transform()
 	
-	if projection == ProjectionType.PROJECTION_PERSPECTIVE:
-		# DOF Focus
-		var focus_target = current_pivot + drag_offset
-		_update_dof(focus_target)
+	_update_transform()
+	
+	# [v0.8.1] DOF Focus for Ortho/Perspective
+	# Update focus distance regardless of projection to prevent blurry artifacts
+	var focus_target = current_pivot + drag_offset
+	_update_dof(focus_target)
 
 func _update_transform():
 	# Calculate Position from Spherical Coords

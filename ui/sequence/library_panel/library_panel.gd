@@ -155,7 +155,7 @@ func _on_item_clicked(name: String) -> void:
 		selected_item_name = ""
 	else:
 		selected_item_name = name
-		name_input.text = ""
+		name_input.text = name # [New] Auto-fill input for checking/renaming
 	
 	_update_selection_visuals()
 
