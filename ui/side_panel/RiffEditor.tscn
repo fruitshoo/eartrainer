@@ -1,0 +1,216 @@
+[gd_scene format=3 uid="uid://bq3rhp6il8ew4"]
+
+[ext_resource type="Script" uid="uid://g0ujmq7uvlqd" path="res://ui/side_panel/riff_editor.gd" id="1_script"]
+[ext_resource type="Theme" uid="uid://b6x5n4w0q2x3" path="res://ui/resources/main_theme.tres" id="2_theme"]
+
+[node name="RiffEditorRoot" type="Control"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("1_script")
+
+[node name="BackgroundDim" type="ColorRect" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+color = Color(0, 0, 0, 0.5)
+
+[node name="RecordingOverlay" type="PanelContainer" parent="."]
+unique_name_in_owner = true
+visible = false
+layout_mode = 1
+anchors_preset = 5
+anchor_left = 0.5
+anchor_right = 0.5
+offset_left = -150.0
+offset_top = 20.0
+offset_right = 150.0
+offset_bottom = 80.0
+grow_horizontal = 2
+theme = ExtResource("2_theme")
+
+[node name="HBox" type="HBoxContainer" parent="RecordingOverlay"]
+layout_mode = 2
+theme_override_constants/separation = 20
+
+[node name="Label" type="Label" parent="RecordingOverlay/HBox"]
+layout_mode = 2
+text = "🔴 Recording..."
+
+[node name="StopRecButton" type="Button" parent="RecordingOverlay/HBox"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(80, 0)
+layout_mode = 2
+text = "Stop"
+
+[node name="EditorPanel" type="PanelContainer" parent="."]
+layout_mode = 1
+anchors_preset = 11
+anchor_left = 1.0
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = -420.0
+offset_top = 20.0
+offset_right = -16.0
+offset_bottom = -80.0
+grow_horizontal = 0
+grow_vertical = 2
+theme = ExtResource("2_theme")
+
+[node name="MarginContainer" type="MarginContainer" parent="EditorPanel"]
+layout_mode = 2
+theme_override_constants/margin_left = 16
+theme_override_constants/margin_top = 12
+theme_override_constants/margin_right = 16
+theme_override_constants/margin_bottom = 16
+
+[node name="VBox" type="VBoxContainer" parent="EditorPanel/MarginContainer"]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="Header" type="HBoxContainer" parent="EditorPanel/MarginContainer/VBox"]
+layout_mode = 2
+
+[node name="TitleLabel" type="Label" parent="EditorPanel/MarginContainer/VBox/Header"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+theme_type_variation = &"HeaderMedium"
+text = "Riff Editor"
+
+[node name="CancelButton" type="Button" parent="EditorPanel/MarginContainer/VBox/Header"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(32, 32)
+layout_mode = 2
+text = "✕"
+flat = true
+
+[node name="HSeparator" type="HSeparator" parent="EditorPanel/MarginContainer/VBox"]
+layout_mode = 2
+
+[node name="ModeRow" type="HBoxContainer" parent="EditorPanel/MarginContainer/VBox"]
+layout_mode = 2
+
+[node name="Label" type="Label" parent="EditorPanel/MarginContainer/VBox/ModeRow"]
+layout_mode = 2
+text = "Mode"
+
+[node name="Spacer" type="Control" parent="EditorPanel/MarginContainer/VBox/ModeRow"]
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="ModeOption" type="OptionButton" parent="EditorPanel/MarginContainer/VBox/ModeRow"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(130, 0)
+layout_mode = 2
+item_count = 2
+selected = 0
+popup/item_0/text = "Random"
+popup/item_0/id = 0
+popup/item_1/text = "Selected Only"
+popup/item_1/id = 1
+
+[node name="HSeparator2" type="HSeparator" parent="EditorPanel/MarginContainer/VBox"]
+layout_mode = 2
+
+[node name="ListLabel" type="Label" parent="EditorPanel/MarginContainer/VBox"]
+layout_mode = 2
+text = "Riffs"
+
+[node name="RiffList" type="ItemList" parent="EditorPanel/MarginContainer/VBox"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 120)
+layout_mode = 2
+size_flags_vertical = 3
+auto_height = true
+max_columns = 1
+
+[node name="HSeparator3" type="HSeparator" parent="EditorPanel/MarginContainer/VBox"]
+layout_mode = 2
+
+[node name="EditorLabel" type="Label" parent="EditorPanel/MarginContainer/VBox"]
+layout_mode = 2
+text = "Edit"
+
+[node name="TitleInput" type="LineEdit" parent="EditorPanel/MarginContainer/VBox"]
+unique_name_in_owner = true
+layout_mode = 2
+placeholder_text = "Riff name..."
+
+[node name="NotesVisual" type="Panel" parent="EditorPanel/MarginContainer/VBox"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 80)
+layout_mode = 2
+mouse_filter = 2
+
+[node name="Label" type="Label" parent="EditorPanel/MarginContainer/VBox/NotesVisual"]
+layout_mode = 1
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -60.0
+offset_top = -12.0
+offset_right = 60.0
+offset_bottom = 12.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_colors/font_color = Color(0.5, 0.5, 0.5, 1)
+text = "(Notes Preview)"
+horizontal_alignment = 1
+
+[node name="ControlRow" type="HBoxContainer" parent="EditorPanel/MarginContainer/VBox"]
+layout_mode = 2
+theme_override_constants/separation = 6
+
+[node name="RecordButton" type="Button" parent="EditorPanel/MarginContainer/VBox/ControlRow"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+text = "Record"
+
+[node name="PlayButton" type="Button" parent="EditorPanel/MarginContainer/VBox/ControlRow"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+text = "Play"
+
+[node name="HSeparator4" type="HSeparator" parent="EditorPanel/MarginContainer/VBox"]
+layout_mode = 2
+
+[node name="ActionRow" type="HBoxContainer" parent="EditorPanel/MarginContainer/VBox"]
+layout_mode = 2
+theme_override_constants/separation = 6
+
+[node name="NewButton" type="Button" parent="EditorPanel/MarginContainer/VBox/ActionRow"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+text = "New"
+
+[node name="DeleteButton" type="Button" parent="EditorPanel/MarginContainer/VBox/ActionRow"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+text = "Delete"
+
+[node name="SaveButton" type="Button" parent="EditorPanel/MarginContainer/VBox/ActionRow"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+text = "Save"
+
+[node name="StatusLabel" type="Label" parent="EditorPanel/MarginContainer/VBox"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_colors/font_color = Color(0.5, 0.5, 0.5, 1)
+theme_override_font_sizes/font_size = 14
+text = "Ready"
+horizontal_alignment = 1

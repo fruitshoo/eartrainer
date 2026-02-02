@@ -63,15 +63,15 @@ func _update_ticks_visual() -> void:
 		# Priority 1: Playhead (Battery Style Fill)
 		# 현재 박자까지 모두 채움 (0..._active_beat_index)
 		if _active_beat_index != -1 and i <= _active_beat_index:
-			tick.color = Color(1.0, 0.8, 0.2) # Active Gold/Yellow (Battery Fill)
+			tick.self_modulate = Color(1.0, 0.8, 0.2) # Active Gold/Yellow (Battery Fill)
 			
 		# Priority 2: Hover Preview (Progress bar style) -> White/Bright
 		elif _hover_beat_index != -1 and i <= _hover_beat_index:
-			tick.color = Color(0.6, 0.6, 0.6) # Hover Highlight
+			tick.self_modulate = Color(0.6, 0.6, 0.6) # Hover Highlight
 			
 		# Priority 3: Default Inactive
 		else:
-			tick.color = Color(0.2, 0.2, 0.2) # Dark Grey
+			tick.self_modulate = Color(0.2, 0.2, 0.2) # Dark Grey
 
 func _on_tick_gui_input(event: InputEvent, beat_idx: int) -> void:
 	if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
@@ -97,15 +97,14 @@ func update_info(data: Dictionary) -> void:
 	var root_name := MusicTheory.get_note_name(data.root, use_flats)
 	var degree := MusicTheory.get_degree_label(data.root, GameManager.current_key, GameManager.current_mode)
 	
-	label.text = "%s (%s%s)" % [degree, root_name, data.type]
-	
-	label.text = "%s (%s%s)" % [degree, root_name, data.type]
+	label.text = "%s%s" % [degree, data.type]
+	tooltip_text = "%s (%s%s)" % [label.text, root_name, data.type]
 
 func set_highlight(state: String) -> void:
 	# state: "playing", "selected", "none"
 	match state:
 		"playing":
-			modulate = Color(0.5, 2.0, 0.5) # 녹색
+			modulate = Color(0.8, 1.3, 1.3) # 시안/민트 (Glassmorphism)
 		"selected":
 			modulate = Color(1.5, 1.5, 1.0) # 노란색 (편집 대기)
 		"loop":

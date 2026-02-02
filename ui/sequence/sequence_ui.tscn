@@ -105,11 +105,7 @@ tooltip_text = "Quantize Melody (Q)"
 text = "Q"
 focus_mode = 0
 
-[node name="LibraryButton" type="Button" parent="RootMargin/MainPanel/InnerMargin/MainVBox/ToolbarHBox" unique_id=981237654]
-unique_name_in_owner = true
-custom_minimum_size = Vector2(100, 30)
-layout_mode = 2
-text = "Song Library"
+
 
 [node name="LoopOverlayPanel" type="Panel" parent="." unique_id=987123654]
 unique_name_in_owner = true

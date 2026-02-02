@@ -675,15 +675,29 @@ func _play_reward_song(key: int, mode: int) -> float:
 		print("[QuizManager] RiffManager not found!")
 		return 0.0
 		
+	# 2. Pick Winner based on Preference
 	var rm = GameManager.get_node("RiffManager")
 	var candidates = rm.get_riffs(key, type, mode)
 	
 	if candidates.is_empty():
 		print("No reward riff found for key %d (%s)" % [key, type])
 		return 0.5 # Default tiny wait
+
+	var pref = rm.get_playback_preference(key, type)
+	var winner = {}
+	
+	if pref.get("mode") == "single" and not pref.get("id", "").is_empty():
+		var target_id = pref["id"]
+		for cand in candidates:
+			if cand.get("id") == target_id:
+				winner = cand
+				break
+		if winner.is_empty():
+			print("[QuizManager] Preferred riff not found, falling back to random.")
+			winner = candidates.pick_random()
+	else:
+		winner = candidates.pick_random()
 		
-	# 2. Pick Winner
-	var winner = candidates.pick_random()
 	print("[QuizManager] Playing Reward: %s (%s)" % [winner.get("title", "Untitled"), winner.get("source", "unknown")])
 	
 	# 3. Play

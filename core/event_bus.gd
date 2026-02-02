@@ -23,6 +23,10 @@ signal settings_visibility_changed(is_visible: bool)
 signal game_settings_changed # [Fix] Missing signal for global settings updates
 signal debug_log(message: String) # [New] On-screen debug message
 
+# Bottom Sheet Signals
+signal request_show_side_panel_tab(tab_index: int) # 0=Settings, 1=Library, 2=EarTrainer
+signal request_collapse_side_panel
+
 
 # ============================================================
 # SEQUENCER STATE & SIGNALS

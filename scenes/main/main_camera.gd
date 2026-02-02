@@ -129,26 +129,26 @@ func _unhandled_input(event):
 		elif event.button_index == MOUSE_BUTTON_WHEEL_DOWN:
 			target_size = clamp(target_size + 1.0, 3.0, 20.0)
 		
-		# Middle Button
+		# Middle Button -> Pan
 		if event.button_index == MOUSE_BUTTON_MIDDLE:
 			if event.pressed:
-				# Check modifiers for Orbit
-				if event.is_command_or_control_pressed():
-					is_orbiting = true
-					is_dragging = false
-					Input.set_mouse_mode(Input.MOUSE_MODE_CAPTURED)
-				else:
-					is_dragging = true
-					is_orbiting = false
-					# Snap target drag offset to current to prevent jump before drag starts?
-					# Is handled by lerp continuity usually.
+				is_dragging = true
+				is_orbiting = false
 			else:
 				is_dragging = false
-				is_orbiting = false
-				Input.set_mouse_mode(Input.MOUSE_MODE_VISIBLE)
-				
+			
 			if event.double_click:
 				reset_view()
+
+		# Right Button -> Orbit
+		if event.button_index == MOUSE_BUTTON_RIGHT:
+			if event.pressed:
+				is_orbiting = true
+				is_dragging = false
+				Input.set_mouse_mode(Input.MOUSE_MODE_CAPTURED)
+			else:
+				is_orbiting = false
+				Input.set_mouse_mode(Input.MOUSE_MODE_VISIBLE)
 
 	# Mouse Motion
 	if event is InputEventMouseMotion:

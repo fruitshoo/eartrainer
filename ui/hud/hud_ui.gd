@@ -14,16 +14,14 @@ const BEAT_DOT_OFF_COLOR := Color(0.3, 0.3, 0.3, 0.5)
 # ============================================================
 @onready var key_button: Button = %KeyButton
 @onready var key_selector_popup: PopupPanel = %KeySelectorPopup
-@onready var chord_label: Label = %ChordLabel
-@onready var beat_container: HBoxContainer = %BeatContainer # 비트 도트 컨테이너
-@onready var settings_button: Button = %SettingsButton # [New]
-@onready var help_button: Button = %HelpButton # [New]
+
 
 # Transport Controls
 @onready var play_button: Button = %PlayButton
 @onready var stop_button: Button = %StopButton
 @onready var record_button: Button = %RecordButton
 @onready var bpm_spin_box: SpinBox = %BPMSpinBox
+@onready var metronome_button: Button = %MetronomeButton
 
 # ============================================================
 # STATE
@@ -31,8 +29,7 @@ const BEAT_DOT_OFF_COLOR := Color(0.3, 0.3, 0.3, 0.5)
 var _last_chord_text: String = ""
 var _chord_tween: Tween = null
 var _is_animating: bool = false
-var _beat_dots: Array = []
-var _current_sequencer_step: int = -1 # 시퀀서 현재 스텝 추적 (EventBus 통해 업데이트)
+var _current_sequencer_step: int = -1
 
 # ============================================================
 # LIFECYCLE
@@ -80,30 +77,8 @@ func _ready() -> void:
 			le.focus_mode = Control.FOCUS_NONE
 			le.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	
-	if settings_button:
-		settings_button.pressed.connect(func(): ModalManager.toggle("settings"))
-		settings_button.focus_mode = Control.FOCUS_NONE
-		
-	if help_button:
-		help_button.pressed.connect(func(): EventBus.request_toggle_help.emit())
-		help_button.focus_mode = Control.FOCUS_NONE
-
-	# Ear Trainer Button - Uses ModalManager for toggle
-	if top_right_buttons:
-		var et_btn = Button.new()
-		et_btn.text = "🎧"
-		et_btn.tooltip_text = "Ear Training"
-		et_btn.focus_mode = Control.FOCUS_NONE
-		et_btn.pressed.connect(func(): ModalManager.toggle("ear_trainer"))
-		top_right_buttons.add_child(et_btn)
-		# Move to be second (between Help and Settings)
-		# Assuming Help is 0, Settings is 1. If we add via code it appends (2).
-		# Moving to 1 puts it after Help.
-		# Check actual order in scene: Help, Settings.
-		top_right_buttons.move_child(et_btn, 1)
 
 	_setup_visual_style()
-	_setup_beat_indicators()
 	call_deferred("_delayed_setup")
 
 func _delayed_setup() -> void:
@@ -144,95 +119,61 @@ var _debug_tween: Tween
 # VISUAL SETUP
 # ============================================================
 func _setup_visual_style() -> void:
-	if chord_label:
-		chord_label.pivot_offset = chord_label.size / 2.0
-		chord_label.add_theme_color_override("font_color", Color(1.0, 0.9, 0.4))
-		chord_label.add_theme_color_override("font_shadow_color", Color(1.0, 0.6, 0.2, 0.5))
-		chord_label.add_theme_constant_override("shadow_offset_x", 2)
-		chord_label.add_theme_constant_override("shadow_offset_y", 2)
-
-func _setup_beat_indicators() -> void:
-	if not beat_container:
-		return
-	
-	# 기존 도트 삭제
-	for child in beat_container.get_children():
-		child.queue_free()
-	_beat_dots.clear()
-	
-	# 4개의 비트 도트 생성
-	for i in range(BEAT_DOT_COUNT):
-		var dot := ColorRect.new()
-		dot.custom_minimum_size = Vector2(20, 20)
-		dot.color = BEAT_DOT_OFF_COLOR
-		beat_container.add_child(dot)
-		_beat_dots.append(dot)
+	pass # Style now handled by theme
 
 # ============================================================
 # DISPLAY UPDATE
 # ============================================================
 func _update_display() -> void:
-	if not key_button or not chord_label:
+	if not key_button:
 		return
 	
 	var use_flats := MusicTheory.should_use_flats(GameManager.current_key, GameManager.current_mode)
 	var key_name := MusicTheory.get_note_name(GameManager.current_key, use_flats)
-	var mode_name := "MAJOR" if GameManager.current_mode == MusicTheory.ScaleMode.MAJOR else "MINOR"
-	key_button.text = "[ %s %s ]" % [key_name, mode_name]
+	var mode_name := "Major" if GameManager.current_mode == MusicTheory.ScaleMode.MAJOR else "Minor"
 	
 	var chord_root: int = GameManager.current_chord_root
 	var chord_type: String = GameManager.current_chord_type
 	
+	# 재생 중이면 슬롯 데이터 우선
 	if EventBus.is_sequencer_playing and _current_sequencer_step >= 0:
 		var slot_data = ProgressionManager.get_slot(_current_sequencer_step)
 		if slot_data:
 			chord_root = slot_data.root
 			chord_type = slot_data.type
 	
-	if chord_type.is_empty():
-		_fade_out_chord_label()
-		return
-	else:
-		chord_label.modulate.a = 1.0
+	# 디그리 계산 (로마 숫자)
+	var degree := _get_degree_numeral(chord_root, chord_type)
 	
-	var root_name := MusicTheory.get_note_name(chord_root, use_flats)
-	var new_text := "%s %s" % [root_name, chord_type]
+	# 1줄 통합: "A Major • IIm7" 형식
+	var new_text := "%s %s • %s" % [key_name, mode_name, degree]
 	
-	chord_label.pivot_offset = chord_label.size / 2.0
+	key_button.pivot_offset = key_button.size / 2.0
 	
 	if new_text != _last_chord_text:
-		chord_label.text = new_text
+		key_button.text = new_text
 		_animate_chord_change()
 		_last_chord_text = new_text
 
-# ============================================================
-# BEAT INDICATOR
-# ============================================================
-func _on_beat_updated(beat_index: int, _total_beats: int) -> void:
-	if beat_index < 0:
-		# 시퀀서 정지 시 모든 도트 끄기
-		_reset_beat_dots()
-		return
+## 코드 루트와 타입으로부터 디그리 (로마 숫자) 반환
+func _get_degree_numeral(chord_root: int, chord_type: String) -> String:
+	var key := GameManager.current_key
+	var interval := (chord_root - key) % 12
+	if interval < 0: interval += 12
 	
-	# 현재 박자까지 불 켜기
-	for i in range(_beat_dots.size()):
-		var dot: ColorRect = _beat_dots[i]
-		if i <= beat_index:
-			dot.color = BEAT_DOT_ON_COLOR
-			# 현재 박자는 펄스 효과
-			if i == beat_index:
-				_pulse_dot(dot)
-		else:
-			dot.color = BEAT_DOT_OFF_COLOR
+	# 로마 숫자 매핑
+	const NUMERALS = ["I", "♭II", "II", "♭III", "III", "IV", "♯IV", "V", "♭VI", "VI", "♭VII", "VII"]
+	var numeral: String = NUMERALS[interval]
+	
+	# 마이너/디미니시 코드는 소문자로
+	if chord_type.begins_with("m") or chord_type.begins_with("dim") or chord_type == "°":
+		numeral = numeral.to_lower()
+	
+	return numeral + chord_type
 
-func _reset_beat_dots() -> void:
-	for dot in _beat_dots:
-		dot.color = BEAT_DOT_OFF_COLOR
-
-func _pulse_dot(dot: ColorRect) -> void:
-	var tween := create_tween()
-	tween.tween_property(dot, "scale", Vector2(1.3, 1.3), 0.05)
-	tween.tween_property(dot, "scale", Vector2(1.0, 1.0), 0.1)
+# BeatDots removed - beats now shown in sequencer slots
+func _on_beat_updated(_beat_index: int, _total_beats: int) -> void:
+	pass
 
 # ============================================================
 # ANIMATIONS
@@ -243,37 +184,31 @@ func _animate_chord_change() -> void:
 	
 	_is_animating = true
 	_chord_tween = create_tween()
-	_chord_tween.tween_property(chord_label, "scale", Vector2(1.15, 1.15), 0.08) \
+	_chord_tween.tween_property(key_button, "scale", Vector2(1.05, 1.05), 0.08) \
 		.set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
-	_chord_tween.tween_property(chord_label, "scale", Vector2(1.0, 1.0), 0.1) \
+	_chord_tween.tween_property(key_button, "scale", Vector2(1.0, 1.0), 0.1) \
 		.set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
 	_chord_tween.finished.connect(func(): _is_animating = false)
 
 func _on_beat_pulsed() -> void:
-	if not chord_label or not EventBus.is_sequencer_playing or _is_animating:
+	if not key_button or not EventBus.is_sequencer_playing or _is_animating:
 		return
 	
 	var pulse_tween := create_tween()
-	pulse_tween.tween_property(chord_label, "scale", Vector2(1.05, 1.05), 0.05) \
+	pulse_tween.tween_property(key_button, "scale", Vector2(1.02, 1.02), 0.05) \
 		.set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT)
-	pulse_tween.tween_property(chord_label, "scale", Vector2(1.0, 1.0), 0.1) \
+	pulse_tween.tween_property(key_button, "scale", Vector2(1.0, 1.0), 0.1) \
 		.set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN)
 
 func _on_bar_changed(slot_index: int) -> void:
 	_current_sequencer_step = slot_index
 	_update_display()
 
-@onready var top_right_buttons: HBoxContainer = %TopRightButtons
 
 # ...
 
-func _on_settings_visibility_changed(visible_state: bool) -> void:
-	if top_right_buttons:
-		top_right_buttons.visible = !visible_state # 설정창 열리면 버튼들 숨김
-
-func _fade_out_chord_label() -> void:
-	var fade_tween := create_tween()
-	fade_tween.tween_property(chord_label, "modulate:a", 0.3, 0.2)
+func _on_settings_visibility_changed(_visible_state: bool) -> void:
+	pass # Deprecated logic removed
 
 
 # ============================================================
@@ -281,7 +216,10 @@ func _fade_out_chord_label() -> void:
 # ============================================================
 func _on_sequencer_playing_changed(is_playing: bool) -> void:
 	if play_button:
-		play_button.text = "PAUSE" if is_playing else "PLAY"
+		var play_icon = preload("res://ui/resources/icons/play.svg")
+		var pause_icon = preload("res://ui/resources/icons/pause.svg")
+		play_button.icon = pause_icon if is_playing else play_icon
+		play_button.text = ""
 
 func _on_record_toggled(toggled: bool) -> void:
 	var melody_manager = GameManager.get_node_or_null("MelodyManager")

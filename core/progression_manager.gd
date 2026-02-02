@@ -336,26 +336,8 @@ func save_session() -> void:
 	}
 	var success = _save_json(SAVE_PATH_SESSION, data)
 	
-	# [Debug] Wait a bit for HUD to be ready, then load
-	await get_tree().create_timer(0.5).timeout
-	load_session()
-	
-	# [Fix] Force UI Refresh after load to prevent display glitch
-	# Increased delay to 2.0s (known stable timing) to ensure UI is fully initialized
-	await get_tree().create_timer(2.0).timeout
-	settings_updated.emit(bar_count, 1)
-	
-	# [Debug] Verify persistence
-	var real_path = ProjectSettings.globalize_path(SAVE_PATH_SESSION)
-	if success:
-		# if slots.size() > 0 and slots[0] != null:
-		# 	var root = slots[0].get("root", "?")
-		# 	EventBus.debug_log.emit("Saved to: %s\nSlot[0]: %s" % [real_path, root])
-		# else:
-		# 	EventBus.debug_log.emit("Saved to: %s\nSlot[0]: Empty" % real_path)
-		print("Full Save Path: ", real_path)
-	else:
-		# EventBus.debug_log.emit("Save FAILED! Path: %s" % real_path)
+	if not success:
+		var real_path = ProjectSettings.globalize_path(SAVE_PATH_SESSION)
 		print("Save FAILED! Path: %s" % real_path)
 
 ## 세션 자동 불러오기

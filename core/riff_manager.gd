@@ -7,6 +7,7 @@ const SAVE_PATH = "user://riffs.json"
 # { 4: [{title: "My Riff", notes: [...]}, ...] }
 var user_riffs: Dictionary = {} # interval -> list of riffs (Legacy name: user_interval_riffs)
 var user_pitch_riffs: Dictionary = {} # pitch_class -> list of riffs
+var playback_preferences: Dictionary = {} # { "interval_7": { "mode": "random" }, "pitch_0": { "mode": "single", "id": "..." } }
 
 func _ready():
 	_load_riffs()
@@ -83,10 +84,24 @@ func get_riffs(key: int, type: String = "interval", mode: int = -1) -> Array:
 		
 		return candidates
 
+func set_playback_preference(key: int, type: String, mode: String, riff_id: String = "") -> void:
+	var pref_key = "%s_%d" % [type, key]
+	playback_preferences[pref_key] = {
+		"mode": mode, # "random" or "single"
+		"id": riff_id
+	}
+	_save_riffs()
+
+func get_playback_preference(key: int, type: String) -> Dictionary:
+	var pref_key = "%s_%d" % [type, key]
+	return playback_preferences.get(pref_key, {"mode": "random", "id": ""})
+
+
 func _save_riffs() -> void:
 	var riff_data = {
 		"interval_riffs": user_riffs,
-		"pitch_riffs": user_pitch_riffs
+		"pitch_riffs": user_pitch_riffs,
+		"preferences": playback_preferences
 	}
 	var file = FileAccess.open(SAVE_PATH, FileAccess.WRITE)
 	if file:
@@ -113,6 +128,9 @@ func _load_riffs() -> void:
 				if data.has("pitch_riffs"):
 					for k in data["pitch_riffs"]:
 						user_pitch_riffs[int(k)] = data["pitch_riffs"][k]
+				
+				if data.has("preferences"):
+					playback_preferences = data["preferences"]
 			elif data is Dictionary:
 				# Legacy Format (Direct dictionary of interval riffs)
 				user_riffs = {}

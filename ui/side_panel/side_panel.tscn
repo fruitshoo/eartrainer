@@ -1,0 +1,364 @@
+[gd_scene load_steps=2 format=3 uid="uid://bottomsheetscene"]
+
+[ext_resource type="Script" path="res://ui/side_panel/side_panel.gd" id="1_script"]
+[ext_resource type="Theme" uid="uid://b6x5n4w0q2x3" path="res://ui/resources/main_theme.tres" id="2_theme"]
+
+[node name="SidePanel" type="Control"]
+layout_mode = 3
+anchors_preset = 11
+anchor_left = 1.0
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = 0.0
+offset_right = 400.0
+grow_horizontal = 0
+grow_vertical = 2
+theme = ExtResource("2_theme")
+script = ExtResource("1_script")
+
+[node name="Background" type="PanelContainer" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_top = 40.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="VBoxContainer" type="VBoxContainer" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="TabBar" type="HBoxContainer" parent="VBoxContainer"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 40)
+layout_mode = 2
+theme_override_constants/separation = 2
+
+[node name="SettingsTab" type="Button" parent="VBoxContainer/TabBar"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+toggle_mode = true
+button_pressed = true
+text = "Settings"
+tooltip_text = "Settings"
+
+[node name="LibraryTab" type="Button" parent="VBoxContainer/TabBar"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+toggle_mode = true
+text = "Library"
+tooltip_text = "Library"
+
+[node name="EarTrainerTab" type="Button" parent="VBoxContainer/TabBar"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+toggle_mode = true
+text = "Training"
+tooltip_text = "Ear Training"
+
+[node name="ContentContainer" type="Control" parent="VBoxContainer"]
+unique_name_in_owner = true
+clip_contents = true
+layout_mode = 2
+size_flags_vertical = 3
+
+[node name="SettingsContent" type="ScrollContainer" parent="VBoxContainer/ContentContainer"]
+unique_name_in_owner = true
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+horizontal_scroll_mode = 0
+
+[node name="MarginContainer" type="MarginContainer" parent="VBoxContainer/ContentContainer/SettingsContent"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/margin_left = 12
+theme_override_constants/margin_top = 8
+theme_override_constants/margin_right = 12
+theme_override_constants/margin_bottom = 12
+
+[node name="SettingsVBox" type="VBoxContainer" parent="VBoxContainer/ContentContainer/SettingsContent/MarginContainer"]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="NotationSetting" type="HBoxContainer" parent="VBoxContainer/ContentContainer/SettingsContent/MarginContainer/SettingsVBox"]
+layout_mode = 2
+
+[node name="Label" type="Label" parent="VBoxContainer/ContentContainer/SettingsContent/MarginContainer/SettingsVBox/NotationSetting"]
+layout_mode = 2
+text = "Notation"
+
+[node name="Spacer" type="Control" parent="VBoxContainer/ContentContainer/SettingsContent/MarginContainer/SettingsVBox/NotationSetting"]
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="NotationOptionButton" type="OptionButton" parent="VBoxContainer/ContentContainer/SettingsContent/MarginContainer/SettingsVBox/NotationSetting"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(120, 0)
+layout_mode = 2
+
+[node name="VizDivider" type="HSeparator" parent="VBoxContainer/ContentContainer/SettingsContent/MarginContainer/SettingsVBox"]
+layout_mode = 2
+
+[node name="VizLabel" type="Label" parent="VBoxContainer/ContentContainer/SettingsContent/MarginContainer/SettingsVBox"]
+layout_mode = 2
+text = "Display Options"
+horizontal_alignment = 1
+
+[node name="VizGrid" type="GridContainer" parent="VBoxContainer/ContentContainer/SettingsContent/MarginContainer/SettingsVBox"]
+layout_mode = 2
+columns = 2
+
+[node name="NoteLabelCheck" type="CheckBox" parent="VBoxContainer/ContentContainer/SettingsContent/MarginContainer/SettingsVBox/VizGrid"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "Labels"
+button_pressed = true
+
+[node name="RootCheck" type="CheckBox" parent="VBoxContainer/ContentContainer/SettingsContent/MarginContainer/SettingsVBox/VizGrid"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "Root"
+button_pressed = true
+
+[node name="ChordCheck" type="CheckBox" parent="VBoxContainer/ContentContainer/SettingsContent/MarginContainer/SettingsVBox/VizGrid"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "Chord"
+button_pressed = true
+
+[node name="ScaleCheck" type="CheckBox" parent="VBoxContainer/ContentContainer/SettingsContent/MarginContainer/SettingsVBox/VizGrid"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "Scale"
+button_pressed = true
+
+[node name="CamDivider" type="HSeparator" parent="VBoxContainer/ContentContainer/SettingsContent/MarginContainer/SettingsVBox"]
+layout_mode = 2
+
+[node name="CamLabel" type="Label" parent="VBoxContainer/ContentContainer/SettingsContent/MarginContainer/SettingsVBox"]
+layout_mode = 2
+text = "Camera"
+horizontal_alignment = 1
+
+[node name="FocusRangeRow" type="HBoxContainer" parent="VBoxContainer/ContentContainer/SettingsContent/MarginContainer/SettingsVBox"]
+layout_mode = 2
+
+[node name="Label" type="Label" parent="VBoxContainer/ContentContainer/SettingsContent/MarginContainer/SettingsVBox/FocusRangeRow"]
+layout_mode = 2
+text = "Focus Range"
+
+[node name="Spacer" type="Control" parent="VBoxContainer/ContentContainer/SettingsContent/MarginContainer/SettingsVBox/FocusRangeRow"]
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="MinusButton" type="Button" parent="VBoxContainer/ContentContainer/SettingsContent/MarginContainer/SettingsVBox/FocusRangeRow"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(32, 0)
+layout_mode = 2
+text = "-"
+
+[node name="ValueLabel" type="Label" parent="VBoxContainer/ContentContainer/SettingsContent/MarginContainer/SettingsVBox/FocusRangeRow"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(32, 0)
+layout_mode = 2
+text = "3"
+horizontal_alignment = 1
+
+[node name="PlusButton" type="Button" parent="VBoxContainer/ContentContainer/SettingsContent/MarginContainer/SettingsVBox/FocusRangeRow"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(32, 0)
+layout_mode = 2
+text = "+"
+
+[node name="DeadzoneRow" type="HBoxContainer" parent="VBoxContainer/ContentContainer/SettingsContent/MarginContainer/SettingsVBox"]
+layout_mode = 2
+
+[node name="Label" type="Label" parent="VBoxContainer/ContentContainer/SettingsContent/MarginContainer/SettingsVBox/DeadzoneRow"]
+layout_mode = 2
+text = "Deadzone"
+
+[node name="Spacer" type="Control" parent="VBoxContainer/ContentContainer/SettingsContent/MarginContainer/SettingsVBox/DeadzoneRow"]
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="DeadzoneMinus" type="Button" parent="VBoxContainer/ContentContainer/SettingsContent/MarginContainer/SettingsVBox/DeadzoneRow"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(32, 0)
+layout_mode = 2
+text = "-"
+
+[node name="DeadzoneValue" type="Label" parent="VBoxContainer/ContentContainer/SettingsContent/MarginContainer/SettingsVBox/DeadzoneRow"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(40, 0)
+layout_mode = 2
+text = "4.0"
+horizontal_alignment = 1
+
+[node name="DeadzonePlus" type="Button" parent="VBoxContainer/ContentContainer/SettingsContent/MarginContainer/SettingsVBox/DeadzoneRow"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(32, 0)
+layout_mode = 2
+text = "+"
+
+[node name="LibraryContent" type="ScrollContainer" parent="VBoxContainer/ContentContainer"]
+unique_name_in_owner = true
+visible = false
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+horizontal_scroll_mode = 0
+
+[node name="MarginContainer" type="MarginContainer" parent="VBoxContainer/ContentContainer/LibraryContent"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/margin_left = 12
+theme_override_constants/margin_top = 8
+theme_override_constants/margin_right = 12
+theme_override_constants/margin_bottom = 12
+
+[node name="LibraryVBox" type="VBoxContainer" parent="VBoxContainer/ContentContainer/LibraryContent/MarginContainer"]
+layout_mode = 2
+theme_override_constants/separation = 6
+
+[node name="TabContainer" type="HBoxContainer" parent="VBoxContainer/ContentContainer/LibraryContent/MarginContainer/LibraryVBox"]
+layout_mode = 2
+theme_override_constants/separation = 4
+
+[node name="PresetsTab" type="Button" parent="VBoxContainer/ContentContainer/LibraryContent/MarginContainer/LibraryVBox/TabContainer"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+toggle_mode = true
+button_pressed = true
+text = "Progressions"
+
+[node name="SongsTab" type="Button" parent="VBoxContainer/ContentContainer/LibraryContent/MarginContainer/LibraryVBox/TabContainer"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+toggle_mode = true
+text = "Songs"
+
+[node name="PresetListContainer" type="VBoxContainer" parent="VBoxContainer/ContentContainer/LibraryContent/MarginContainer/LibraryVBox"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_constants/separation = 4
+
+[node name="HSeparator" type="HSeparator" parent="VBoxContainer/ContentContainer/LibraryContent/MarginContainer/LibraryVBox"]
+layout_mode = 2
+
+[node name="SaveRow" type="HBoxContainer" parent="VBoxContainer/ContentContainer/LibraryContent/MarginContainer/LibraryVBox"]
+layout_mode = 2
+
+[node name="NameInput" type="LineEdit" parent="VBoxContainer/ContentContainer/LibraryContent/MarginContainer/LibraryVBox/SaveRow"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+placeholder_text = "Name..."
+
+[node name="SaveButton" type="Button" parent="VBoxContainer/ContentContainer/LibraryContent/MarginContainer/LibraryVBox/SaveRow"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "Save"
+
+[node name="EarTrainerContent" type="ScrollContainer" parent="VBoxContainer/ContentContainer"]
+unique_name_in_owner = true
+visible = false
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+horizontal_scroll_mode = 0
+
+[node name="MarginContainer" type="MarginContainer" parent="VBoxContainer/ContentContainer/EarTrainerContent"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/margin_left = 12
+theme_override_constants/margin_top = 8
+theme_override_constants/margin_right = 12
+theme_override_constants/margin_bottom = 12
+
+[node name="EarTrainerVBox" type="VBoxContainer" parent="VBoxContainer/ContentContainer/EarTrainerContent/MarginContainer"]
+layout_mode = 2
+theme_override_constants/separation = 6
+
+[node name="FeedbackLabel" type="Label" parent="VBoxContainer/ContentContainer/EarTrainerContent/MarginContainer/EarTrainerVBox"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_colors/font_color = Color(0.7, 0.7, 0.7, 1)
+text = "Ready"
+horizontal_alignment = 1
+
+[node name="ModeHBox" type="HBoxContainer" parent="VBoxContainer/ContentContainer/EarTrainerContent/MarginContainer/EarTrainerVBox"]
+layout_mode = 2
+alignment = 1
+
+[node name="AscMode" type="CheckBox" parent="VBoxContainer/ContentContainer/EarTrainerContent/MarginContainer/EarTrainerVBox/ModeHBox"]
+unique_name_in_owner = true
+layout_mode = 2
+button_pressed = true
+text = "Asc"
+
+[node name="DescMode" type="CheckBox" parent="VBoxContainer/ContentContainer/EarTrainerContent/MarginContainer/EarTrainerVBox/ModeHBox"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "Desc"
+
+[node name="HarmMode" type="CheckBox" parent="VBoxContainer/ContentContainer/EarTrainerContent/MarginContainer/EarTrainerVBox/ModeHBox"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "Harm"
+
+[node name="EasyRow" type="HBoxContainer" parent="VBoxContainer/ContentContainer/EarTrainerContent/MarginContainer/EarTrainerVBox"]
+layout_mode = 2
+alignment = 1
+
+[node name="EasyMode" type="CheckBox" parent="VBoxContainer/ContentContainer/EarTrainerContent/MarginContainer/EarTrainerVBox/EasyRow"]
+unique_name_in_owner = true
+layout_mode = 2
+button_pressed = true
+text = "Easy Mode"
+
+[node name="HSeparator" type="HSeparator" parent="VBoxContainer/ContentContainer/EarTrainerContent/MarginContainer/EarTrainerVBox"]
+layout_mode = 2
+
+[node name="IntervalGrid" type="GridContainer" parent="VBoxContainer/ContentContainer/EarTrainerContent/MarginContainer/EarTrainerVBox"]
+unique_name_in_owner = true
+layout_mode = 2
+columns = 1
+
+[node name="HSeparator2" type="HSeparator" parent="VBoxContainer/ContentContainer/EarTrainerContent/MarginContainer/EarTrainerVBox"]
+layout_mode = 2
+
+[node name="ActionsHBox" type="HBoxContainer" parent="VBoxContainer/ContentContainer/EarTrainerContent/MarginContainer/EarTrainerVBox"]
+layout_mode = 2
+alignment = 1
+
+[node name="ReplayButton" type="Button" parent="VBoxContainer/ContentContainer/EarTrainerContent/MarginContainer/EarTrainerVBox/ActionsHBox"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+text = "Replay"
+
+[node name="NextButton" type="Button" parent="VBoxContainer/ContentContainer/EarTrainerContent/MarginContainer/EarTrainerVBox/ActionsHBox"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+text = "Next"

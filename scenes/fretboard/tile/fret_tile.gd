@@ -305,7 +305,7 @@ func _get_base_state() -> Dictionary:
 	# Determine Energy
 	var energy := 0.0
 	if visual_tier == 1: energy = root_focus_energy if is_in_focus else 0.3
-	elif visual_tier == 2: energy = chord_focus_energy if is_in_focus else 0.0
+	elif visual_tier == 2: energy = chord_focus_energy if is_in_focus else 0.2 # [v0.8] Visible globally
 	elif visual_tier == 3: energy = scale_focus_energy if is_in_focus else idle_energy
 	
 	if energy <= 0.0:

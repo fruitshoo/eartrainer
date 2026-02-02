@@ -60,10 +60,21 @@ func _update_visuals() -> void:
 func popup_centered_under_control(control: Control) -> void:
 	# Calculate position
 	var rect = control.get_global_rect()
-	var pos = rect.position
-	pos.y += rect.size.y + 5 # Below
-	pos.x += rect.size.x / 2.0 - size.x / 2.0 # Centered horizontally
+	var target_pos = rect.position
+	target_pos.y += rect.size.y + 5 # Below
+	target_pos.x += rect.size.x / 2.0 - size.x / 2.0 # Centered horizontally
 	
-	# Clamp to viewport? PopupPanel usually handles some, but explicitly setting position works.
-	self.position = Vector2i(pos)
+	self.position = Vector2i(target_pos)
 	self.popup()
+	
+	# Animate content (MarginContainer is the first child)
+	var content = get_child(0) if get_child_count() > 0 else null
+	if content:
+		content.modulate.a = 0.0
+		content.scale = Vector2(0.95, 0.95)
+		content.pivot_offset = content.size / 2.0
+		
+		var tween = create_tween().set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_CUBIC)
+		tween.set_parallel(true)
+		tween.tween_property(content, "modulate:a", 1.0, 0.15)
+		tween.tween_property(content, "scale", Vector2.ONE, 0.2)
