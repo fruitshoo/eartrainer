@@ -101,17 +101,17 @@ func load_default_progression() -> void:
 	
 	# Slot 0: ii (2도)
 	var note_ii = (key + 2) % 12
-	slots[0] = {"root": note_ii, "type": "m7", "string": 0}
+	slots[0] = {"root": note_ii, "type": "m7", "string": 1}
 	
 	# Slot 1: V (5도)
 	var note_v = (key + 7) % 12
-	slots[1] = {"root": note_v, "type": "7", "string": 0}
+	slots[1] = {"root": note_v, "type": "7", "string": 1}
 	
 	# Slot 2: I (1도)
-	slots[2] = {"root": key, "type": "M7", "string": 0}
+	slots[2] = {"root": key, "type": "M7", "string": 1}
 	
 	# Slot 3: I (1도)
-	slots[3] = {"root": key, "type": "M7", "string": 0}
+	slots[3] = {"root": key, "type": "M7", "string": 1}
 	
 	# Update UI
 	# Yield a frame to ensure UI is ready

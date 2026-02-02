@@ -29,32 +29,21 @@ extends CanvasLayer
 # LIFECYCLE
 # ============================================================
 func _ready() -> void:
-	# GameManager.settings_ui_ref = self # 제거됨
-	EventBus.request_toggle_settings.connect(_on_request_toggle_settings)
-	EventBus.request_close_settings.connect(_on_close_button_pressed) # [New] explicit close
+	# ModalManager 등록 (overlay 그룹: 다른 패널과 공존)
+	ModalManager.register_modal("settings", self, "overlay")
 	
 	_populate_options()
 	_sync_from_game_manager()
 	_connect_signals()
 	
 	visibility_changed.connect(_on_visibility_changed)
-	visible = false
 
 func _unhandled_input(event: InputEvent) -> void:
 	if not visible: return
 	
 	if event.is_action_pressed("ui_cancel"):
-		# Close settings
-		visible = false
+		ModalManager.close("settings")
 		get_viewport().set_input_as_handled()
-		# request_close_library logic handled by visibility change? No, explicit check.
-		# But _on_visibility_changed emits signal.
-
-
-func _on_request_toggle_settings() -> void:
-	visible = !visible
-	if visible:
-		EventBus.request_close_library.emit() # [New] Close Library if Settings open
 
 func _on_visibility_changed() -> void:
 	EventBus.settings_visibility_changed.emit(visible)

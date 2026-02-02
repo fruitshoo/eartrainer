@@ -2,11 +2,17 @@
 
 [ext_resource type="Script" uid="uid://cgd5souy3fyph" path="res://ui/sequence/sequence_ui.gd" id="1_2bt3v"]
 [ext_resource type="Theme" path="res://ui/resources/main_theme.tres" id="3_4wjan"]
-[ext_resource type="PackedScene" uid="uid://librarypanelscene" path="res://ui/sequence/library_panel/library_panel.tscn" id="4_library"]
 
 [ext_resource type="Script" uid="uid://iw3vuv01bc2e" path="res://ui/sequence/sequencer.gd" id="3_t8hoy"]
 
-[node name="SequenceUI" type="CanvasLayer" unique_id=1004823414]
+[node name="SequenceUI" type="Control" unique_id=1004823414]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
 script = ExtResource("1_2bt3v")
 
 [node name="Sequencer" type="Node" parent="." unique_id=16045540]
@@ -26,7 +32,7 @@ offset_right = 22.0
 grow_horizontal = 2
 grow_vertical = 0
 theme = ExtResource("3_4wjan")
-theme_override_constants/margin_bottom = 40
+theme_override_constants/margin_bottom = 16
 
 [node name="MainPanel" type="PanelContainer" parent="RootMargin" unique_id=662601037]
 layout_mode = 2
@@ -83,18 +89,12 @@ disabled = true
 [node name="VSeparator3" type="VSeparator" parent="RootMargin/MainPanel/InnerMargin/MainVBox/ToolbarHBox"]
 layout_mode = 2
 
-[node name="LibraryButton" type="Button" parent="RootMargin/MainPanel/InnerMargin/MainVBox/ToolbarHBox" unique_id=981237654]
-unique_name_in_owner = true
-custom_minimum_size = Vector2(100, 30)
-layout_mode = 2
-text = "Song Library"
-
 [node name="ClearMelodyButton" type="Button" parent="RootMargin/MainPanel/InnerMargin/MainVBox/ToolbarHBox" unique_id=881234567]
 unique_name_in_owner = true
 custom_minimum_size = Vector2(30, 30)
 layout_mode = 2
 tooltip_text = "Reset Melody (Shift+Del)"
-text = "⟲"
+text = "🗑"
 focus_mode = 0
 
 [node name="QuantizeButton" type="Button" parent="RootMargin/MainPanel/InnerMargin/MainVBox/ToolbarHBox" unique_id=771234567]
@@ -104,6 +104,12 @@ layout_mode = 2
 tooltip_text = "Quantize Melody (Q)"
 text = "Q"
 focus_mode = 0
+
+[node name="LibraryButton" type="Button" parent="RootMargin/MainPanel/InnerMargin/MainVBox/ToolbarHBox" unique_id=981237654]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(100, 30)
+layout_mode = 2
+text = "Song Library"
 
 [node name="LoopOverlayPanel" type="Panel" parent="." unique_id=987123654]
 unique_name_in_owner = true
@@ -122,6 +128,3 @@ grow_horizontal = 2
 grow_vertical = 2
 mouse_filter = 2
 
-[node name="LibraryPanel" parent="." instance=ExtResource("4_library")]
-unique_name_in_owner = true
-visible = false

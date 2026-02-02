@@ -22,10 +22,7 @@ QuizManager="*uid://ffwv4s6js4ys"
 ProgressionManager="*uid://cdeqxx32mc6sw"
 SettingsManager="*uid://dkv3s8una25s4"
 EventBus="*uid://ckhfi55lgvtft"
-
-[gui]
-
-theme/custom="res://ui/resources/main_theme.tres"
+ModalManager="*res://core/modal_manager.gd"
 
 [display]
 
@@ -33,6 +30,10 @@ window/size/viewport_width=1280
 window/size/viewport_height=720
 window/stretch/mode="canvas_items"
 window/stretch/aspect="expand"
+
+[gui]
+
+theme/custom="res://ui/resources/main_theme.tres"
 
 [physics]
 

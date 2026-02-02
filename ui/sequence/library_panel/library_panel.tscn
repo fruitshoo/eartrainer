@@ -1,41 +1,60 @@
 [gd_scene load_steps=2 format=3 uid="uid://librarypanelscene"]
 
 [ext_resource type="Script" path="res://ui/sequence/library_panel/library_panel.gd" id="1_script"]
+[ext_resource type="Theme" uid="uid://b6x5n4w0q2x3" path="res://ui/resources/main_theme.tres" id="2_theme"]
 
-[node name="LibraryPanel" type="PanelContainer"]
+[node name="LibraryPanelUI" type="CanvasLayer"]
+layer = 10
+
+[node name="Panel" type="PanelContainer" parent="."]
 anchors_preset = 11
 anchor_left = 1.0
 anchor_right = 1.0
 anchor_bottom = 1.0
-offset_left = -300.0
+offset_left = -316.0
+offset_top = 20.0
+offset_right = -16.0
+offset_bottom = -80.0
 grow_horizontal = 0
 grow_vertical = 2
+theme = ExtResource("2_theme")
 script = ExtResource("1_script")
 
-[node name="VBoxContainer" type="VBoxContainer" parent="."]
+[node name="MarginContainer" type="MarginContainer" parent="Panel"]
 layout_mode = 2
-theme_override_constants/separation = 16
+theme_override_constants/margin_left = 16
+theme_override_constants/margin_top = 16
+theme_override_constants/margin_right = 16
+theme_override_constants/margin_bottom = 16
 
-[node name="HeaderContainer" type="HBoxContainer" parent="VBoxContainer"]
+[node name="VBoxContainer" type="VBoxContainer" parent="Panel/MarginContainer"]
+layout_mode = 2
+theme_override_constants/separation = 12
+
+[node name="HeaderHBox" type="HBoxContainer" parent="Panel/MarginContainer/VBoxContainer"]
 layout_mode = 2
 
-[node name="TitleLabel" type="Label" parent="VBoxContainer/HeaderContainer"]
+[node name="TitleLabel" type="Label" parent="Panel/MarginContainer/VBoxContainer/HeaderHBox"]
 layout_mode = 2
 size_flags_horizontal = 3
-theme_override_font_sizes/font_size = 20
+theme_override_font_sizes/font_size = 18
 text = "Library"
 
-[node name="CloseButton" type="Button" parent="VBoxContainer/HeaderContainer"]
+[node name="CloseButton" type="Button" parent="Panel/MarginContainer/VBoxContainer/HeaderHBox"]
 unique_name_in_owner = true
 custom_minimum_size = Vector2(32, 32)
 layout_mode = 2
 text = "✕"
+flat = true
 
-[node name="TabContainer" type="HBoxContainer" parent="VBoxContainer"]
+[node name="HSeparator" type="HSeparator" parent="Panel/MarginContainer/VBoxContainer"]
 layout_mode = 2
-theme_override_constants/separation = 0
 
-[node name="PresetsTab" type="Button" parent="VBoxContainer/TabContainer"]
+[node name="TabContainer" type="HBoxContainer" parent="Panel/MarginContainer/VBoxContainer"]
+layout_mode = 2
+theme_override_constants/separation = 4
+
+[node name="PresetsTab" type="Button" parent="Panel/MarginContainer/VBoxContainer/TabContainer"]
 unique_name_in_owner = true
 layout_mode = 2
 size_flags_horizontal = 3
@@ -43,48 +62,43 @@ toggle_mode = true
 button_pressed = true
 text = "Progressions"
 
-[node name="SongsTab" type="Button" parent="VBoxContainer/TabContainer"]
+[node name="SongsTab" type="Button" parent="Panel/MarginContainer/VBoxContainer/TabContainer"]
 unique_name_in_owner = true
 layout_mode = 2
 size_flags_horizontal = 3
 toggle_mode = true
 text = "My Songs"
 
-[node name="HSeparator_Tabs" type="HSeparator" parent="VBoxContainer"]
-layout_mode = 2
-
-[node name="ScrollContainer" type="ScrollContainer" parent="VBoxContainer"]
+[node name="ScrollContainer" type="ScrollContainer" parent="Panel/MarginContainer/VBoxContainer"]
 layout_mode = 2
 size_flags_vertical = 3
+horizontal_scroll_mode = 0
 
-[node name="PresetListContainer" type="VBoxContainer" parent="VBoxContainer/ScrollContainer"]
+[node name="PresetListContainer" type="VBoxContainer" parent="Panel/MarginContainer/VBoxContainer/ScrollContainer"]
 unique_name_in_owner = true
 layout_mode = 2
 size_flags_horizontal = 3
 theme_override_constants/separation = 8
 
-[node name="FooterContainer" type="VBoxContainer" parent="VBoxContainer"]
-layout_mode = 2
-theme_override_constants/separation = 8
-
-[node name="HSeparator" type="HSeparator" parent="VBoxContainer/FooterContainer"]
+[node name="HSeparator2" type="HSeparator" parent="Panel/MarginContainer/VBoxContainer"]
 layout_mode = 2
 
-[node name="SaveLabel" type="Label" parent="VBoxContainer/FooterContainer"]
+[node name="FooterLabel" type="Label" parent="Panel/MarginContainer/VBoxContainer"]
 layout_mode = 2
 text = "Save Current Progression"
+horizontal_alignment = 1
 
-[node name="SaveRow" type="HBoxContainer" parent="VBoxContainer/FooterContainer"]
+[node name="SaveRow" type="HBoxContainer" parent="Panel/MarginContainer/VBoxContainer"]
 layout_mode = 2
 theme_override_constants/separation = 8
 
-[node name="NameInput" type="LineEdit" parent="VBoxContainer/FooterContainer/SaveRow"]
+[node name="NameInput" type="LineEdit" parent="Panel/MarginContainer/VBoxContainer/SaveRow"]
 unique_name_in_owner = true
 layout_mode = 2
 size_flags_horizontal = 3
-placeholder_text = "Enter preset name..."
+placeholder_text = "Enter name..."
 
-[node name="SaveButton" type="Button" parent="VBoxContainer/FooterContainer/SaveRow"]
+[node name="SaveButton" type="Button" parent="Panel/MarginContainer/VBoxContainer/SaveRow"]
 unique_name_in_owner = true
 layout_mode = 2
 text = "Save"

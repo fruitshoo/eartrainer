@@ -17,6 +17,7 @@ signal visual_note_off(midi_note: int, string_index: int) # [New]
 signal request_toggle_settings
 signal request_close_settings # [New] Explicit close request
 signal request_close_library # [New] Explicit close request for Library
+signal request_toggle_ear_trainer # [New] Toggle Ear Trainer UI
 signal request_toggle_help # [New]
 signal settings_visibility_changed(is_visible: bool)
 signal game_settings_changed # [Fix] Missing signal for global settings updates

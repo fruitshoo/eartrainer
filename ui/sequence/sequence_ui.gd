@@ -1,6 +1,6 @@
 # sequence_ui.gd
 # 시퀀서 UI 컨트롤러 (슬롯 선택, 재생 버튼, 설정 등)
-extends CanvasLayer
+extends Control
 
 # ============================================================
 # EXPORTS & CONSTANTS
@@ -19,7 +19,6 @@ var slot_button_scene: PackedScene = preload("res://ui/sequence/slot_button.tscn
 @onready var split_bar_button: Button = %SplitBarButton # [New]
 
 @onready var library_button: Button = %LibraryButton
-@onready var library_panel: Control = %LibraryPanel
 
 # ============================================================
 # LIFECYCLE
@@ -51,8 +50,6 @@ func _ready() -> void:
 		library_button.pressed.connect(_toggle_library_panel)
 		library_button.focus_mode = Control.FOCUS_NONE
 
-	if library_panel:
-		library_panel.close_requested.connect(_toggle_library_panel)
 
 	EventBus.bar_changed.connect(_highlight_playing)
 
@@ -81,20 +78,10 @@ func _ready() -> void:
 	_rebuild_slots()
 
 func _toggle_library_panel() -> void:
-	if not library_panel: return
-	
-	library_panel.visible = !library_panel.visible
-	
-	if library_panel.visible:
-		# 라이브러리 열리면 세팅창 닫기
-		EventBus.request_close_settings.emit()
-		
-		if library_panel.has_method("refresh_list"):
-			library_panel.refresh_list()
+	ModalManager.toggle("library")
 
 func _close_library_panel() -> void:
-	if library_panel and library_panel.visible:
-		library_panel.visible = false
+	ModalManager.close("library")
 
 func _setup_loop_overlay_style() -> void:
 	if not loop_overlay_panel: return
@@ -126,14 +113,24 @@ func _sync_ui_from_manager() -> void:
 	# [New] Dynamic Grid Logic
 	var total_bars = ProgressionManager.bar_count
 	
-	# 4마디 초과시 높이 확장 (2줄)
+	# 4마디 초과시 높이 확장 (2줄) - 트윈 애니메이션
 	# 1줄 높이: 90px, 2줄: 175px
 	var scroll_container = %SequencerScroll
 	if scroll_container:
-		if total_bars > 4:
-			scroll_container.custom_minimum_size.y = 175
+		var target_height = 175.0 if total_bars > 4 else 90.0
+		var current_height = scroll_container.custom_minimum_size.y
+		
+		if abs(current_height - target_height) > 1.0:
+			# 높이 변경 트윈
+			var height_tween = create_tween().set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_CUBIC)
+			height_tween.tween_property(scroll_container, "custom_minimum_size:y", target_height, 0.25)
+			
+			# 컨텐츠 페이드 인 효과 (슬롯 컨테이너)
+			if slot_container:
+				slot_container.modulate.a = 0.0
+				height_tween.parallel().tween_property(slot_container, "modulate:a", 1.0, 0.25)
 		else:
-			scroll_container.custom_minimum_size.y = 90
+			scroll_container.custom_minimum_size.y = target_height
 
 func _rebuild_slots() -> void:
 	# 1. 기존 슬롯 제거

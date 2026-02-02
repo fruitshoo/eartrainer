@@ -6,6 +6,7 @@ extends CanvasLayer
 @onready var asc_cb: CheckBox = %AscMode
 @onready var desc_cb: CheckBox = %DescMode
 @onready var harm_cb: CheckBox = %HarmMode
+@onready var easy_cb: CheckBox = %EasyMode
 
 @onready var grid: GridContainer = %IntervalGrid
 @onready var checkboxes: Dictionary = {}
@@ -26,10 +27,26 @@ var current_ui_mode: String = "interval" # "interval", "pitch", "chord"
 # LIFECYCLE
 # ============================================================
 func _ready():
+	# ModalManager 등록 (sidebar 그룹: Library와 배타적)
+	ModalManager.register_modal("ear_trainer", self, "sidebar")
+	
+	_setup_scroll_blocker()
 	_setup_mode_switcher()
 	_setup_grid()
 	_connect_signals()
 	_sync_state()
+
+func _setup_scroll_blocker():
+	# Get the Panel node and connect gui_input to consume wheel events
+	var panel = get_node("Panel")
+	if panel:
+		panel.gui_input.connect(_on_panel_gui_input)
+
+func _on_panel_gui_input(event: InputEvent):
+	# Consume mouse wheel events to prevent camera zoom
+	if event is InputEventMouseButton:
+		if event.button_index in [MOUSE_BUTTON_WHEEL_UP, MOUSE_BUTTON_WHEEL_DOWN]:
+			get_viewport().set_input_as_handled()
 
 func _setup_mode_switcher():
 	# Inject buttons above the grid (ScrollContainer). 
@@ -76,29 +93,6 @@ func _setup_mode_switcher():
 				target_index = mode_header.get_index()
 				
 		main_vbox.move_child(mode_container, target_index)
-		
-		# [v0.4] Difficulty Settings (Easy/Hard Mode) - BELOW Modes Button
-		var diff_hbox = HBoxContainer.new()
-		diff_hbox.alignment = BoxContainer.ALIGNMENT_CENTER
-		
-		var visual_cb = CheckBox.new()
-		visual_cb.text = "Show Target Highlight (Easy Mode)"
-		visual_cb.button_pressed = GameManager.show_target_visual
-		visual_cb.toggled.connect(func(on): GameManager.show_target_visual = on)
-		
-		diff_hbox.add_child(visual_cb)
-		main_vbox.add_child(diff_hbox)
-		
-		# Insert BELOW Modes Header
-		# (Modes Header is at target_index + 1 now because we inserted mode_container at target_index)
-		# Actually, if we insert mode_container at T, modes_header becomes T+1. 
-		# We want diff_hbox at T+2.
-		if target_index < main_vbox.get_child_count():
-			# Safer: Get index of mode_header again
-			if asc_cb:
-				var mode_header = asc_cb.get_parent()
-				if mode_header:
-					main_vbox.move_child(diff_hbox, mode_header.get_index() + 1)
 
 func _set_ui_mode(mode: String):
 	if current_ui_mode == mode: return
@@ -224,16 +218,24 @@ func _connect_signals():
 		elif current_ui_mode == "chord":
 			QuizManager.start_chord_quiz()
 	)
-	close_btn.pressed.connect(queue_free)
+	close_btn.pressed.connect(_hide_ui)
 	
 	asc_cb.toggled.connect(func(on): _on_mode_toggled(on, QuizManager.IntervalMode.ASCENDING))
 	desc_cb.toggled.connect(func(on): _on_mode_toggled(on, QuizManager.IntervalMode.DESCENDING))
 	harm_cb.toggled.connect(func(on): _on_mode_toggled(on, QuizManager.IntervalMode.HARMONIC))
+	easy_cb.toggled.connect(func(on): GameManager.show_target_visual = on)
 	
 	QuizManager.quiz_started.connect(_on_quiz_started)
 	QuizManager.quiz_answered.connect(_on_quiz_answered)
 	
-	tree_exited.connect(func(): QuizManager.stop_quiz())
+	visibility_changed.connect(_on_visibility_changed)
+
+func _hide_ui() -> void:
+	ModalManager.close("ear_trainer")
+
+func _on_visibility_changed() -> void:
+	if not visible:
+		QuizManager.stop_quiz()
 
 func _sync_state():
 	# Sync Modes
@@ -241,6 +243,7 @@ func _sync_state():
 	asc_cb.button_pressed = (QuizManager.IntervalMode.ASCENDING in modes)
 	desc_cb.button_pressed = (QuizManager.IntervalMode.DESCENDING in modes)
 	harm_cb.button_pressed = (QuizManager.IntervalMode.HARMONIC in modes)
+	easy_cb.button_pressed = GameManager.show_target_visual
 
 # ============================================================
 # SIGNAL HANDLERS

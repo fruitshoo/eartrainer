@@ -1,208 +1,220 @@
 [gd_scene format=3 uid="uid://bkug7wowkh7rj"]
 
 [ext_resource type="Script" uid="uid://bsdpwnsgbewcs" path="res://ui/settings/settings_ui.gd" id="1_mv08y"]
-[ext_resource type="Theme" uid="uid://b6x5n4w0q2x3" path="res://ui/resources/main_theme.tres" id="2_1ub5d"]
+[ext_resource type="Theme" uid="uid://b6x5n4w0q2x3" path="res://ui/resources/main_theme.tres" id="2_theme"]
 
 [node name="SettingsUI" type="CanvasLayer" unique_id=77076675]
+layer = 10
 script = ExtResource("1_mv08y")
 
-[node name="RootMargin" type="MarginContainer" parent="." unique_id=673016896]
-anchors_preset = 1
+[node name="Panel" type="PanelContainer" parent="."]
+anchors_preset = 11
 anchor_left = 1.0
 anchor_right = 1.0
-offset_left = -40.0
-offset_bottom = 40.0
+anchor_bottom = 1.0
+offset_left = -316.0
+offset_top = 20.0
+offset_right = -16.0
+offset_bottom = -80.0
 grow_horizontal = 0
-theme = ExtResource("2_1ub5d")
-theme_override_constants/margin_top = 20
-theme_override_constants/margin_right = 20
+grow_vertical = 2
+theme = ExtResource("2_theme")
 
-[node name="PanelContainer" type="PanelContainer" parent="RootMargin" unique_id=1477117314]
+[node name="MarginContainer" type="MarginContainer" parent="Panel"]
 layout_mode = 2
-size_flags_horizontal = 4
+theme_override_constants/margin_left = 16
+theme_override_constants/margin_top = 16
+theme_override_constants/margin_right = 16
+theme_override_constants/margin_bottom = 16
 
-[node name="VBoxContainer" type="VBoxContainer" parent="RootMargin/PanelContainer" unique_id=386925814]
+[node name="VBoxContainer" type="VBoxContainer" parent="Panel/MarginContainer"]
+layout_mode = 2
+theme_override_constants/separation = 12
+
+[node name="HeaderHBox" type="HBoxContainer" parent="Panel/MarginContainer/VBoxContainer"]
 layout_mode = 2
 
-[node name="HeaderContainer" type="HBoxContainer" parent="RootMargin/PanelContainer/VBoxContainer" unique_id=981237123]
-layout_mode = 2
-
-[node name="Label" type="Label" parent="RootMargin/PanelContainer/VBoxContainer/HeaderContainer" unique_id=2065183710]
-layout_mode = 2
-text = "Settings"
-horizontal_alignment = 0
-
-[node name="Spacer" type="Control" parent="RootMargin/PanelContainer/VBoxContainer/HeaderContainer"]
+[node name="TitleLabel" type="Label" parent="Panel/MarginContainer/VBoxContainer/HeaderHBox"]
 layout_mode = 2
 size_flags_horizontal = 3
+theme_override_font_sizes/font_size = 18
+text = "Settings"
 
-[node name="CloseButton" type="Button" parent="RootMargin/PanelContainer/VBoxContainer/HeaderContainer" unique_id=1945070583]
+[node name="CloseButton" type="Button" parent="Panel/MarginContainer/VBoxContainer/HeaderHBox"]
 unique_name_in_owner = true
-custom_minimum_size = Vector2(30, 30)
+custom_minimum_size = Vector2(32, 32)
 layout_mode = 2
-text = "X"
+text = "✕"
 flat = true
 
-[node name="KeySetting" type="HBoxContainer" parent="RootMargin/PanelContainer/VBoxContainer" unique_id=1171006614]
+[node name="HSeparator" type="HSeparator" parent="Panel/MarginContainer/VBoxContainer"]
 layout_mode = 2
 
-[node name="Label" type="Label" parent="RootMargin/PanelContainer/VBoxContainer/KeySetting" unique_id=629987381]
-custom_minimum_size = Vector2(140, 0)
+[node name="ScrollContainer" type="ScrollContainer" parent="Panel/MarginContainer/VBoxContainer"]
+layout_mode = 2
+size_flags_vertical = 3
+horizontal_scroll_mode = 0
+
+[node name="ContentVBox" type="VBoxContainer" parent="Panel/MarginContainer/VBoxContainer/ScrollContainer"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 8
+
+[node name="KeySetting" type="HBoxContainer" parent="Panel/MarginContainer/VBoxContainer/ScrollContainer/ContentVBox"]
+layout_mode = 2
+
+[node name="Label" type="Label" parent="Panel/MarginContainer/VBoxContainer/ScrollContainer/ContentVBox/KeySetting"]
+custom_minimum_size = Vector2(120, 0)
 layout_mode = 2
 text = "Root Key"
 
-[node name="KeyOptionButton" type="OptionButton" parent="RootMargin/PanelContainer/VBoxContainer/KeySetting" unique_id=1622448657]
+[node name="KeyOptionButton" type="OptionButton" parent="Panel/MarginContainer/VBoxContainer/ScrollContainer/ContentVBox/KeySetting"]
 unique_name_in_owner = true
 layout_mode = 2
 size_flags_horizontal = 3
 
-[node name="ModeSetting" type="HBoxContainer" parent="RootMargin/PanelContainer/VBoxContainer" unique_id=1602180044]
+[node name="ModeSetting" type="HBoxContainer" parent="Panel/MarginContainer/VBoxContainer/ScrollContainer/ContentVBox"]
 layout_mode = 2
 
-[node name="Label" type="Label" parent="RootMargin/PanelContainer/VBoxContainer/ModeSetting" unique_id=21722792]
-custom_minimum_size = Vector2(140, 0)
+[node name="Label" type="Label" parent="Panel/MarginContainer/VBoxContainer/ScrollContainer/ContentVBox/ModeSetting"]
+custom_minimum_size = Vector2(120, 0)
 layout_mode = 2
 text = "Scale Mode"
 
-[node name="ModeOptionButton" type="OptionButton" parent="RootMargin/PanelContainer/VBoxContainer/ModeSetting" unique_id=246102457]
+[node name="ModeOptionButton" type="OptionButton" parent="Panel/MarginContainer/VBoxContainer/ScrollContainer/ContentVBox/ModeSetting"]
 unique_name_in_owner = true
 layout_mode = 2
 size_flags_horizontal = 3
 
-[node name="NotationSetting" type="HBoxContainer" parent="RootMargin/PanelContainer/VBoxContainer" unique_id=261139748]
+[node name="NotationSetting" type="HBoxContainer" parent="Panel/MarginContainer/VBoxContainer/ScrollContainer/ContentVBox"]
 layout_mode = 2
 
-[node name="Label" type="Label" parent="RootMargin/PanelContainer/VBoxContainer/NotationSetting" unique_id=619232003]
-custom_minimum_size = Vector2(140, 0)
+[node name="Label" type="Label" parent="Panel/MarginContainer/VBoxContainer/ScrollContainer/ContentVBox/NotationSetting"]
+custom_minimum_size = Vector2(120, 0)
 layout_mode = 2
 text = "Notation"
 
-[node name="NotationOptionButton" type="OptionButton" parent="RootMargin/PanelContainer/VBoxContainer/NotationSetting" unique_id=1647387007]
+[node name="NotationOptionButton" type="OptionButton" parent="Panel/MarginContainer/VBoxContainer/ScrollContainer/ContentVBox/NotationSetting"]
 unique_name_in_owner = true
 layout_mode = 2
 size_flags_horizontal = 3
 
-[node name="RhythmSetting" type="HBoxContainer" parent="RootMargin/PanelContainer/VBoxContainer" unique_id=2083167520]
+[node name="RhythmSetting" type="HBoxContainer" parent="Panel/MarginContainer/VBoxContainer/ScrollContainer/ContentVBox"]
 layout_mode = 2
 
-[node name="Label" type="Label" parent="RootMargin/PanelContainer/VBoxContainer/RhythmSetting" unique_id=2083167521]
-custom_minimum_size = Vector2(140, 0)
+[node name="Label" type="Label" parent="Panel/MarginContainer/VBoxContainer/ScrollContainer/ContentVBox/RhythmSetting"]
+custom_minimum_size = Vector2(120, 0)
 layout_mode = 2
 text = "Rhythm Mode"
 
-[node name="RhythmCheckButton" type="CheckButton" parent="RootMargin/PanelContainer/VBoxContainer/RhythmSetting" unique_id=2083167522]
+[node name="RhythmCheckButton" type="CheckButton" parent="Panel/MarginContainer/VBoxContainer/ScrollContainer/ContentVBox/RhythmSetting"]
 unique_name_in_owner = true
 layout_mode = 2
 size_flags_horizontal = 3
 
-[node name="VizDivider" type="HSeparator" parent="RootMargin/PanelContainer/VBoxContainer" unique_id=987654322]
+[node name="VizDivider" type="HSeparator" parent="Panel/MarginContainer/VBoxContainer/ScrollContainer/ContentVBox"]
 layout_mode = 2
-theme_override_constants/separation = 10
 
-[node name="VizLabel" type="Label" parent="RootMargin/PanelContainer/VBoxContainer" unique_id=987654323]
+[node name="VizLabel" type="Label" parent="Panel/MarginContainer/VBoxContainer/ScrollContainer/ContentVBox"]
 layout_mode = 2
-text = "Visuals:"
+text = "Visuals"
 horizontal_alignment = 1
 
-[node name="VizGrid" type="GridContainer" parent="RootMargin/PanelContainer/VBoxContainer" unique_id=987654324]
+[node name="VizGrid" type="GridContainer" parent="Panel/MarginContainer/VBoxContainer/ScrollContainer/ContentVBox"]
 layout_mode = 2
 columns = 2
 
-[node name="NoteLabelCheck" type="CheckBox" parent="RootMargin/PanelContainer/VBoxContainer/VizGrid" unique_id=987654325]
+[node name="NoteLabelCheck" type="CheckBox" parent="Panel/MarginContainer/VBoxContainer/ScrollContainer/ContentVBox/VizGrid"]
 unique_name_in_owner = true
 layout_mode = 2
 size_flags_horizontal = 3
 text = "Note Labels"
 button_pressed = true
 
-[node name="RootCheck" type="CheckBox" parent="RootMargin/PanelContainer/VBoxContainer/VizGrid" unique_id=987654326]
+[node name="RootCheck" type="CheckBox" parent="Panel/MarginContainer/VBoxContainer/ScrollContainer/ContentVBox/VizGrid"]
 unique_name_in_owner = true
 layout_mode = 2
 size_flags_horizontal = 3
 text = "Root Only"
 button_pressed = true
 
-[node name="ChordCheck" type="CheckBox" parent="RootMargin/PanelContainer/VBoxContainer/VizGrid" unique_id=987654327]
+[node name="ChordCheck" type="CheckBox" parent="Panel/MarginContainer/VBoxContainer/ScrollContainer/ContentVBox/VizGrid"]
 unique_name_in_owner = true
 layout_mode = 2
 size_flags_horizontal = 3
 text = "Chord Tones"
 button_pressed = true
 
-[node name="ScaleCheck" type="CheckBox" parent="RootMargin/PanelContainer/VBoxContainer/VizGrid" unique_id=987654328]
+[node name="ScaleCheck" type="CheckBox" parent="Panel/MarginContainer/VBoxContainer/ScrollContainer/ContentVBox/VizGrid"]
 unique_name_in_owner = true
 layout_mode = 2
 size_flags_horizontal = 3
 text = "Scale Tones"
 button_pressed = true
 
-[node name="FocusRangeRow" type="HBoxContainer" parent="RootMargin/PanelContainer/VBoxContainer" unique_id=1457383314]
+[node name="FocusRangeRow" type="HBoxContainer" parent="Panel/MarginContainer/VBoxContainer/ScrollContainer/ContentVBox"]
 layout_mode = 2
 
-[node name="FocusRange" type="Label" parent="RootMargin/PanelContainer/VBoxContainer/FocusRangeRow" unique_id=855614933]
-custom_minimum_size = Vector2(140, 0)
+[node name="Label" type="Label" parent="Panel/MarginContainer/VBoxContainer/ScrollContainer/ContentVBox/FocusRangeRow"]
+custom_minimum_size = Vector2(120, 0)
 layout_mode = 2
 text = "Focus Range"
 
-[node name="MinusButton" type="Button" parent="RootMargin/PanelContainer/VBoxContainer/FocusRangeRow" unique_id=1713062096]
+[node name="MinusButton" type="Button" parent="Panel/MarginContainer/VBoxContainer/ScrollContainer/ContentVBox/FocusRangeRow"]
 unique_name_in_owner = true
-custom_minimum_size = Vector2(20, 0)
+custom_minimum_size = Vector2(28, 0)
 layout_mode = 2
 text = "-"
 
-[node name="ValueLabel" type="Label" parent="RootMargin/PanelContainer/VBoxContainer/FocusRangeRow" unique_id=165136461]
+[node name="ValueLabel" type="Label" parent="Panel/MarginContainer/VBoxContainer/ScrollContainer/ContentVBox/FocusRangeRow"]
 unique_name_in_owner = true
-custom_minimum_size = Vector2(20, 0)
+custom_minimum_size = Vector2(28, 0)
 layout_mode = 2
 text = "3"
 horizontal_alignment = 1
-vertical_alignment = 1
 
-[node name="PlusButton" type="Button" parent="RootMargin/PanelContainer/VBoxContainer/FocusRangeRow" unique_id=2146148037]
+[node name="PlusButton" type="Button" parent="Panel/MarginContainer/VBoxContainer/ScrollContainer/ContentVBox/FocusRangeRow"]
 unique_name_in_owner = true
-custom_minimum_size = Vector2(20, 0)
+custom_minimum_size = Vector2(28, 0)
 layout_mode = 2
 text = "+"
 
-[node name="DeadzoneRow" type="HBoxContainer" parent="RootMargin/PanelContainer/VBoxContainer" unique_id=38472910]
+[node name="DeadzoneRow" type="HBoxContainer" parent="Panel/MarginContainer/VBoxContainer/ScrollContainer/ContentVBox"]
 layout_mode = 2
 
-[node name="Label" type="Label" parent="RootMargin/PanelContainer/VBoxContainer/DeadzoneRow" unique_id=38472911]
-custom_minimum_size = Vector2(140, 0)
+[node name="Label" type="Label" parent="Panel/MarginContainer/VBoxContainer/ScrollContainer/ContentVBox/DeadzoneRow"]
+custom_minimum_size = Vector2(120, 0)
 layout_mode = 2
 text = "Cam Deadzone"
 
-[node name="DeadzoneMinus" type="Button" parent="RootMargin/PanelContainer/VBoxContainer/DeadzoneRow" unique_id=38472912]
+[node name="DeadzoneMinus" type="Button" parent="Panel/MarginContainer/VBoxContainer/ScrollContainer/ContentVBox/DeadzoneRow"]
 unique_name_in_owner = true
-custom_minimum_size = Vector2(20, 0)
+custom_minimum_size = Vector2(28, 0)
 layout_mode = 2
 text = "-"
 
-[node name="DeadzoneValue" type="Label" parent="RootMargin/PanelContainer/VBoxContainer/DeadzoneRow" unique_id=38472913]
+[node name="DeadzoneValue" type="Label" parent="Panel/MarginContainer/VBoxContainer/ScrollContainer/ContentVBox/DeadzoneRow"]
 unique_name_in_owner = true
-custom_minimum_size = Vector2(30, 0)
+custom_minimum_size = Vector2(36, 0)
 layout_mode = 2
 text = "4.0"
 horizontal_alignment = 1
-vertical_alignment = 1
 
-[node name="DeadzonePlus" type="Button" parent="RootMargin/PanelContainer/VBoxContainer/DeadzoneRow" unique_id=38472914]
+[node name="DeadzonePlus" type="Button" parent="Panel/MarginContainer/VBoxContainer/ScrollContainer/ContentVBox/DeadzoneRow"]
 unique_name_in_owner = true
-custom_minimum_size = Vector2(20, 0)
+custom_minimum_size = Vector2(28, 0)
 layout_mode = 2
 text = "+"
 
-
-
-[node name="HBoxContainer" type="HBoxContainer" parent="RootMargin/PanelContainer/VBoxContainer" unique_id=1685542694]
+[node name="MetronomeRow" type="HBoxContainer" parent="Panel/MarginContainer/VBoxContainer/ScrollContainer/ContentVBox"]
 layout_mode = 2
 
-[node name="Label" type="Label" parent="RootMargin/PanelContainer/VBoxContainer/HBoxContainer" unique_id=1507960665]
-custom_minimum_size = Vector2(140, 0)
+[node name="Label" type="Label" parent="Panel/MarginContainer/VBoxContainer/ScrollContainer/ContentVBox/MetronomeRow"]
+custom_minimum_size = Vector2(120, 0)
 layout_mode = 2
 text = "Metronome"
 
-[node name="MetronomeToggle" type="CheckButton" parent="RootMargin/PanelContainer/VBoxContainer/HBoxContainer" unique_id=1863015900]
+[node name="MetronomeToggle" type="CheckButton" parent="Panel/MarginContainer/VBoxContainer/ScrollContainer/ContentVBox/MetronomeRow"]
 unique_name_in_owner = true
 layout_mode = 2
 size_flags_horizontal = 3

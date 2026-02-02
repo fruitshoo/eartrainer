@@ -1,6 +1,6 @@
 # hud_manager.gd
 # HUD 표시 관리 - 재즈 전광판 스타일
-extends CanvasLayer
+extends Control
 
 # ============================================================
 # CONSTANTS
@@ -81,21 +81,20 @@ func _ready() -> void:
 			le.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	
 	if settings_button:
-		settings_button.pressed.connect(func(): EventBus.request_toggle_settings.emit())
+		settings_button.pressed.connect(func(): ModalManager.toggle("settings"))
 		settings_button.focus_mode = Control.FOCUS_NONE
 		
 	if help_button:
 		help_button.pressed.connect(func(): EventBus.request_toggle_help.emit())
 		help_button.focus_mode = Control.FOCUS_NONE
 
-	# [New] Ear Trainer Access (Temporary Hook via internal logic or new button?)
-	# Since I cannot add a button to the scene easily, let's hook 'Help' or add a dynamic button if needed.
-	# Better: Add a dynamic button to top_right_buttons if available.
+	# Ear Trainer Button - Uses ModalManager for toggle
 	if top_right_buttons:
 		var et_btn = Button.new()
-		et_btn.text = "Ear Trainer"
+		et_btn.text = "🎧"
+		et_btn.tooltip_text = "Ear Training"
 		et_btn.focus_mode = Control.FOCUS_NONE
-		et_btn.pressed.connect(_open_ear_trainer)
+		et_btn.pressed.connect(func(): ModalManager.toggle("ear_trainer"))
 		top_right_buttons.add_child(et_btn)
 		# Move to be second (between Help and Settings)
 		# Assuming Help is 0, Settings is 1. If we add via code it appends (2).
@@ -276,22 +275,6 @@ func _fade_out_chord_label() -> void:
 	var fade_tween := create_tween()
 	fade_tween.tween_property(chord_label, "modulate:a", 0.3, 0.2)
 
-func _open_ear_trainer() -> void:
-	if top_right_buttons:
-		top_right_buttons.visible = false
-	
-	# Transport hidden too? Maybe keep them visible.
-		
-	var ui_scene = load("res://ui/quiz/EarTrainerUI.tscn")
-	if ui_scene:
-		var ui_instance = ui_scene.instantiate()
-		add_child(ui_instance)
-		
-		# Restore buttons when closed
-		ui_instance.tree_exited.connect(func():
-			if top_right_buttons:
-				top_right_buttons.visible = true
-		)
 
 # ============================================================
 # TRANSPORT LOGIC

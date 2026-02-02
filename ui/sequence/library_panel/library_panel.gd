@@ -17,7 +17,12 @@ var preset_item_scene: PackedScene = preload("res://ui/sequence/library_panel/pr
 var selected_item_name: String = ""
 
 func _ready() -> void:
-	close_button.pressed.connect(func(): close_requested.emit())
+	# ModalManager 등록 (sidebar 그룹: EarTrainer와 배타적)
+	# 부모 CanvasLayer를 등록해서 visibility 제어
+	var canvas_layer = get_parent()
+	ModalManager.register_modal("library", canvas_layer, "sidebar")
+	
+	close_button.pressed.connect(func(): ModalManager.close("library"))
 	save_button.pressed.connect(_on_save_pressed)
 	
 	if presets_tab_button:

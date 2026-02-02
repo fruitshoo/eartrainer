@@ -1,124 +1,126 @@
 [gd_scene format=3 uid="uid://fqst8yiycbne"]
 
 [ext_resource type="Script" uid="uid://ccarn8we8f63p" path="res://ui/quiz/ear_trainer_ui.gd" id="1_script"]
-[ext_resource type="Theme" uid="uid://b6x5n4w0q2x3" path="res://ui/resources/main_theme.tres" id="2_8ohki"]
+[ext_resource type="Theme" uid="uid://b6x5n4w0q2x3" path="res://ui/resources/main_theme.tres" id="2_theme"]
 
 [node name="EarTrainerUI" type="CanvasLayer" unique_id=68152825]
+layer = 10
 script = ExtResource("1_script")
 
-[node name="Panel" type="Panel" parent="." unique_id=868852594]
+[node name="Panel" type="PanelContainer" parent="."]
 clip_contents = true
-custom_minimum_size = Vector2(400, 400)
 anchors_preset = 11
 anchor_left = 1.0
 anchor_right = 1.0
 anchor_bottom = 1.0
+offset_left = -316.0
+offset_top = 20.0
+offset_right = -16.0
+offset_bottom = -80.0
 grow_horizontal = 0
 grow_vertical = 2
-theme = ExtResource("2_8ohki")
+theme = ExtResource("2_theme")
 
-[node name="MarginContainer" type="MarginContainer" parent="Panel" unique_id=1034523725]
-layout_mode = 1
-anchors_preset = 15
-anchor_right = 1.0
-anchor_bottom = 1.0
-grow_horizontal = 2
-grow_vertical = 2
-mouse_filter = 0
-theme_override_constants/margin_left = 20
-theme_override_constants/margin_top = 20
-theme_override_constants/margin_right = 20
-theme_override_constants/margin_bottom = 20
-
-[node name="VBoxContainer" type="VBoxContainer" parent="Panel/MarginContainer" unique_id=1237840963]
+[node name="MarginContainer" type="MarginContainer" parent="Panel"]
 layout_mode = 2
-mouse_filter = 0
-theme_override_constants/separation = 10
+theme_override_constants/margin_left = 16
+theme_override_constants/margin_top = 16
+theme_override_constants/margin_right = 16
+theme_override_constants/margin_bottom = 16
 
-[node name="HeaderHBox" type="HBoxContainer" parent="Panel/MarginContainer/VBoxContainer" unique_id=987123654]
+[node name="VBoxContainer" type="VBoxContainer" parent="Panel/MarginContainer"]
+layout_mode = 2
+theme_override_constants/separation = 12
+
+[node name="HeaderHBox" type="HBoxContainer" parent="Panel/MarginContainer/VBoxContainer"]
 layout_mode = 2
 
-[node name="TitleLabel" type="Label" parent="Panel/MarginContainer/VBoxContainer/HeaderHBox" unique_id=461900505]
+[node name="TitleLabel" type="Label" parent="Panel/MarginContainer/VBoxContainer/HeaderHBox"]
 layout_mode = 2
-size_flags_horizontal = 2
-theme_override_font_sizes/font_size = 24
-text = "Interval Ear Training"
-horizontal_alignment = 0
+size_flags_horizontal = 3
+theme_override_font_sizes/font_size = 18
+text = "Ear Training"
 
-[node name="CloseButton" type="Button" parent="Panel/MarginContainer/VBoxContainer/HeaderHBox" unique_id=636136315]
+[node name="CloseButton" type="Button" parent="Panel/MarginContainer/VBoxContainer/HeaderHBox"]
 unique_name_in_owner = true
-custom_minimum_size = Vector2(30, 30)
+custom_minimum_size = Vector2(32, 32)
 layout_mode = 2
-text = "X"
+text = "✕"
 flat = true
 
-[node name="FeedbackLabel" type="Label" parent="Panel/MarginContainer/VBoxContainer" unique_id=1682193461]
+[node name="FeedbackLabel" type="Label" parent="Panel/MarginContainer/VBoxContainer"]
 unique_name_in_owner = true
 layout_mode = 2
 theme_override_colors/font_color = Color(0.7, 0.7, 0.7, 1)
+theme_override_font_sizes/font_size = 14
 text = "Ready"
 horizontal_alignment = 1
 
-[node name="HSeparator" type="HSeparator" parent="Panel/MarginContainer/VBoxContainer" unique_id=1120788841]
+[node name="HSeparator" type="HSeparator" parent="Panel/MarginContainer/VBoxContainer"]
 layout_mode = 2
 
-[node name="ModeHBox" type="HBoxContainer" parent="Panel/MarginContainer/VBoxContainer" unique_id=346698921]
+[node name="ModeHBox" type="HBoxContainer" parent="Panel/MarginContainer/VBoxContainer"]
 layout_mode = 2
-size_flags_horizontal = 4
 alignment = 1
+theme_override_constants/separation = 4
 
-[node name="Label" type="Label" parent="Panel/MarginContainer/VBoxContainer/ModeHBox" unique_id=288518063]
-layout_mode = 2
-text = "Modes:"
-
-[node name="AscMode" type="CheckBox" parent="Panel/MarginContainer/VBoxContainer/ModeHBox" unique_id=459287510]
+[node name="AscMode" type="CheckBox" parent="Panel/MarginContainer/VBoxContainer/ModeHBox"]
 unique_name_in_owner = true
 layout_mode = 2
 button_pressed = true
-text = "Asc"
+text = "↑"
+tooltip_text = "Ascending"
 
-[node name="DescMode" type="CheckBox" parent="Panel/MarginContainer/VBoxContainer/ModeHBox" unique_id=581293746]
+[node name="DescMode" type="CheckBox" parent="Panel/MarginContainer/VBoxContainer/ModeHBox"]
 unique_name_in_owner = true
 layout_mode = 2
-text = "Desc"
+text = "↓"
+tooltip_text = "Descending"
 
-[node name="HarmMode" type="CheckBox" parent="Panel/MarginContainer/VBoxContainer/ModeHBox" unique_id=672384912]
+[node name="HarmMode" type="CheckBox" parent="Panel/MarginContainer/VBoxContainer/ModeHBox"]
 unique_name_in_owner = true
 layout_mode = 2
-text = "Harm"
+text = "♫"
+tooltip_text = "Harmonic"
 
-[node name="HSeparator2" type="HSeparator" parent="Panel/MarginContainer/VBoxContainer" unique_id=322999551]
+[node name="EasyMode" type="CheckBox" parent="Panel/MarginContainer/VBoxContainer/ModeHBox"]
+unique_name_in_owner = true
+layout_mode = 2
+button_pressed = true
+text = "Easy"
+tooltip_text = "Show target highlight"
+
+[node name="HSeparator2" type="HSeparator" parent="Panel/MarginContainer/VBoxContainer"]
 layout_mode = 2
 
-[node name="GridLabel" type="Label" parent="Panel/MarginContainer/VBoxContainer" unique_id=13612744]
-layout_mode = 2
-size_flags_horizontal = 4
-text = "Select Intervals:"
-
-[node name="ScrollContainer" type="ScrollContainer" parent="Panel/MarginContainer/VBoxContainer" unique_id=557560132]
+[node name="ScrollContainer" type="ScrollContainer" parent="Panel/MarginContainer/VBoxContainer"]
 layout_mode = 2
 size_flags_vertical = 3
 horizontal_scroll_mode = 0
 
-[node name="IntervalGrid" type="GridContainer" parent="Panel/MarginContainer/VBoxContainer/ScrollContainer" unique_id=1567442368]
+[node name="IntervalGrid" type="GridContainer" parent="Panel/MarginContainer/VBoxContainer/ScrollContainer"]
 unique_name_in_owner = true
 layout_mode = 2
-size_flags_horizontal = 6
+size_flags_horizontal = 3
+columns = 1
 
-[node name="HSeparator3" type="HSeparator" parent="Panel/MarginContainer/VBoxContainer" unique_id=2115912640]
+[node name="HSeparator3" type="HSeparator" parent="Panel/MarginContainer/VBoxContainer"]
 layout_mode = 2
 
-[node name="ActionsHBox" type="HBoxContainer" parent="Panel/MarginContainer/VBoxContainer" unique_id=255474402]
+[node name="ActionsHBox" type="HBoxContainer" parent="Panel/MarginContainer/VBoxContainer"]
 layout_mode = 2
-theme_override_constants/separation = 10
+theme_override_constants/separation = 8
 alignment = 1
 
-[node name="ReplayButton" type="Button" parent="Panel/MarginContainer/VBoxContainer/ActionsHBox" unique_id=242554205]
+[node name="ReplayButton" type="Button" parent="Panel/MarginContainer/VBoxContainer/ActionsHBox"]
 unique_name_in_owner = true
 layout_mode = 2
-text = "Replay"
+size_flags_horizontal = 3
+text = "↻"
+tooltip_text = "Replay"
 
-[node name="NextButton" type="Button" parent="Panel/MarginContainer/VBoxContainer/ActionsHBox" unique_id=277707121]
+[node name="NextButton" type="Button" parent="Panel/MarginContainer/VBoxContainer/ActionsHBox"]
 unique_name_in_owner = true
 layout_mode = 2
-text = "New Question"
+size_flags_horizontal = 3
+text = "Next"

@@ -3,7 +3,14 @@
 [ext_resource type="Script" uid="uid://c6gyovtu652tg" path="res://ui/hud/hud_ui.gd" id="1_dwx17"]
 [ext_resource type="PackedScene" uid="uid://d3y8h2k1n4m6p" path="res://ui/hud/key_selector_popup.tscn" id="2_popup"]
 
-[node name="HUD" type="CanvasLayer" unique_id=867313363]
+[node name="HUD" type="Control" unique_id=867313363]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
 script = ExtResource("1_dwx17")
 
 [node name="DebugLabel" type="Label" parent="." unique_id=999]
@@ -35,7 +42,7 @@ offset_right = 91.0
 offset_bottom = 80.0
 grow_horizontal = 2
 mouse_filter = 2
-theme_override_constants/margin_top = 20
+theme_override_constants/margin_top = 0
 
 [node name="VBoxContainer" type="VBoxContainer" parent="MainContainer/InfoPanel" unique_id=1156355794]
 layout_mode = 2
@@ -67,17 +74,19 @@ alignment = 1
 anchors_preset = 1
 anchor_left = 1.0
 anchor_right = 1.0
-offset_left = -60.0
-offset_bottom = 60.0
+offset_left = -150.0
+offset_bottom = 50.0
 grow_horizontal = 0
+theme_override_constants/margin_top = 10
+theme_override_constants/margin_right = 16
 [node name="TransportContainer" type="MarginContainer" parent="." unique_id=551234111]
 anchors_preset = 0
 anchor_right = 0.0
 offset_right = 60.0
 offset_bottom = 60.0
 grow_horizontal = 1
-theme_override_constants/margin_top = 20
-theme_override_constants/margin_left = 20
+theme_override_constants/margin_top = 0
+theme_override_constants/margin_left = 0
 
 [node name="TransportHBox" type="HBoxContainer" parent="TransportContainer" unique_id=551234222]
 layout_mode = 2
