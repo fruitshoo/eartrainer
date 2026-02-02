@@ -78,9 +78,19 @@ func seek(step: int, beat: int) -> void:
 		_beat_timer.stop()
 		_play_current_step(true) # true = resume from mid-beat logic
 	else:
-		# 정지 상태면 위치만 업데이트하고 UI 갱신
+		# 정지 상태면 위치만 업데이트하고 UI/State 갱신 (Preview Mode)
+		_update_game_state_from_slot() # HUD 업데이트
+		
+		# [Fixed] Fretboard Highlight Update
+		_clear_all_highlights()
+		var data = ProgressionManager.get_slot(current_step)
+		if data:
+			_visualize_slot_chord(data)
+		
+		# [New] Playhead 업데이트 (Preview)
+		EventBus.sequencer_step_beat_changed.emit(current_step, current_beat)
+		
 		EventBus.bar_changed.emit(current_step)
-		# TODO: beat update signal for UI preview?
 
 ## 완전 정지 및 리셋 (Stop 버튼용)
 func stop_and_reset() -> void:
@@ -353,6 +363,10 @@ func _play_block_chord() -> void:
 	if data == null:
 		return
 		
+	# 1. 시각화
+	_visualize_slot_chord(data)
+	
+	# 2. 오디오 재생 (별도 로직)
 	var root_fret := MusicTheory.get_fret_position(data.root, data.string)
 	var voicing_key := MusicTheory.get_voicing_key(data.string)
 	var offsets: Array = MusicTheory.VOICING_SHAPES.get(voicing_key, {}).get(data.type, [[0, 0]])
@@ -364,6 +378,18 @@ func _play_block_chord() -> void:
 		var tile = GameManager.find_tile(target_string, target_fret)
 		if tile and is_instance_valid(tile):
 			AudioEngine.play_note(tile.midi_note, tile.string_index)
+## [New] 코드 모양 시각화 (오디오 없음)
+func _visualize_slot_chord(data: Dictionary) -> void:
+	var root_fret := MusicTheory.get_fret_position(data.root, data.string)
+	var voicing_key := MusicTheory.get_voicing_key(data.string)
+	var offsets: Array = MusicTheory.VOICING_SHAPES.get(voicing_key, {}).get(data.type, [[0, 0]])
+	
+	for offset in offsets:
+		var target_string: int = data.string + offset[0]
+		var target_fret: int = root_fret + offset[1]
+		
+		var tile = GameManager.find_tile(target_string, target_fret)
+		if tile and is_instance_valid(tile):
 			tile.apply_sequencer_highlight(null, 0.5) # 짧게 하이라이트
 			_highlighted_tiles.append(tile)
 

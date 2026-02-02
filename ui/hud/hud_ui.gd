@@ -18,6 +18,12 @@ const BEAT_DOT_OFF_COLOR := Color(0.3, 0.3, 0.3, 0.5)
 @onready var settings_button: Button = %SettingsButton # [New]
 @onready var help_button: Button = %HelpButton # [New]
 
+# Transport Controls
+@onready var play_button: Button = %PlayButton
+@onready var stop_button: Button = %StopButton
+@onready var record_button: Button = %RecordButton
+@onready var bpm_spin_box: SpinBox = %BPMSpinBox
+
 # ============================================================
 # STATE
 # ============================================================
@@ -37,6 +43,37 @@ func _ready() -> void:
 	EventBus.beat_updated.connect(_on_beat_updated)
 	EventBus.settings_visibility_changed.connect(_on_settings_visibility_changed)
 	EventBus.debug_log.connect(_on_debug_log) # [New]
+	EventBus.sequencer_playing_changed.connect(_on_sequencer_playing_changed)
+	
+	# Melody Managers
+	var melody_manager = GameManager.get_node_or_null("MelodyManager")
+	if melody_manager:
+		melody_manager.recording_started.connect(_on_recording_started)
+		melody_manager.recording_stopped.connect(_on_recording_stopped)
+	
+	if play_button:
+		play_button.pressed.connect(func(): EventBus.request_toggle_playback.emit())
+		play_button.focus_mode = Control.FOCUS_NONE
+		
+	if stop_button:
+		stop_button.pressed.connect(func():
+			EventBus.request_stop_playback.emit()
+			# Highlight clearing is handled by bus listener usually, or we can emit reset signal
+		)
+		stop_button.focus_mode = Control.FOCUS_NONE
+		
+	if record_button:
+		record_button.toggled.connect(_on_record_toggled)
+		record_button.focus_mode = Control.FOCUS_NONE
+		
+	if bpm_spin_box:
+		bpm_spin_box.value = GameManager.bpm
+		bpm_spin_box.value_changed.connect(func(val): GameManager.bpm = int(val))
+		# SpinBox Text Focus Disable
+		var le = bpm_spin_box.get_line_edit()
+		if le:
+			le.focus_mode = Control.FOCUS_NONE
+			le.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	
 	if settings_button:
 		settings_button.pressed.connect(func(): EventBus.request_toggle_settings.emit())
@@ -237,6 +274,8 @@ func _fade_out_chord_label() -> void:
 func _open_ear_trainer() -> void:
 	if top_right_buttons:
 		top_right_buttons.visible = false
+	
+	# Transport hidden too? Maybe keep them visible.
 		
 	var ui_scene = load("res://ui/quiz/EarTrainerUI.tscn")
 	if ui_scene:
@@ -248,3 +287,35 @@ func _open_ear_trainer() -> void:
 			if top_right_buttons:
 				top_right_buttons.visible = true
 		)
+
+# ============================================================
+# TRANSPORT LOGIC
+# ============================================================
+func _on_sequencer_playing_changed(is_playing: bool) -> void:
+	if play_button:
+		play_button.text = "PAUSE" if is_playing else "PLAY"
+
+func _on_record_toggled(toggled: bool) -> void:
+	var melody_manager = GameManager.get_node_or_null("MelodyManager")
+	if melody_manager:
+		if toggled:
+			if not melody_manager.is_recording:
+				melody_manager.start_recording()
+			
+			if not EventBus.is_sequencer_playing:
+				var sequencer = get_tree().get_first_node_in_group("sequencer")
+				if sequencer and sequencer.has_method("start_with_count_in"):
+					sequencer.start_with_count_in()
+		else:
+			if melody_manager.is_recording:
+				melody_manager.stop_recording()
+
+func _on_recording_started() -> void:
+	if record_button:
+		record_button.set_pressed_no_signal(true)
+		record_button.modulate = Color(1.0, 0.3, 0.3)
+
+func _on_recording_stopped() -> void:
+	if record_button:
+		record_button.set_pressed_no_signal(false)
+		record_button.modulate = Color.WHITE

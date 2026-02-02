@@ -69,8 +69,53 @@ anchor_right = 1.0
 offset_left = -60.0
 offset_bottom = 60.0
 grow_horizontal = 0
+[node name="TransportContainer" type="MarginContainer" parent="." unique_id=551234111]
+anchors_preset = 0
+anchor_right = 0.0
+offset_right = 60.0
+offset_bottom = 60.0
+grow_horizontal = 1
 theme_override_constants/margin_top = 20
-theme_override_constants/margin_right = 20
+theme_override_constants/margin_left = 20
+
+[node name="TransportHBox" type="HBoxContainer" parent="TransportContainer" unique_id=551234222]
+layout_mode = 2
+theme_override_constants/separation = 10
+
+[node name="BPMLabel" type="Label" parent="TransportContainer/TransportHBox"]
+layout_mode = 2
+text = "BPM"
+vertical_alignment = 1
+
+[node name="BPMSpinBox" type="SpinBox" parent="TransportContainer/TransportHBox" unique_id=765432109]
+unique_name_in_owner = true
+layout_mode = 2
+min_value = 40.0
+max_value = 240.0
+value = 120.0
+alignment = 1
+
+[node name="VSeparator" type="VSeparator" parent="TransportContainer/TransportHBox"]
+layout_mode = 2
+
+[node name="PlayButton" type="Button" parent="TransportContainer/TransportHBox" unique_id=2100523467]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(60, 30)
+layout_mode = 2
+text = "Play"
+
+[node name="StopButton" type="Button" parent="TransportContainer/TransportHBox" unique_id=1473458188]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(60, 30)
+layout_mode = 2
+text = "Stop"
+
+[node name="RecordButton" type="Button" parent="TransportContainer/TransportHBox" unique_id=991238475]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(30, 30)
+layout_mode = 2
+toggle_mode = true
+text = "●"
 
 [node name="TopRightButtons" type="HBoxContainer" parent="SettingsContainer" unique_id=1849203846]
 unique_name_in_owner = true

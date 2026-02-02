@@ -60,9 +60,10 @@ func _update_ticks_visual() -> void:
 	for i in range(ticks.size()):
 		var tick = ticks[i]
 		
-		# Priority 1: Playhead (Current playback position) -> RED
-		if i == _active_beat_index:
-			tick.color = Color(1.0, 0.2, 0.2) # Active Red
+		# Priority 1: Playhead (Battery Style Fill)
+		# 현재 박자까지 모두 채움 (0..._active_beat_index)
+		if _active_beat_index != -1 and i <= _active_beat_index:
+			tick.color = Color(1.0, 0.8, 0.2) # Active Gold/Yellow (Battery Fill)
 			
 		# Priority 2: Hover Preview (Progress bar style) -> White/Bright
 		elif _hover_beat_index != -1 and i <= _hover_beat_index:

@@ -28,133 +28,82 @@ grow_vertical = 0
 theme = ExtResource("3_4wjan")
 theme_override_constants/margin_bottom = 40
 
-[node name="VBoxContainer" type="VBoxContainer" parent="RootMargin" unique_id=139187317]
+[node name="MainPanel" type="PanelContainer" parent="RootMargin" unique_id=662601037]
 layout_mode = 2
 
-[node name="PanelContainer" type="PanelContainer" parent="RootMargin/VBoxContainer" unique_id=662601037]
-layout_mode = 2
-
-[node name="InnerMargin" type="MarginContainer" parent="RootMargin/VBoxContainer/PanelContainer" unique_id=777644062]
+[node name="InnerMargin" type="MarginContainer" parent="RootMargin/MainPanel" unique_id=777644062]
 layout_mode = 2
 theme_override_constants/margin_left = 10
-theme_override_constants/margin_top = 10
+theme_override_constants/margin_top = 5
 theme_override_constants/margin_right = 10
-theme_override_constants/margin_bottom = 10
+theme_override_constants/margin_bottom = 5
 
-[node name="VBoxContainer" type="VBoxContainer" parent="RootMargin/VBoxContainer/PanelContainer/InnerMargin" unique_id=719714234]
+[node name="MainVBox" type="VBoxContainer" parent="RootMargin/MainPanel/InnerMargin" unique_id=502938471]
 layout_mode = 2
-size_flags_horizontal = 4
-size_flags_vertical = 4
+theme_override_constants/separation = 5
 alignment = 1
 
-[node name="ControlsContainer" type="HBoxContainer" parent="RootMargin/VBoxContainer/PanelContainer/InnerMargin/VBoxContainer" unique_id=502938471]
+[node name="ToolbarHBox" type="HBoxContainer" parent="RootMargin/MainPanel/InnerMargin/MainVBox" unique_id=641263888]
 layout_mode = 2
+theme_override_constants/separation = 8
 alignment = 1
 
-[node name="Label" type="Label" parent="RootMargin/VBoxContainer/PanelContainer/InnerMargin/VBoxContainer/ControlsContainer" unique_id=1239048123]
-layout_mode = 2
-text = "Bars:"
-
-[node name="BarCountSpinBox" type="SpinBox" parent="RootMargin/VBoxContainer/PanelContainer/InnerMargin/VBoxContainer/ControlsContainer" unique_id=482930123]
+[node name="BarCountSpinBox" type="SpinBox" parent="RootMargin/MainPanel/InnerMargin/MainVBox/ToolbarHBox" unique_id=482930123]
 unique_name_in_owner = true
 layout_mode = 2
 min_value = 2.0
 max_value = 8.0
 value = 4.0
+suffix = "Bars"
 
-[node name="VSeparator" type="VSeparator" parent="RootMargin/VBoxContainer/PanelContainer/InnerMargin/VBoxContainer/ControlsContainer" unique_id=239482012]
-layout_mode = 2
-theme_override_constants/separation = 20
-
-[node name="SplitBarButton" type="Button" parent="RootMargin/VBoxContainer/PanelContainer/InnerMargin/VBoxContainer/ControlsContainer" unique_id=293847102]
+[node name="SplitBarButton" type="Button" parent="RootMargin/MainPanel/InnerMargin/MainVBox/ToolbarHBox" unique_id=293847102]
 unique_name_in_owner = true
+custom_minimum_size = Vector2(30, 30)
 layout_mode = 2
-text = "Split/Merge Bar"
+tooltip_text = "Split Selected Bar"
+text = "✂"
 disabled = true
 
-[node name="VSeparator2" type="VSeparator" parent="RootMargin/VBoxContainer/PanelContainer/InnerMargin/VBoxContainer/ControlsContainer" unique_id=987654321]
+[node name="VSeparator3" type="VSeparator" parent="RootMargin/MainPanel/InnerMargin/MainVBox/ToolbarHBox"]
 layout_mode = 2
-theme_override_constants/separation = 20
 
-[node name="BPMLabel" type="Label" parent="RootMargin/VBoxContainer/PanelContainer/InnerMargin/VBoxContainer/ControlsContainer" unique_id=876543210]
-layout_mode = 2
-text = "BPM:"
-
-[node name="BPMSpinBox" type="SpinBox" parent="RootMargin/VBoxContainer/PanelContainer/InnerMargin/VBoxContainer/ControlsContainer" unique_id=765432109]
+[node name="LibraryButton" type="Button" parent="RootMargin/MainPanel/InnerMargin/MainVBox/ToolbarHBox" unique_id=981237654]
 unique_name_in_owner = true
+custom_minimum_size = Vector2(100, 30)
 layout_mode = 2
-min_value = 40.0
-max_value = 240.0
-value = 120.0
+text = "Song Library"
 
-[node name="VSeparator3" type="VSeparator" parent="RootMargin/VBoxContainer/PanelContainer/InnerMargin/VBoxContainer/ControlsContainer" unique_id=1122334455]
-layout_mode = 2
-theme_override_constants/separation = 20
-
-[node name="LibraryButton" type="Button" parent="RootMargin/VBoxContainer/PanelContainer/InnerMargin/VBoxContainer/ControlsContainer" unique_id=981237654]
+[node name="ClearMelodyButton" type="Button" parent="RootMargin/MainPanel/InnerMargin/MainVBox/ToolbarHBox" unique_id=881234567]
 unique_name_in_owner = true
-custom_minimum_size = Vector2(40, 30)
+custom_minimum_size = Vector2(30, 30)
 layout_mode = 2
-text = "📖"
-
-[node name="SlotContainer" type="HBoxContainer" parent="RootMargin/VBoxContainer/PanelContainer/InnerMargin/VBoxContainer" unique_id=154152354]
-unique_name_in_owner = true
-layout_mode = 2
-theme_override_constants/separation = 10
-alignment = 1
-
-[node name="PanelContainer2" type="PanelContainer" parent="RootMargin/VBoxContainer" unique_id=181281439]
-layout_mode = 2
-
-[node name="InnerMargin" type="MarginContainer" parent="RootMargin/VBoxContainer/PanelContainer2" unique_id=250626872]
-layout_mode = 2
-theme_override_constants/margin_top = 5
-theme_override_constants/margin_bottom = 5
-
-[node name="HBoxContainer" type="HBoxContainer" parent="RootMargin/VBoxContainer/PanelContainer2/InnerMargin" unique_id=641263888]
-layout_mode = 2
-size_flags_horizontal = 4
-size_flags_vertical = 4
-alignment = 1
-
-[node name="PlayButton" type="Button" parent="RootMargin/VBoxContainer/PanelContainer2/InnerMargin/HBoxContainer" unique_id=2100523467]
-unique_name_in_owner = true
-custom_minimum_size = Vector2(60, 30)
-layout_mode = 2
-size_flags_horizontal = 4
-size_flags_vertical = 4
-text = "Play"
-
-[node name="StopButton" type="Button" parent="RootMargin/VBoxContainer/PanelContainer2/InnerMargin/HBoxContainer" unique_id=1473458188]
-unique_name_in_owner = true
-custom_minimum_size = Vector2(60, 30)
-layout_mode = 2
-size_flags_horizontal = 4
-size_flags_vertical = 4
-text = "Stop"
-
-[node name="RecordButton" type="Button" parent="RootMargin/VBoxContainer/PanelContainer2/InnerMargin/HBoxContainer" unique_id=991238475]
-unique_name_in_owner = true
-custom_minimum_size = Vector2(40, 30)
-layout_mode = 2
-toggle_mode = true
-text = "●"
-
-[node name="ClearMelodyButton" type="Button" parent="RootMargin/VBoxContainer/PanelContainer2/InnerMargin/HBoxContainer" unique_id=881234567]
-unique_name_in_owner = true
-custom_minimum_size = Vector2(40, 30)
-layout_mode = 2
-tooltip_text = "Clear Melody (Shift+Del)"
-text = "🗑"
+tooltip_text = "Reset Melody (Shift+Del)"
+text = "⟲"
 focus_mode = 0
 
-[node name="QuantizeButton" type="Button" parent="RootMargin/VBoxContainer/PanelContainer2/InnerMargin/HBoxContainer" unique_id=771234567]
+[node name="QuantizeButton" type="Button" parent="RootMargin/MainPanel/InnerMargin/MainVBox/ToolbarHBox" unique_id=771234567]
 unique_name_in_owner = true
-custom_minimum_size = Vector2(40, 30)
+custom_minimum_size = Vector2(30, 30)
 layout_mode = 2
 tooltip_text = "Quantize Melody (Q)"
 text = "Q"
 focus_mode = 0
+
+[node name="SequencerScroll" type="ScrollContainer" parent="RootMargin/MainPanel/InnerMargin/MainVBox" unique_id=551234888]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+custom_minimum_size = Vector2(0, 90)
+horizontal_scroll_mode = 0
+vertical_scroll_mode = 0
+
+[node name="SlotContainer" type="VBoxContainer" parent="RootMargin/MainPanel/InnerMargin/MainVBox/SequencerScroll" unique_id=154152354]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+theme_override_constants/separation = 10
+alignment = 1
 
 [node name="LoopOverlayPanel" type="Panel" parent="." unique_id=987123654]
 unique_name_in_owner = true
