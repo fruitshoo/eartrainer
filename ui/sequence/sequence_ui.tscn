@@ -43,6 +43,22 @@ layout_mode = 2
 theme_override_constants/separation = 5
 alignment = 1
 
+[node name="SequencerScroll" type="ScrollContainer" parent="RootMargin/MainPanel/InnerMargin/MainVBox" unique_id=551234888]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+custom_minimum_size = Vector2(0, 90)
+horizontal_scroll_mode = 0
+vertical_scroll_mode = 0
+
+[node name="SlotContainer" type="VBoxContainer" parent="RootMargin/MainPanel/InnerMargin/MainVBox/SequencerScroll" unique_id=154152354]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+theme_override_constants/separation = 10
+alignment = 1
+
 [node name="ToolbarHBox" type="HBoxContainer" parent="RootMargin/MainPanel/InnerMargin/MainVBox" unique_id=641263888]
 layout_mode = 2
 theme_override_constants/separation = 8
@@ -88,22 +104,6 @@ layout_mode = 2
 tooltip_text = "Quantize Melody (Q)"
 text = "Q"
 focus_mode = 0
-
-[node name="SequencerScroll" type="ScrollContainer" parent="RootMargin/MainPanel/InnerMargin/MainVBox" unique_id=551234888]
-unique_name_in_owner = true
-layout_mode = 2
-size_flags_horizontal = 3
-custom_minimum_size = Vector2(0, 90)
-horizontal_scroll_mode = 0
-vertical_scroll_mode = 0
-
-[node name="SlotContainer" type="VBoxContainer" parent="RootMargin/MainPanel/InnerMargin/MainVBox/SequencerScroll" unique_id=154152354]
-unique_name_in_owner = true
-layout_mode = 2
-size_flags_horizontal = 3
-size_flags_vertical = 3
-theme_override_constants/separation = 10
-alignment = 1
 
 [node name="LoopOverlayPanel" type="Panel" parent="." unique_id=987123654]
 unique_name_in_owner = true

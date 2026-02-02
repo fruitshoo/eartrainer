@@ -12,7 +12,8 @@ const BEAT_DOT_OFF_COLOR := Color(0.3, 0.3, 0.3, 0.5)
 # ============================================================
 # NODE REFERENCES
 # ============================================================
-@onready var key_label: Label = %KeyLabel
+@onready var key_button: Button = %KeyButton
+@onready var key_selector_popup: PopupPanel = %KeySelectorPopup
 @onready var chord_label: Label = %ChordLabel
 @onready var beat_container: HBoxContainer = %BeatContainer # 비트 도트 컨테이너
 @onready var settings_button: Button = %SettingsButton # [New]
@@ -38,6 +39,10 @@ var _current_sequencer_step: int = -1 # 시퀀서 현재 스텝 추적 (EventBus
 # ============================================================
 func _ready() -> void:
 	GameManager.settings_changed.connect(_update_display)
+	if key_button:
+		key_button.pressed.connect(_on_key_button_pressed)
+		key_button.focus_mode = Control.FOCUS_NONE
+	
 	EventBus.beat_pulsed.connect(_on_beat_pulsed)
 	EventBus.bar_changed.connect(_on_bar_changed)
 	EventBus.beat_updated.connect(_on_beat_updated)
@@ -168,13 +173,13 @@ func _setup_beat_indicators() -> void:
 # DISPLAY UPDATE
 # ============================================================
 func _update_display() -> void:
-	if not key_label or not chord_label:
+	if not key_button or not chord_label:
 		return
 	
 	var use_flats := MusicTheory.should_use_flats(GameManager.current_key, GameManager.current_mode)
 	var key_name := MusicTheory.get_note_name(GameManager.current_key, use_flats)
 	var mode_name := "MAJOR" if GameManager.current_mode == MusicTheory.ScaleMode.MAJOR else "MINOR"
-	key_label.text = "[ %s %s ]" % [key_name, mode_name]
+	key_button.text = "[ %s %s ]" % [key_name, mode_name]
 	
 	var chord_root: int = GameManager.current_chord_root
 	var chord_type: String = GameManager.current_chord_type
@@ -319,3 +324,10 @@ func _on_recording_stopped() -> void:
 	if record_button:
 		record_button.set_pressed_no_signal(false)
 		record_button.modulate = Color.WHITE
+
+func _on_key_button_pressed() -> void:
+	if key_selector_popup:
+		if key_selector_popup.visible:
+			key_selector_popup.hide()
+		else:
+			key_selector_popup.popup_centered_under_control(key_button)
