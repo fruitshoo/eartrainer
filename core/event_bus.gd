@@ -38,6 +38,7 @@ signal sequencer_stopped
 signal sequencer_playing_changed(is_playing: bool) # 재생 상태 변경 알림
 signal request_toggle_playback # 재생/일시정지 토글 요청
 signal request_stop_playback # 정지 및 리셋 요청
+signal request_toggle_recording # [New] 녹음 토글 요청
 signal bar_changed(slot_index: int)
 signal beat_pulsed # 메트로놈 비트 펄스
 signal sequencer_step_beat_changed(step: int, beat: int) # [New]

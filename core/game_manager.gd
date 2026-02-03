@@ -59,6 +59,7 @@ var is_metronome_enabled: bool = true: # 메트로놈 소리 켜기/끄기
 		is_metronome_enabled = value
 		if AudioEngine:
 			AudioEngine.set_metronome_enabled(value)
+		settings_changed.emit()
 
 var bpm: int = 120: # 템포 (BPM)
 	set(value):
@@ -124,8 +125,10 @@ func _unhandled_input(event: InputEvent) -> void:
 		EventBus.request_toggle_settings.emit()
 	
 	if event is InputEventKey and event.pressed:
-		if event.keycode == KEY_M:
+		if event.keycode == KEY_TAB: # [New] Toggle Mode
 			_toggle_mode()
+		elif event.keycode == KEY_M: # [New] Toggle Metronome
+			is_metronome_enabled = !is_metronome_enabled
 		elif event.keycode >= KEY_1 and event.keycode <= KEY_7:
 			_apply_diatonic_chord(event.keycode)
 

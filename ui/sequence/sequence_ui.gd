@@ -417,16 +417,7 @@ func _unhandled_input(event: InputEvent) -> void:
 			EventBus.request_toggle_playback.emit()
 			get_viewport().set_input_as_handled()
 		elif event.keycode == KEY_R:
-			EventBus.request_toggle_recording.emit() # Need to define this signal or handle differently
-			# Since we removed the record button toggle logic from here, we should probably emit a request.
-			# But for now let's assume HUD handles UI, but key shortcut might need a manager or bus signal.
-			# Let's keep existing logic but directly call manager?
-			# Actually, we should probably add `request_toggle_recording` to EventBus for consistency.
-			# For now, let's just do:
-			var mm = GameManager.get_node_or_null("MelodyManager")
-			if mm:
-				if mm.is_recording: mm.stop_recording()
-				else: mm.start_recording()
+			EventBus.request_toggle_recording.emit()
 			get_viewport().set_input_as_handled()
 		elif event.keycode == KEY_BACKSPACE or event.keycode == KEY_DELETE:
 			# Only if not editing text (simple check: focus mode)

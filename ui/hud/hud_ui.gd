@@ -22,6 +22,7 @@ const BEAT_DOT_OFF_COLOR := Color(0.3, 0.3, 0.3, 0.5)
 @onready var record_button: Button = %RecordButton
 @onready var bpm_spin_box: SpinBox = %BPMSpinBox
 @onready var metronome_button: Button = %MetronomeButton
+@onready var settings_button: Button = %SettingsButton # [New]
 
 # ============================================================
 # STATE
@@ -46,12 +47,10 @@ func _ready() -> void:
 	EventBus.settings_visibility_changed.connect(_on_settings_visibility_changed)
 	EventBus.debug_log.connect(_on_debug_log) # [New]
 	EventBus.sequencer_playing_changed.connect(_on_sequencer_playing_changed)
+	EventBus.request_toggle_recording.connect(_on_request_toggle_recording) # [New]
 	
 	# Melody Managers
-	var melody_manager = GameManager.get_node_or_null("MelodyManager")
-	if melody_manager:
-		melody_manager.recording_started.connect(_on_recording_started)
-		melody_manager.recording_stopped.connect(_on_recording_stopped)
+	# Moved to _delayed_setup to ensure GameManager initialization
 	
 	if play_button:
 		play_button.pressed.connect(func(): EventBus.request_toggle_playback.emit())
@@ -67,6 +66,13 @@ func _ready() -> void:
 	if record_button:
 		record_button.toggled.connect(_on_record_toggled)
 		record_button.focus_mode = Control.FOCUS_NONE
+
+	if metronome_button:
+		metronome_button.button_pressed = GameManager.is_metronome_enabled
+		metronome_button.toggled.connect(func(toggled):
+			GameManager.is_metronome_enabled = toggled
+		)
+		metronome_button.focus_mode = Control.FOCUS_NONE
 		
 	if bpm_spin_box:
 		bpm_spin_box.value = GameManager.bpm
@@ -77,13 +83,28 @@ func _ready() -> void:
 			le.focus_mode = Control.FOCUS_NONE
 			le.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	
-
+	if settings_button:
+		settings_button.pressed.connect(func(): EventBus.request_toggle_settings.emit())
+		settings_button.focus_mode = Control.FOCUS_NONE
+	
 	_setup_visual_style()
 	call_deferred("_delayed_setup")
 
 func _delayed_setup() -> void:
 	await get_tree().process_frame
+	
+	# Connect MelodyManager (Delayed to ensure existence)
+	var melody_manager = GameManager.get_node_or_null("MelodyManager")
+	if melody_manager:
+		if not melody_manager.recording_started.is_connected(_on_recording_started):
+			melody_manager.recording_started.connect(_on_recording_started)
+		if not melody_manager.recording_stopped.is_connected(_on_recording_stopped):
+			melody_manager.recording_stopped.connect(_on_recording_stopped)
+	else:
+		print("[HUD] MelodyManager not found in _delayed_setup")
+
 	_update_display()
+	_update_metronome_visual() # [New] Initial sync
 
 func _on_debug_log(msg: String) -> void:
 	var label = %DebugLabel
@@ -124,7 +145,23 @@ func _setup_visual_style() -> void:
 # ============================================================
 # DISPLAY UPDATE
 # ============================================================
+# [New] Update Metronome Button Visuals
+func _update_metronome_visual() -> void:
+	if metronome_button:
+		# Update both pressed state and visual style
+		metronome_button.set_pressed_no_signal(GameManager.is_metronome_enabled)
+		
+		# Optional: Add color feedback if needed, but toggle state usually implies style change
+		# For now, rely on Theme's toggle style, or add modulate if desired.
+		if GameManager.is_metronome_enabled:
+			metronome_button.modulate = Color(0.7, 1.0, 0.7) # Light Green hint
+		else:
+			metronome_button.modulate = Color.WHITE
+
 func _update_display() -> void:
+	# [New] Also update metronome visual in case it changed externally
+	_update_metronome_visual()
+
 	if not key_button:
 		return
 	
@@ -235,6 +272,13 @@ func _on_record_toggled(toggled: bool) -> void:
 		else:
 			if melody_manager.is_recording:
 				melody_manager.stop_recording()
+
+func _on_request_toggle_recording() -> void:
+	if record_button:
+		# Toggle the button state, which triggers _on_record_toggled
+		# But if we just toggle, we need to ensure we don't double trigger if it's already in the desired state (?)
+		# Actually, toggle() emits toggled signal.
+		record_button.button_pressed = not record_button.button_pressed
 
 func _on_recording_started() -> void:
 	if record_button:
