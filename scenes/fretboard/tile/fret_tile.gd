@@ -179,9 +179,8 @@ func _animate_material(color: Color, energy: float) -> void:
 		mat = mesh.get_active_material(0).duplicate()
 		mesh.set_surface_override_material(0, mat)
 	
-	# [v0.7] Toy Look: Matte Finish
-	mat.roughness = 1.0
-	mat.metallic = 0.0
+	# [v0.7] Toy Look Override Removed
+	# Uses standard material glossiness
 	
 	if _active_tween:
 		_active_tween.kill()

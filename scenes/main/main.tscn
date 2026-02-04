@@ -16,7 +16,7 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -1, -8)
 
 [node name="StageSpotlight" type="SpotLight3D" parent="." unique_id=599281333]
 transform = Transform3D(1, 0, 0, 0, -4.37114e-08, 1, 0, -1, -4.37114e-08, 0, 15, -8)
-light_energy = 8.0
+light_energy = 5.0
 shadow_enabled = true
 spot_range = 40.0
 spot_attenuation = 0.5

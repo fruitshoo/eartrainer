@@ -108,7 +108,7 @@ var is_rhythm_mode_enabled: bool = false:
 		settings_changed.emit()
 
 # [v0.5] Theme Support
-var current_theme_name: String = "Pastel":
+var current_theme_name: String = "Default":
 	set(value):
 		if current_theme_name != value:
 			current_theme_name = value
@@ -286,7 +286,12 @@ func _deserialize_settings(data: Dictionary) -> void:
 	camera_deadzone = float(data.get("camera_deadzone", 4.0))
 	is_rhythm_mode_enabled = data.get("is_rhythm_mode_enabled", false)
 	default_preset_name = data.get("default_preset_name", "")
-	current_theme_name = data.get("current_theme_name", "Default") # [New]
+	var loaded_theme = data.get("current_theme_name", "Default")
+	# [Migration] Force Default if Pastel is loaded (Fix stuck pink theme)
+	if loaded_theme == "Pastel":
+		current_theme_name = "Default"
+	else:
+		current_theme_name = loaded_theme
 	
 	var vol_settings = data.get("volume_settings", {})
 	if not vol_settings.is_empty():
