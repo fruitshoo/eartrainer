@@ -108,6 +108,11 @@ func _ready() -> void:
 	library_tab.pressed.connect(func(): _switch_tab(Tab.LIBRARY))
 	ear_trainer_tab.pressed.connect(func(): _switch_tab(Tab.EAR_TRAINER))
 	
+	# [Fix] Prevent Spacebar from re-triggering tabs (re-opening panel)
+	settings_tab.focus_mode = Control.FOCUS_NONE
+	library_tab.focus_mode = Control.FOCUS_NONE
+	ear_trainer_tab.focus_mode = Control.FOCUS_NONE
+	
 	# EventBus 연결
 	EventBus.request_toggle_settings.connect(toggle)
 	EventBus.request_show_side_panel_tab.connect(_on_request_show_tab)
@@ -197,6 +202,17 @@ func set_open(open: bool) -> void:
 		is_open = open
 		_animate_slide(open)
 		
+		# [Auto-Stop] If closing Ear Trainer, stop quiz
+		if not open and current_tab == Tab.EAR_TRAINER:
+			QuizManager.stop_quiz()
+		
+		# [Fix] Release focus when closing to prevent lingering inputs (e.g. Spacebar triggers hidden buttons)
+		if not open:
+			# If a child of this panel has focus, release it
+			var focus_owner = get_viewport().gui_get_focus_owner()
+			if focus_owner and is_ancestor_of(focus_owner):
+				focus_owner.release_focus()
+		
 		toggled.emit(open)
 		# 열릴 때 EventBus 등으로 알림 가능
 		EventBus.settings_visibility_changed.emit(open)
@@ -239,6 +255,10 @@ func _switch_tab(tab: Tab, animate: bool = true) -> void:
 		# 같은 탭 클릭시 토글
 		toggle()
 		return
+	
+	# [Auto-Stop] If switching FROM Ear Trainer TO something else
+	if current_tab == Tab.EAR_TRAINER and tab != Tab.EAR_TRAINER:
+		QuizManager.stop_quiz()
 	
 	current_tab = tab
 	
@@ -531,6 +551,67 @@ func _init_ear_trainer_tab() -> void:
 	
 	_populate_et_grid()
 	_sync_et_state()
+	
+	# [UI Update] Rearrange Controls to Top & Add Exit Button
+	call_deferred("_rearrange_et_ui")
+
+func _rearrange_et_ui() -> void:
+	# 1. Provide Exit Button
+	if et_replay_btn:
+		var actions_hbox = et_replay_btn.get_parent()
+		if actions_hbox:
+			pass
+			# [User Request] Removed explicit Exit button.
+			# Using Auto-Stop on panel close/switch instead.
+			# 2. Move ActionsHBox to TOP (Outside ScrollContainer)
+			# Structure: ContentContainer (Control) -> EarTrainerContent (Scroll) -> Margin -> VBox -> ActionsHBox
+			# Goal: ContentContainer -> NewVBox -> [ActionsHBox, EarTrainerContent]
+			var scroll_container = ear_trainer_content
+			if not scroll_container: return
+			
+			var content_container = scroll_container.get_parent()
+			if not content_container: return
+			
+			# Create Wrapper VBox
+			var wrapper = VBoxContainer.new()
+			wrapper.set_anchors_preset(Control.PRESET_FULL_RECT) # Fill Space
+			wrapper.name = "EarTrainerWrapper"
+			wrapper.visible = scroll_container.visible # Sync visibility
+			
+			# Swap in ContentContainer
+			content_container.add_child(wrapper)
+			content_container.move_child(wrapper, scroll_container.get_index())
+			
+			# Move ScrollContainer into Wrapper
+			scroll_container.reparent(wrapper)
+			scroll_container.size_flags_vertical = Control.SIZE_EXPAND_FILL # Take remaining space
+			scroll_container.visible = true # [Fix] Ensure it's visible inside the wrapper
+			
+			# Move ActionsHBox into Wrapper (At Top)
+			# First, ensure it has a margin/padding?
+			var actions_margin = MarginContainer.new()
+			actions_margin.add_theme_constant_override("margin_top", 8)
+			actions_margin.add_theme_constant_override("margin_left", 12)
+			actions_margin.add_theme_constant_override("margin_right", 12)
+			actions_margin.add_theme_constant_override("margin_bottom", 4)
+			wrapper.add_child(actions_margin)
+			wrapper.move_child(actions_margin, 0)
+			
+			actions_hbox.reparent(actions_margin)
+			
+			# Update reference in tab switching if needed?
+			# _show_content toggles `ear_trainer_content.visible`.
+			# But now `ear_trainer_content` is inside `wrapper`.
+			# We need `wrapper` to be the one toggled?
+			# Or we just let `ear_trainer_content` be toggled, but `wrapper` is always visible?
+			# If `wrapper` is visible but correct `ear_trainer_content` is hidden, buttons remain visible?
+			# Yes. We need `wrapper` to replace `ear_trainer_content` in the `_show_content` logic.
+			# So we must update the `ear_trainer_content` reference to point to `wrapper`.
+			ear_trainer_content = wrapper
+			# Wait, `ear_trainer_content` is `@onready var`. Changing it works for GDScript logic.
+			# But `_show_content` uses `[settings_content, library_content, ear_trainer_content]`.
+			# We need to make sure `wrapper` is what gets hidden/shown.
+			# Yes, assigning `ear_trainer_content = wrapper` will make `_show_content` use wrapper.
 
 func _populate_et_grid() -> void:
 	if not et_interval_grid: return

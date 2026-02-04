@@ -40,6 +40,10 @@ func setup(data: Dictionary, index: int) -> void:
 	_update_default_visual()
 
 func _ready() -> void:
+	# [Theme Fix] Remove visual editor override (White BG) and apply Main Theme
+	remove_theme_stylebox_override("panel")
+	theme = load("res://ui/resources/main_theme.tres")
+	
 	load_button.pressed.connect(func(): load_requested.emit(preset_name))
 	delete_button.pressed.connect(func(): delete_requested.emit(preset_name))
 	default_button.toggled.connect(_on_default_toggled)

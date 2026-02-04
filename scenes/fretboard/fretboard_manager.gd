@@ -48,20 +48,30 @@ func spawn_fret_markers() -> void:
 	# X Pos: Outside the 6th string, on the "Floor".
 	# 6th string center is 3.75. Tile edge is ~4.45 (1.4 width).
 	# Let's put it at 5.5 for clear separation.
+	# 6th string center is 3.75. Tile edge is ~4.45 (1.4 width).
+	# Let's put it at 5.5 for clear separation.
 	var x_pos = 5.5
+	
+	# Load Main Theme for Font
+	var main_theme = load("res://ui/resources/main_theme.tres")
 	
 	for f in marker_frets:
 		var label = Label3D.new()
 		label.text = str(f)
 		
+		# Apply Theme Font
+		if main_theme and main_theme.default_font:
+			label.font = main_theme.default_font
+		
 		# [Style: Printed on Ground]
 		# Flat on the floor
 		label.billboard = BaseMaterial3D.BILLBOARD_DISABLED
-		# Rotate X -90 -> Facing up (Lying flat)
-		label.rotation_degrees = Vector3(-90, 0, 0)
+		# Rotate X -90 -> Flat
+		# Rotate Y 90 -> Opposing side text orientation
+		label.rotation_degrees = Vector3(-90, 90, 0)
 		
 		# Visuals (Studio floor marking style)
-		label.font_size = 96 # Large, clear text
+		label.font_size = 150 # Increased from 96
 		label.outline_render_priority = 0
 		label.modulate = Color(1, 1, 1, 0.4) # Subtle white marking
 		label.alpha_cut = Label3D.ALPHA_CUT_DISABLED # Smooth blending with floor

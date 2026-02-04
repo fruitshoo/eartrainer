@@ -3,6 +3,7 @@
 [ext_resource type="PackedScene" uid="uid://dysc3i00s5p1l" path="res://scenes/fretboard/fretboard_manager.tscn" id="1_ow5a4"]
 [ext_resource type="PackedScene" uid="uid://bt7f8k18nm6ga" path="res://scenes/player/player.tscn" id="2_k2fmo"]
 [ext_resource type="Script" uid="uid://ddy07ttvmepmc" path="res://scenes/main/main_camera.gd" id="3_l3cfh"]
+[ext_resource type="PackedScene" uid="uid://cs231he7e28ir" path="res://scenes/environment/giant_desk.tscn" id="8_yyfjg"]
 [ext_resource type="PackedScene" uid="uid://mainuiscene" path="res://ui/main_ui.tscn" id="9_mainui"]
 [ext_resource type="Environment" uid="uid://dhtj1lxktuwca" path="res://environments/cozy_studio.tres" id="10_env"]
 [ext_resource type="CameraAttributesPractical" uid="uid://c2tpv54fe4hlo" path="res://environments/cozy_attributes.tres" id="11_attr"]
@@ -41,3 +42,5 @@ fov = 25.0
 script = ExtResource("3_l3cfh")
 
 [node name="MainUI" parent="." unique_id=112609361 instance=ExtResource("9_mainui")]
+
+[node name="GiantDesk" parent="." unique_id=103852947 instance=ExtResource("8_yyfjg")]

@@ -1,9 +1,8 @@
 extends Node3D
 
-func _ready() -> void:
-	spawn_props()
 
 func spawn_props() -> void:
+	pass
 	# 1. Giant Desk Surface
 	# Placed below the ground print labels (Y ~ -0.25)
 	var desk = MeshInstance3D.new()

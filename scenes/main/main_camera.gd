@@ -70,9 +70,9 @@ func _process(delta):
 	
 	# [Fix] Dynamic Pitch Constraint (Prevent Clipping when Close)
 	# When Zoomed In (0.3), force steeper angle (max -45 deg).
-	# When Zoomed Out (1.0+), allow shallow angle (max -5 deg).
-	var dynamic_max_pitch_deg = remap(current_zoom, 0.3, 1.0, -45.0, -5.0)
-	dynamic_max_pitch_deg = clamp(dynamic_max_pitch_deg, -85.0, -5.0)
+	# When Zoomed Out (1.0+), allow shallow angle (max -15 deg).
+	var dynamic_max_pitch_deg = remap(current_zoom, 0.3, 1.0, -45.0, -15.0)
+	dynamic_max_pitch_deg = clamp(dynamic_max_pitch_deg, -85.0, -15.0)
 	var dynamic_max_pitch = deg_to_rad(dynamic_max_pitch_deg)
 	
 	# Continually constrain target_pitch
@@ -200,7 +200,8 @@ func _unhandled_input(event):
 			target_pitch -= event.relative.y * orbit_sensitivity * 0.01
 			
 			# Clamp Pitch
-			target_pitch = clamp(target_pitch, deg_to_rad(-85), deg_to_rad(-5))
+			# Max pitch -5 was too low (Horizon). Change to -15 to hide desk underside.
+			target_pitch = clamp(target_pitch, deg_to_rad(-85), deg_to_rad(-15))
 			
 		elif is_dragging:
 			# Pan Logic: Modify Target Drag Offset
