@@ -14,6 +14,7 @@ var string_root_notes = [40, 45, 50, 55, 59, 64]
 
 func _ready():
 	spawn_fretboard()
+	# _spawn_environment_scene() # [Disabled] User will place "scenes/environment/giant_desk.tscn" manually in Main scene.
 	call_deferred("_setup_environment")
 
 func spawn_fretboard():
@@ -38,6 +39,43 @@ func spawn_fretboard():
 			# s=0 이 6번줄(낮은 E)이므로 순서대로 매칭
 			var note = string_root_notes[s] + f
 			tile.setup(s, f, note, labels_layer)
+			
+	# [New] Side Fret Markers (3, 5, 7, 9, 12)
+	spawn_fret_markers()
+
+func spawn_fret_markers() -> void:
+	var marker_frets = [3, 5, 7, 9, 12]
+	# X Pos: Outside the 6th string, on the "Floor".
+	# 6th string center is 3.75. Tile edge is ~4.45 (1.4 width).
+	# Let's put it at 5.5 for clear separation.
+	var x_pos = 5.5
+	
+	for f in marker_frets:
+		var label = Label3D.new()
+		label.text = str(f)
+		
+		# [Style: Printed on Ground]
+		# Flat on the floor
+		label.billboard = BaseMaterial3D.BILLBOARD_DISABLED
+		# Rotate X -90 -> Facing up (Lying flat)
+		label.rotation_degrees = Vector3(-90, 0, 0)
+		
+		# Visuals (Studio floor marking style)
+		label.font_size = 96 # Large, clear text
+		label.outline_render_priority = 0
+		label.modulate = Color(1, 1, 1, 0.4) # Subtle white marking
+		label.alpha_cut = Label3D.ALPHA_CUT_DISABLED # Smooth blending with floor
+		label.double_sided = false # Optimization
+		
+		# Z Position matches fret Z
+		var z_pos = -f * SPACING
+		# Y Position: Ground Level (Tile bottom is -0.25 if centered at 0 with 0.5 height)
+		# Let's put it slightly above ground to avoid z-fighting with a floor plane if exists
+		var y_pos = -0.24
+		
+		label.position = Vector3(x_pos, y_pos, z_pos)
+		
+		add_child(label)
 
 func _setup_environment() -> void:
 	# 1. WorldEnvironment is handled by 'cozy_studio.tres' resource now.
@@ -50,3 +88,10 @@ func _setup_environment() -> void:
 		sun.shadow_blur = 3.0 # Soft shadows
 		sun.light_energy = 1.0 # [Fixed] Reduced from 1.2 to prevent overexposure
 		sun.light_indirect_energy = 1.0 # [Fixed] Reduced indirect bounce
+
+func _spawn_environment_scene() -> void:
+	# Load dedicated environment scene for easier editing
+	var scene = load("res://scenes/environment/giant_desk.tscn")
+	if scene:
+		var instance = scene.instantiate()
+		add_child(instance)

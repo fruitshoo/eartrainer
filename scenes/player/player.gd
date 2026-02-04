@@ -9,6 +9,7 @@ extends Node3D
 const MOVE_DURATION := 0.2 # 빠른 이동 애니메이션
 const JUMP_HEIGHT := 1.5 # 점프 높이
 const DEBOUNCE_TIME := 0.05 # 입력 디바운싱 (30ms)
+const LAND_Y := 0.26 # [Fix] Tile Height(0.5)/2 + Padding. Fixes sinking.
 
 # ============================================================
 # STATE
@@ -34,9 +35,11 @@ func _initialize_position() -> void:
 	)
 	if target_tile:
 		global_position = target_tile.global_position
+		global_position.y = LAND_Y # [Fix] Apply offset
 		GameManager.player_fret = SettingsManager.last_fret
 	else:
 		GameManager.player_fret = SettingsManager.DEFAULT_FRET
+		global_position.y = LAND_Y
 
 # ============================================================
 # INPUT HANDLING
@@ -74,9 +77,16 @@ func jump_to(target_pos: Vector3) -> void:
 	
 	# 수직 이동 (올라갔다 내려오기)
 	_vertical_tween = create_tween()
-	_vertical_tween.tween_property(self, "global_position:y", JUMP_HEIGHT, MOVE_DURATION * 0.5) \
+	# Jump height based on CURRENT Y or LAND_Y? Absolute height.
+	var peak_height = JUMP_HEIGHT
+	# Use target Y (which includes LAND_Y/Offset from caller or we assume caller passes raw pos?)
+	# Caller (on_tile_clicked) passes target_pos from tile.global_position.
+	# We should enforce LAND_Y here too if target_pos.y is 0.
+	var landing_y = target_pos.y + LAND_Y # Assume target_pos is tile origin (y=0)
+	
+	_vertical_tween.tween_property(self, "global_position:y", peak_height, MOVE_DURATION * 0.5) \
 		.set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
-	_vertical_tween.tween_property(self, "global_position:y", target_pos.y, MOVE_DURATION * 0.5) \
+	_vertical_tween.tween_property(self, "global_position:y", landing_y, MOVE_DURATION * 0.5) \
 		.set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
 	
 	_vertical_tween.finished.connect(_on_land, CONNECT_ONE_SHOT)

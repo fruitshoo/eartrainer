@@ -1,0 +1,6 @@
+[gd_scene format=3 uid="uid://cs231he7e28ir"]
+
+[ext_resource type="Script" uid="uid://mrfel2cdt5i6" path="res://scenes/environment/giant_desk.gd" id="1_script"]
+
+[node name="GiantDesk" type="Node3D" unique_id=103852947]
+script = ExtResource("1_script")

@@ -67,6 +67,18 @@ func _process(delta):
 	# -----------------------------------------------
 	# 2. Update Orbit Rotation (Smooth)
 	# -----------------------------------------------
+	
+	# [Fix] Dynamic Pitch Constraint (Prevent Clipping when Close)
+	# When Zoomed In (0.3), force steeper angle (max -45 deg).
+	# When Zoomed Out (1.0+), allow shallow angle (max -5 deg).
+	var dynamic_max_pitch_deg = remap(current_zoom, 0.3, 1.0, -45.0, -5.0)
+	dynamic_max_pitch_deg = clamp(dynamic_max_pitch_deg, -85.0, -5.0)
+	var dynamic_max_pitch = deg_to_rad(dynamic_max_pitch_deg)
+	
+	# Continually constrain target_pitch
+	if target_pitch > dynamic_max_pitch:
+		target_pitch = dynamic_max_pitch
+	
 	current_yaw = lerp(current_yaw, target_yaw, delta * rotation_speed)
 	current_pitch = lerp(current_pitch, target_pitch, delta * rotation_speed)
 
@@ -97,11 +109,21 @@ func _process(delta):
 	# -----------------------------------------------
 	_update_transform()
 	
+	# -----------------------------------------------
+	# 5. Update Transform
+	# -----------------------------------------------
 	_update_transform()
 	
 	# [v0.8.1] DOF Focus for Ortho/Perspective
 	# Update focus distance regardless of projection to prevent blurry artifacts
-	var focus_target = current_pivot + drag_offset
+	
+	# [Fix] Auto-Focus: Use exact player position (ignoring deadzone/smoothing)
+	var focus_target = current_pivot # Default fallback
+	if GameManager.current_player:
+		focus_target = GameManager.current_player.global_position
+		
+	focus_target += drag_offset # Include pan offset? Probably yes, since user looks there.
+	
 	_update_dof(focus_target)
 
 func _update_transform():
@@ -116,10 +138,28 @@ func _update_dof(target_pos: Vector3):
 	if not attributes or not (attributes is CameraAttributesPractical): return
 	
 	var dist = global_position.distance_to(target_pos)
+	
+	# [Fix] Zoom-based DOF Intensity
+	# When Zoomed In (Size small, current_zoom small) -> High Blur (0.1)
+	# When Zoomed Out (Size large, current_zoom large) -> Low Blur (0.0)
+	
+	# current_zoom: 0.3 (Close) ~ 2.0 (Far)
+	# Remap: 0.5 -> 1.0 Blur, 1.5 -> 0.0 Blur
+	var blur_intensity = remap(current_zoom, 0.5, 1.5, 0.1, 0.0)
+	blur_intensity = clamp(blur_intensity, 0.0, 0.1)
+	
+	attributes.dof_blur_amount = blur_intensity
+	
+	# Also control Range
 	var dynamic_range = dof_sharpness_range * current_zoom
 	
 	attributes.dof_blur_far_distance = dist + dynamic_range
 	attributes.dof_blur_near_distance = max(0.1, dist - dynamic_range)
+	
+	# Fully disable if blur is effectively zero to save performance/artifacts
+	var dof_enabled = blur_intensity > 0.001
+	attributes.dof_blur_far_enabled = dof_enabled
+	attributes.dof_blur_near_enabled = dof_enabled
 
 func _unhandled_input(event):
 	if event is InputEventMouseButton:
@@ -140,12 +180,14 @@ func _unhandled_input(event):
 			if event.double_click:
 				reset_view()
 
-		# Right Button -> Orbit
+	# Right Button -> Orbit
 		if event.button_index == MOUSE_BUTTON_RIGHT:
 			if event.pressed:
 				is_orbiting = true
 				is_dragging = false
-				Input.set_mouse_mode(Input.MOUSE_MODE_CAPTURED)
+				# [Fix] Use HIDDEN instead of CAPTURED to avoid cursor centering jump
+				# This limits rotation to screen bounds, but prevents the annoying center snap.
+				Input.set_mouse_mode(Input.MOUSE_MODE_HIDDEN)
 			else:
 				is_orbiting = false
 				Input.set_mouse_mode(Input.MOUSE_MODE_VISIBLE)

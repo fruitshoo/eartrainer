@@ -24,6 +24,8 @@ var slot_button_scene: PackedScene = preload("res://ui/sequence/slot_button.tscn
 # ============================================================
 # LIFECYCLE
 # ============================================================
+var context_menu: PopupMenu # [New] Context Menu
+
 func _ready() -> void:
 	# Manager Signals
 	ProgressionManager.slot_selected.connect(_highlight_selected)
@@ -74,7 +76,10 @@ func _ready() -> void:
 	# [New] Close Library Request
 	EventBus.request_close_library.connect(_close_library_panel)
 	
+	_setup_context_menu() # [New]
+	
 	# Initial Setup
+
 	_setup_loop_overlay_style()
 	_sync_ui_from_manager()
 	_rebuild_slots()
@@ -100,9 +105,38 @@ func _setup_loop_overlay_style() -> void:
 	
 	loop_overlay_panel.add_theme_stylebox_override("panel", style)
 
+	loop_overlay_panel.add_theme_stylebox_override("panel", style)
+
+## [New] Context Menu Setup
+func _setup_context_menu() -> void:
+	context_menu = PopupMenu.new()
+	context_menu.name = "ChordContextMenu"
+	add_child(context_menu)
+	
+	# Apply Main Theme
+	var main_theme = load("res://ui/resources/main_theme.tres")
+	if main_theme:
+		context_menu.theme = main_theme
+	
+	# Optional: Override Panel style if needed, but theme should handle it.
+	
+	context_menu.id_pressed.connect(_on_context_menu_id_pressed)
+	
+	# [New] Setup Submenu
+	var special_menu = PopupMenu.new()
+	special_menu.name = "SpecialVoicingsMenu"
+	context_menu.add_child(special_menu) # Add as child of context_menu to associate
+	
+	# Apply same theme
+	if main_theme:
+		special_menu.theme = main_theme
+		
+	special_menu.id_pressed.connect(_on_special_menu_id_pressed)
+
 # ============================================================
 # UI LOGIC
 # ============================================================
+
 
 func _sync_ui_from_manager() -> void:
 	bar_count_spin_box.set_value_no_signal(ProgressionManager.bar_count)
@@ -282,7 +316,8 @@ func _on_slot_beat_clicked(slot_idx: int, beat_idx: int) -> void:
 	%Sequencer.seek(slot_idx, beat_idx)
 
 func _on_slot_right_clicked(index: int) -> void:
-	ProgressionManager.clear_slot(index)
+	# ProgressionManager.clear_slot(index) # [Old] Instant Delete
+	_show_chord_context_menu(index)
 
 func _on_loop_range_changed(_start: int, _end: int) -> void:
 	# 루프 범위가 바뀌면 하이라이트 갱신
@@ -299,12 +334,15 @@ func _update_loop_overlay() -> void:
 	var start = ProgressionManager.loop_start_index
 	var end = ProgressionManager.loop_end_index
 	
-	if start == -1 or end == -1 or start >= slot_container.get_child_count() or end >= slot_container.get_child_count():
+	# [Fix] Validate end index as well
+	var buttons = _get_all_slot_buttons()
+
+	if start == -1 or end == -1 or start >= buttons.size() or end >= buttons.size():
 		loop_overlay_panel.visible = false
 		return
 		
-	var start_node = slot_container.get_child(start)
-	var end_node = slot_container.get_child(end)
+	var start_node = buttons[start]
+	var end_node = buttons[end]
 	
 	if not (start_node is Control) or not (end_node is Control):
 		loop_overlay_panel.visible = false
@@ -318,6 +356,7 @@ func _update_loop_overlay() -> void:
 	
 	# Merge Rects
 	var full_rect = start_rect.merge(end_rect)
+
 	
 	# Expand slightly for visual padding
 	var padding = 6.0
@@ -332,9 +371,10 @@ func _update_loop_overlay() -> void:
 	loop_overlay_panel.size = full_rect.size
 
 func _highlight_selected(selected_idx: int) -> void:
-	var children = slot_container.get_children()
+	var children = _get_all_slot_buttons()
 	for i in range(children.size()):
 		var btn = children[i]
+
 		if not btn.has_method("set_highlight"): continue
 		
 		# 1. 루프 범위 확인
@@ -353,10 +393,11 @@ func _highlight_selected(selected_idx: int) -> void:
 			btn.set_highlight("none")
 
 func _update_slot_label(index: int, data: Dictionary) -> void:
-	if index >= slot_container.get_child_count():
+	var buttons = _get_all_slot_buttons()
+	if index >= buttons.size():
 		return
 	
-	var btn = slot_container.get_child(index)
+	var btn = buttons[index]
 	if btn and btn.has_method("update_info"):
 		btn.update_info(data)
 
@@ -499,3 +540,126 @@ func _on_quantize_pressed() -> void:
 func _on_selection_cleared():
 	_highlight_selected(-1)
 	_update_split_button_state()
+
+# ============================================================
+# CONTEXT MENU LOGIC
+# ============================================================
+var _context_menu_target_slot: int = -1
+
+func _show_chord_context_menu(index: int) -> void:
+	var data = ProgressionManager.get_slot(index)
+	if data == null or data.is_empty():
+		return # 빈 슬롯은 메뉴 없음
+		
+	_context_menu_target_slot = index
+	context_menu.clear()
+	
+	# Helper to format preview
+	var root_note = data.root
+	var string_idx = data.string
+	
+	# --- 7화음 (7th) ---
+	context_menu.add_separator("7화음 (7th)")
+	_add_chord_item("M7", "M7", root_note, string_idx)
+	_add_chord_item("7", "7", root_note, string_idx)
+	_add_chord_item("m7", "m7", root_note, string_idx)
+	_add_chord_item("m7b5", "m7b5", root_note, string_idx)
+	
+	# --- 텐션 (Tension) ---
+	context_menu.add_separator("텐션 (Tension)")
+	_add_chord_item("add9", "add9", root_note, string_idx)
+	_add_chord_item("m9", "m9", root_note, string_idx)
+	
+	# --- 서스 (Sus) ---
+	context_menu.add_separator("서스 (Sus)")
+	_add_chord_item("sus4", "sus4", root_note, string_idx)
+	_add_chord_item("7sus4", "7sus4", root_note, string_idx)
+	
+	# --- 변형 (Alteration) ---
+	context_menu.add_separator("변형 (Alteration)")
+	_add_chord_item("dim7", "dim7", root_note, string_idx)
+	_add_chord_item("aug", "aug", root_note, string_idx)
+	
+	# --- 특수 보이싱 (Special Voicings) ---
+	# [New] Submenu Logic
+	var has_m2 = MusicTheory.has_voicing("M/2", string_idx)
+	var has_m3 = MusicTheory.has_voicing("M/3", string_idx)
+	
+	if has_m2 or has_m3:
+		# Find the submenu
+		var special_menu = context_menu.get_node_or_null("SpecialVoicingsMenu") as PopupMenu
+		if special_menu:
+			special_menu.clear()
+			
+			if has_m2: _add_chord_item("M/2", "Major / 2 (F/G)", root_note, string_idx, special_menu)
+			if has_m3: _add_chord_item("M/3", "Major / 3 (E/G#)", root_note, string_idx, special_menu)
+			
+			# Add Submenu Trigger Item to Main Menu
+			context_menu.add_separator()
+			context_menu.add_submenu_item("특수 보이싱 (Special) ▶", "SpecialVoicingsMenu")
+
+	
+	# --- Delete ---
+	context_menu.add_separator()
+	
+	# --- Delete ---
+	context_menu.add_separator()
+	context_menu.add_item("삭제 (Delete)", 999)
+	context_menu.set_item_icon_modulate(context_menu.item_count - 1, Color(1, 0.4, 0.4))
+	
+	context_menu.position = Vector2(get_viewport().get_mouse_position())
+	context_menu.popup()
+
+func _add_chord_item(type_code: String, label: String, root: int, string_idx: int, target_menu: PopupMenu = null) -> void:
+	# [Check] Validate voicing availability
+	if not MusicTheory.has_voicing(type_code, string_idx):
+		return
+		
+	var use_flats = MusicTheory.should_use_flats(GameManager.current_key, GameManager.current_mode)
+	var note_name = MusicTheory.get_note_name(root, use_flats)
+	var tab_str = MusicTheory.get_tab_string(root, type_code, string_idx)
+	
+	var text = "%s %s  (%s)" % [note_name, label, tab_str]
+	
+	var menu = target_menu if target_menu else context_menu
+	menu.add_item(text)
+	# Metadata is tricky with submenus if they don't share signal handler.
+	# If we use main menu, we handle id_pressed.
+	# If we use submenu, we need to connect its signal too.
+	menu.set_item_metadata(menu.item_count - 1, type_code)
+
+func _on_context_menu_id_pressed(id: int) -> void:
+	if _context_menu_target_slot == -1: return
+	
+	if id == 999: # Delete
+		ProgressionManager.clear_slot(_context_menu_target_slot)
+	else:
+		# Change Type
+		var type_code = context_menu.get_item_metadata(id)
+		if type_code:
+			_update_slot_type(_context_menu_target_slot, type_code)
+			
+	_context_menu_target_slot = -1
+
+func _update_slot_type(index: int, new_type: String) -> void:
+	var data = ProgressionManager.get_slot(index)
+	if data:
+		data["type"] = new_type
+		ProgressionManager.slot_updated.emit(index, data)
+		ProgressionManager.save_session()
+
+# ============================================================
+# SUBMENU HANDLER
+# ============================================================
+func _on_special_menu_id_pressed(id: int) -> void:
+	# Special Menu Logic (Same as main menu basically)
+	# Retrieve metadata from the special menu instance
+	# We need reference to special menu.
+	# Let's make special_menu a class variable?
+	# Or find it by name since we added it as child.
+	var special_menu = context_menu.get_node_or_null("SpecialVoicingsMenu") as PopupMenu
+	if special_menu:
+		var type_code = special_menu.get_item_metadata(id)
+		if type_code and _context_menu_target_slot != -1:
+			_update_slot_type(_context_menu_target_slot, type_code)
+			_context_menu_target_slot = -1

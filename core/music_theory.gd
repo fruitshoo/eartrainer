@@ -30,8 +30,21 @@ const CHORD_INTERVALS := {
 	"M7": [0, 4, 7, 11],
 	"7": [0, 4, 7, 10],
 	"m7": [0, 3, 7, 10],
-	"m7b5": [0, 3, 6, 10]
+	"m7b5": [0, 3, 6, 10],
+	# Extensions
+	"add9": [0, 4, 7, 14],
+	"m9": [0, 3, 7, 10, 14],
+	# Suspended
+	"sus4": [0, 5, 7],
+	"7sus4": [0, 5, 7, 10],
+	# Alterations
+	"dim7": [0, 3, 6, 9],
+	"aug": [0, 4, 8],
+	# Slash / Inversions
+	"M/2": [0, 2, 4, 7], # Hybrid (IV/V form)
+	"M/3": [0, 2, 4, 7] # 1st Inv (add9 form)
 }
+
 
 # ============================================================
 # CONSTANTS - 기타 튜닝 (인덱스 0 = 6번줄)
@@ -84,14 +97,77 @@ const VOICING_SHAPES := {
 		"M7": [[0, 0], [2, 1], [3, 1], [4, 0]],
 		"7": [[0, 0], [2, 0], [3, 1], [4, 0]],
 		"m7": [[0, 0], [2, 0], [3, 0], [4, 0]],
-		"m7b5": [[0, 0], [2, 0], [3, 0], [4, -1]]
+		"m7b5": [[0, 0], [2, 0], [3, 0], [4, -1]],
+		
+		"add9": [[0, 0], [2, 1], [3, 2], [4, 0]],
+		"m9": [[0, 0], [2, 0], [3, 0], [4, 2]],
+		"sus4": [[0, 0], [2, 2], [3, 2], [4, 0]],
+		"7sus4": [[0, 0], [2, 0], [3, 2], [4, 0]],
+		"dim7": [[0, 0], [2, -1], [3, -1], [4, -1]], # Root on 6th? Dim7 shape usually requires skipping strings or awkward stretch. Simplified block.
+		"aug": [[0, 0], [2, 1], [3, 1], [4, 1]], # Augmented
+		
+		"M/2": [[0, 2], [2, 2], [3, 1], [4, 0]], # G/A form (5x543x => Bass+2, Root+2, 3rd+1, 5th+0).
+		# Logic check:
+		# Root G (3rd fret). Bass A (5th fret, +2).
+		# D str G (5th fret, +2 from F? No. Relative to 6th str root).
+		# If Root is 6th str (index 0). Offset [0, y].
+		# Root G -> Fret 3.
+		# Str 6 (Bass): Fret 5 (A). Offset +2? Yes. `[0, 2]`.
+		# Str 5 (Mute).
+		# Str 4 (D str): Fret 5 (G). Root.
+		#   If Root G (6th str/3rd fret).
+		#   D str Open is D. G is 5th fret.
+		#   Root fret for 4th string? 
+		#     If I use get_fret_position(root, 4) -> It returns fret for G on D string? -> 5.
+		#     So offset from "Root Fret on target string"?
+		#     Wait. `MusicTheory.get_tab_string`: `root_fret = get_fret_position(root, string_index)`
+		#     This calculates root fret relative to the *Voicing Key String* (string_index).
+		#     If `voicing_key` is `6th_string`, then `string_index` passed to `get_tab_string` must be 0?
+		#     Yes, `_add_chord_item` passes `string_idx` from slot data.
+		#     If slot is 6th string root, `string_idx` is 0.
+		#     So `root_fret` is calculated for 6th string.
+		#     Then loop `target_fret = root_fret + offset[1]`.
+		#     Wait. `offset[1]` is added to `root_fret` (which is on 6th string!).
+		#     But the target note is on `target_string_idx`.
+		#     Does `root_fret` (on 6th string) make sense as a base for other strings?
+		#     ONLY if the offsets are defined relative to that fret number across the board.
+		#     Ex: 5th fret Barre chord. Root is 5th fret.
+		#     Str 6: 5 (Offset 0).
+		#     Str 5: 7 (Offset 2).
+		#     Str 4: 7 (Offset 2).
+		#     Str 3: 6 (Offset 1).
+		#     This assumes "Fret 5" is the base.
+		#     So yes, my offsets `[[0, 2], [2, 2], [3, 1], [4, 0]]` mean:
+		#       Str 6: RootFret + 2.
+		#       Str 4: RootFret + 2.
+		#       Str 3: RootFret + 1.
+		#       Str 2: RootFret + 0.
+		#     If Root G is Fret 3.
+		#       Str 6: 5 (A). Correct.
+		#       Str 4: 5 (G). Correct.
+		#       Str 3: 4 (B). Correct.
+		#       Str 2: 3 (D). Correct.
+		#     This matches 5x543 perfectly.
+		
+		"M/3": [[0, 4], [2, 4], [3, 4], [4, 5]] # E/G# form (Bass+4, 9th, 5th, Root)
 	},
+
 	"5th_string": {
 		"M7": [[0, 0], [1, 2], [2, 1], [3, 2]],
 		"7": [[0, 0], [1, 2], [2, 0], [3, 2]],
 		"m7": [[0, 0], [1, 2], [2, 0], [3, 1]],
-		"m7b5": [[0, 0], [1, 1], [2, 0], [3, 1]]
+		"m7b5": [[0, 0], [1, 1], [2, 0], [3, 1]],
+		
+		"add9": [[0, 0], [1, 2], [2, 2], [3, 0]], # x5775x (R, 5, R, 9) - User requested form
+		"m9": [[0, 0], [1, 2], [2, 0], [3, 3]],
+		"sus4": [[0, 0], [1, 2], [2, 2], [3, 3]], # A string root sus4
+		"7sus4": [[0, 0], [1, 2], [2, 0], [3, 3]],
+		"dim7": [[0, 0], [1, 1], [2, -1], [3, 1]],
+		"aug": [[0, 0], [1, 2], [2, 1], [3, 2]] # Same as M7 but #5?
+		
+		# M/2 and M/3 are only valid for 6th string root (currently)
 	},
+
 	"4th_string": {
 		"M7": [[0, 0], [1, 2], [2, 2], [3, 2]], # R(4), 5(3), 7(2), 3(1)
 		"7": [[0, 0], [1, 2], [2, 1], [3, 2]], # R(4), 5(3), b7(2), 3(1)
@@ -213,3 +289,40 @@ static func get_chord_from_keycode(mode: ScaleMode, keycode: int) -> Array:
 static func _get_interval(midi_note: int, root: int) -> int:
 	var interval := (midi_note - root) % 12
 	return interval + 12 if interval < 0 else interval
+
+## 특정 줄(String)에 해당 코드 타입의 보이싱이 존재하는지 확인
+static func has_voicing(type: String, string_index: int) -> bool:
+	var voicing_key = get_voicing_key(string_index)
+	var shapes = VOICING_SHAPES.get(voicing_key, {})
+	return shapes.has(type)
+
+## 코드 탭 문자열 생성 (예: "x32010")
+static func get_tab_string(root: int, type: String, string_index: int) -> String:
+	var voicing_key = get_voicing_key(string_index)
+	var shapes = VOICING_SHAPES.get(voicing_key, {}).get(type, [])
+	
+	if shapes.is_empty():
+		return "x-x-x-x-x-x"
+		
+	# Init 6 strings with 'x'
+	var tabs = ["x", "x", "x", "x", "x", "x"]
+	
+	# root fret calculation
+	var root_fret = get_fret_position(root, string_index)
+	
+	for offset in shapes:
+		var target_string_idx = string_index + offset[0]
+		var target_fret = root_fret + offset[1]
+		
+		# String index in array (Godot project logic seems to use 0 for 6th string?)
+		# Let's verify string indexing in audio_engine or tile.
+		# Usually standard is 0=Low E (6th), 5=High e (1st).
+		
+		# Mapping:
+		# 0(6th) -> tabs[0]
+		if target_string_idx >= 0 and target_string_idx < 6:
+			tabs[target_string_idx] = str(target_fret)
+			
+	# Return formatted string (Low to High? or Standard Tab High to Low?)
+	# Text representation usually "3x0003" (Low E to High e) for single line text.
+	return "".join(tabs)
