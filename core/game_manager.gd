@@ -239,7 +239,8 @@ func save_settings() -> void:
 		"camera_deadzone": camera_deadzone,
 		"is_rhythm_mode_enabled": is_rhythm_mode_enabled,
 		"default_preset_name": default_preset_name,
-		"current_theme_name": current_theme_name # [New]
+		"current_theme_name": current_theme_name,
+		"volume_settings": _get_volume_settings() # [New]
 	}
 	
 	var file = FileAccess.open(SAVE_PATH_SETTINGS, FileAccess.WRITE)
@@ -286,6 +287,31 @@ func _deserialize_settings(data: Dictionary) -> void:
 	is_rhythm_mode_enabled = data.get("is_rhythm_mode_enabled", false)
 	default_preset_name = data.get("default_preset_name", "")
 	current_theme_name = data.get("current_theme_name", "Default") # [New]
+	
+	var vol_settings = data.get("volume_settings", {})
+	if not vol_settings.is_empty():
+		_apply_volume_settings(vol_settings)
+
+func _get_volume_settings() -> Dictionary:
+	var settings = {}
+	settings["Master"] = _get_bus_volume("Master")
+	settings["Chord"] = _get_bus_volume("Chord")
+	settings["Melody"] = _get_bus_volume("Melody")
+	settings["SFX"] = _get_bus_volume("SFX")
+	return settings
+
+func _get_bus_volume(bus_name: String) -> float:
+	var idx = AudioServer.get_bus_index(bus_name)
+	if idx == -1: return 1.0
+	return db_to_linear(AudioServer.get_bus_volume_db(idx))
+
+func _apply_volume_settings(settings: Dictionary) -> void:
+	for bus_name in settings:
+		var idx = AudioServer.get_bus_index(bus_name)
+		if idx != -1:
+			var linear_vol = float(settings[bus_name])
+			AudioServer.set_bus_volume_db(idx, linear_to_db(linear_vol))
+			AudioServer.set_bus_mute(idx, linear_vol < 0.01)
 
 func _ready() -> void:
 	call_deferred("load_settings")

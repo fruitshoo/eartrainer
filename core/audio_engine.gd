@@ -25,6 +25,12 @@ const METRONOME_FREQUENCY_NORMAL := 800.0
 const BUS_CLEAN := "GuitarClean"
 const BUS_DRIVE := "GuitarDrive"
 
+# Input Buses (Volume Control)
+const BUS_CHORD := "Chord" # Sends to Clean/Drive
+const BUS_MELODY := "Melody" # Sends to Clean/Drive
+const BUS_SFX := "SFX" # Sends to Master
+
+
 # ============================================================
 # CONSTANTS - EFFECT PARAMETERS
 # ============================================================
@@ -89,8 +95,44 @@ func _ready() -> void:
 # INTERNAL - 오디오 버스 및 이펙트 설정
 # ============================================================
 func _setup_audio_buses() -> void:
+	# 1. Effect Buses (Destinations)
 	_setup_clean_bus()
 	_setup_drive_bus()
+	
+	# 2. Input Buses (Sources with Volume)
+	_setup_routing_bus(BUS_CHORD)
+	_setup_routing_bus(BUS_MELODY)
+	_setup_routing_bus(BUS_SFX)
+	
+	# 3. Initial Routing
+	_update_bus_routing()
+
+func _setup_routing_bus(bus_name: String) -> void:
+	if AudioServer.get_bus_index(bus_name) != -1:
+		return
+		
+	var idx = AudioServer.bus_count
+	AudioServer.add_bus(idx)
+	AudioServer.set_bus_name(idx, bus_name)
+	# Default send, wil be updated by _update_bus_routing
+	AudioServer.set_bus_send(idx, "Master")
+
+func _update_bus_routing() -> void:
+	var target_bus = BUS_CLEAN if current_tone == Tone.CLEAN else BUS_DRIVE
+	
+	# Route Chord & Melody to current Tone Bus
+	var chord_idx = AudioServer.get_bus_index(BUS_CHORD)
+	if chord_idx != -1:
+		AudioServer.set_bus_send(chord_idx, target_bus)
+		
+	var melody_idx = AudioServer.get_bus_index(BUS_MELODY)
+	if melody_idx != -1:
+		AudioServer.set_bus_send(melody_idx, target_bus)
+		
+	# SFX always goes to Master
+	var sfx_idx = AudioServer.get_bus_index(BUS_SFX)
+	if sfx_idx != -1:
+		AudioServer.set_bus_send(sfx_idx, "Master")
 
 func _setup_clean_bus() -> void:
 	if AudioServer.get_bus_index(BUS_CLEAN) != -1:
@@ -193,6 +235,7 @@ func _on_beat_updated(beat_index: int, _total_beats: int) -> void:
 # ============================================================
 func set_tone(mode: Tone) -> void:
 	current_tone = mode
+	_update_bus_routing() # Route buses to new tone
 
 func toggle_tone() -> void:
 	if current_tone == Tone.CLEAN:
@@ -209,7 +252,8 @@ func set_metronome_enabled(enabled: bool) -> void:
 # ============================================================
 # PUBLIC API - 기타 음 재생
 # ============================================================
-func play_note(midi_note: int, string_index: int = -1) -> void:
+# context: "chord" or "melody" (or "default")
+func play_note(midi_note: int, string_index: int = -1, context: String = "chord") -> void:
 	var player = AudioStreamPlayer.new()
 	add_child(player)
 	
@@ -232,12 +276,11 @@ func play_note(midi_note: int, string_index: int = -1) -> void:
 	if player.stream == null:
 		player.stream = string_samples[0] # Fallback
 	
-	# Current Tone Bus
-	match current_tone:
-		Tone.CLEAN:
-			player.bus = BUS_CLEAN
-		Tone.DRIVE:
-			player.bus = BUS_DRIVE
+	# Route to correct Input Bus (which then routes to Tone Bus)
+	if context == "melody":
+		player.bus = BUS_MELODY
+	else:
+		player.bus = BUS_CHORD
 	
 	# Calculate Pitch Shift relative to the OPEN STRING of the selected sample
 	var base_midi = OPEN_STRING_MIDI[selected_string_idx]
@@ -268,8 +311,8 @@ func play_metronome(is_accent: bool) -> void:
 	generator.mix_rate = 44100.0
 	player.stream = generator
 	
-	# 메트로놈은 마스터 버스로 직접 출력 (이펙트 영향 X)
-	player.bus = "Master"
+	# 메트로놈은 SFX 버스로
+	player.bus = BUS_SFX
 	
 	var frequency := METRONOME_FREQUENCY_ACCENT if is_accent else METRONOME_FREQUENCY_NORMAL
 	var volume := 0.3 if is_accent else 0.2
@@ -306,7 +349,7 @@ func play_sfx(type: String) -> void:
 	var generator = AudioStreamGenerator.new()
 	generator.mix_rate = 44100.0
 	player.stream = generator
-	player.bus = "Master" # SFX는 이펙트 제외
+	player.bus = BUS_SFX # SFX는 이펙트 제외
 	
 	var duration = 0.5
 	var freq_start = 880.0

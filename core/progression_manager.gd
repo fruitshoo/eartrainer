@@ -16,6 +16,8 @@ signal settings_updated(bar_count: int, chords_per_bar: int) # [New] 설정 변�
 # STATE VARIABLES
 # ============================================================
 var bar_count: int = 4
+var beats_per_bar: int = 4 # [New] 4/4 or 3/4
+
 
 # var chords_per_bar: int = 1 # Replaced by bar_densities
 
@@ -154,6 +156,27 @@ func update_settings(new_bar_count: int, _dummy_density: int = 1) -> void:
 	settings_updated.emit(bar_count, 1) # 두 번째 인자는 이제 의미 없음
 	save_session()
 
+## [New] 박자 설정 (4 or 3)
+func set_time_signature(beats: int) -> void:
+	if beats != 3 and beats != 4: return
+	if beats_per_bar == beats: return
+	
+	beats_per_bar = beats
+	
+	# 3/4박자일 경우, Split Bar 기능 비활성화 및 기존 Split 병합
+	if beats_per_bar == 3:
+		for i in range(bar_densities.size()):
+			if bar_densities[i] > 1:
+				bar_densities[i] = 1
+	
+	# TODO: 4박자로 돌아올 때도 무조건 1로 두는게 깔끔함.
+	# (마디 쪼개기는 사용자가 명시적으로 했을 때만 유효하도록)
+	
+	_reconstruct_slots()
+	settings_updated.emit(bar_count, 1)
+	save_session()
+
+
 ## 특정 마디의 분할 상태 토글 (1 <-> 2)
 func toggle_bar_split(bar_index: int) -> void:
 	if bar_index < 0 or bar_index >= bar_densities.size():
@@ -181,10 +204,14 @@ func get_beats_for_slot(slot_index: int) -> int:
 	for density in bar_densities:
 		var next_boundary = current_slot + density
 		if slot_index < next_boundary:
-			# 찾음! density가 1이면 4박자, 2면 2박자
-			return 4 if density == 1 else 2
+			# 찾음! density가 1이면 beats_per_bar(3 or 4), 2면 beats_per_bar/2
+			if density == 1:
+				return beats_per_bar
+			else:
+				return beats_per_bar / 2 # 4/2=2. 3/2=1 (Integer division checks needed?)
+				# 3박자는 Split 막았으므로 안전.
 		current_slot = next_boundary
-	return 4 # Fallback
+	return beats_per_bar # Fallback
 
 ## 슬롯 인덱스가 속한 "마디 인덱스" 반환
 func get_bar_index_for_slot(slot_index: int) -> int:
@@ -329,6 +356,8 @@ func save_session() -> void:
 	var data = {
 		"version": 1,
 		"bar_count": bar_count,
+		"beats_per_bar": beats_per_bar,
+
 		"bar_densities": bar_densities,
 		"slots": slots,
 		"loop_start": loop_start_index,
@@ -361,6 +390,7 @@ func load_session() -> void:
 
 func _deserialize_data(data: Dictionary) -> void:
 	bar_count = data.get("bar_count", 4)
+	beats_per_bar = data.get("beats_per_bar", 4) # [New]
 	# EventBus.debug_log.emit("Deserializing: Bars=%d" % bar_count)
 	
 	var saved_densities = data.get("bar_densities", [])

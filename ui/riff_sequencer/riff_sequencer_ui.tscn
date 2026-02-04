@@ -70,14 +70,6 @@ layout_mode = 2
 theme_override_constants/separation = 8
 alignment = 1
 
-[node name="TimeSigButton" type="Button" parent="RootMargin/MainPanel/InnerMargin/MainVBox/ToolbarHBox" unique_id=991234567]
-unique_name_in_owner = true
-custom_minimum_size = Vector2(40, 30)
-layout_mode = 2
-tooltip_text = "Toggle Time Signature"
-text = "4/4"
-focus_mode = 0
-
 [node name="BarCountSpinBox" type="SpinBox" parent="RootMargin/MainPanel/InnerMargin/MainVBox/ToolbarHBox" unique_id=482930123]
 unique_name_in_owner = true
 layout_mode = 2

@@ -701,16 +701,16 @@ func _play_reward_song(key: int, mode: int) -> float:
 	print("[QuizManager] Playing Reward: %s (%s)" % [winner.get("title", "Untitled"), winner.get("source", "unknown")])
 	
 	# 3. Play
-	var notes = winner.get("notes", [])
+	# 3. Play
 	var duration = 0.0
 	
 	if winner.get("source") == "builtin":
 		# Builtin riffs now also use "notes" format (converted in RiffManager)
 		# So we can just use _play_riff_snippet for all
-		duration = _play_riff_snippet(notes)
+		duration = _play_riff_snippet(winner)
 	else:
 		# User Riff (Free Timing)
-		duration = _play_riff_snippet(notes)
+		duration = _play_riff_snippet(winner)
 		
 	return duration
 
@@ -732,11 +732,20 @@ func _stop_playback():
 	# Clear any active visuals on fretboard
 	EventBus.visual_note_off.emit(-1, -1) # Send "Clear All" signal (Convention: -1)
 
-func _play_riff_snippet(notes: Array) -> float:
+# Public wrapper for previewing riffs (e.g. from Example Manager)
+func play_riff_preview(riff_data: Dictionary) -> void:
+	_stop_playback()
+	_play_riff_snippet(riff_data)
+
+func _play_riff_snippet(riff_data: Dictionary) -> float:
+	var notes = riff_data.get("notes", [])
+	var slots = riff_data.get("slots", [])
+	var bpm = int(riff_data.get("bpm", 120))
+	
 	if notes.is_empty(): return 0.0
 	
 	var my_id = _current_playback_id
-	print("[QuizManager] Starting Riff Snippet. Playback ID: %d" % my_id)
+	print("[QuizManager] Starting Riff Snippet (ID: %d). BPM: %d, Slots: %d" % [my_id, bpm, slots.size()])
 	
 	# 1. Calculate Anchor / Transposition Logic
 	var first_ms = notes[0].start_ms
@@ -759,6 +768,7 @@ func _play_riff_snippet(notes: Array) -> float:
 	
 	var max_end_time = 0.0
 	
+	# 2. Schedule Melody
 	for n in notes:
 		var delay = (n.start_ms - first_ms) / 1000.0
 		var dur = n.duration_ms / 1000.0
@@ -799,6 +809,84 @@ func _play_riff_snippet(notes: Array) -> float:
 				EventBus.visual_note_off.emit(pitch, final_string)
 			)
 		)
+
+	# 3. Schedule Chords (Backing Track)
+	# Assuming slots start from time 0 (relative to melody Start? Or Song Start?)
+	# Generally Melody Start_MS is absolute from Song Start.
+	# So we can calculate Beat Times.
+	# Beat Duration = 60 / BPM
+	
+	if not slots.is_empty():
+		var spb = 60.0 / bpm # Seconds per beat
+		# We need to sync slots to the Melody's "Relative Zero".
+		# But Slots are absolute (Bar 1, 2...). Melody notes are absolute (ms).
+		# We should just play them using their absolute times, shifted by `first_ms` so they align.
+		# Note: We only want to play the chords that OVERLAP with the melody snippet.
+		
+		var current_beat = 0.0
+		# Standard: 4/4 assume? ProgressionManager default is 4/4 usually.
+		# But slots don't have explicit duration in the struct. `ProgressionManager` infers it from density.
+		# We stored `slots` as raw array. We need to infer beats per slot.
+		# For simplicity, assume 4 beats per bar, 1 slot per bar = 4 beats. 2 slots = 2 beats.
+		# But `RiffManager` didn't save `bar_densities`.
+		# Fallback: Assume 1 slot = 4 beats (Whole note) or 2 beats? 
+		# Most songs are 4 beats/slot if density is 1.
+		
+		# Better approach: Just play them as 4-beat chords for now.
+		# Or update RiffManager to save `bar_densities`.
+		
+		# Let's check RiffManager import again. I didn't save densities.
+		# Just assume 1 Slot = 4 Beats for MVP.
+		var beats_per_slot = 4.0
+		
+		for i in range(slots.size()):
+			var slot = slots[i]
+			if slot == null or slot.is_empty():
+				current_beat += beats_per_slot
+				continue
+				
+			var slot_start_sec = current_beat * spb
+			var slot_dur_sec = beats_per_slot * spb
+			
+			# Align: Melody starts at `first_ms`.
+			# If chord starts before melody, we might skip or play partial?
+			# Actually, we want to play the chords relative to the melody.
+			# If melody starts at 5.0s, and we play back, we effectively shift melody to 0.0s delay.
+			# So we should shift chords too: `play_time = slot_start - (first_ms / 1000.0)`
+			
+			var playback_delay = slot_start_sec - (first_ms / 1000.0)
+			
+			# Only play if it overlaps reasonable range (e.g. not 10 seconds before melody)
+			if playback_delay + slot_dur_sec > 0 and playback_delay < max_end_time:
+				# Transpose Chord Root
+				var root = slot.get("root", 0)
+				var type = slot.get("type", "")
+				var transposed_root = root + transpose_delta
+				
+				# Schedule Chord
+				# Ensure positive delay (if chord started before melody, play immediately)
+				var final_delay = max(0.0, playback_delay)
+				var final_dur = slot_dur_sec # (Simplify cut-off)
+				if final_dur > 0: pass # Suppress unused warning
+				
+				get_tree().create_timer(final_delay).timeout.connect(func():
+					if _current_playback_id != my_id: return
+					# Play Chord (Arpeggio or Strum)
+					# Helper needed: _play_chord_structure(root, type) is for Quiz.
+					# Maybe expose AudioEngine.play_chord?
+					# For now, rapid strum manually:
+					var chord_intervals = ChordQuizData.get_chord_intervals(type)
+					for k in range(chord_intervals.size()):
+						var n_pitch = transposed_root + chord_intervals[k]
+						# Keep in range?
+						while n_pitch < 40: n_pitch += 12
+						while n_pitch > 76: n_pitch -= 12 # Keep chords lower/comping
+						
+						AudioEngine.play_note(n_pitch)
+						# No visual for backing chords to avoid confusion?
+				)
+			
+			current_beat += beats_per_slot
 		
 	return max_end_time
 

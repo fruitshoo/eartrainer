@@ -2,6 +2,25 @@
 
 [ext_resource type="FontFile" uid="uid://dfagi82b8dkdi" path="res://assets/fonts/Pretendard-Bold.otf" id="1_bold"]
 
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_panel"]
+content_margin_left = 16.0
+content_margin_top = 16.0
+content_margin_right = 16.0
+content_margin_bottom = 16.0
+bg_color = Color(0.98, 0.98, 1, 0.75)
+border_width_left = 1
+border_width_top = 1
+border_width_right = 1
+border_width_bottom = 1
+border_color = Color(1, 1, 1, 0.5)
+corner_radius_top_left = 16
+corner_radius_top_right = 16
+corner_radius_bottom_right = 16
+corner_radius_bottom_left = 16
+shadow_color = Color(0, 0, 0, 0.15)
+shadow_size = 12
+shadow_offset = Vector2(0, 6)
+
 [sub_resource type="StyleBoxFlat" id="StyleBoxFlat_button_disabled"]
 content_margin_left = 10.0
 content_margin_top = 6.0
@@ -90,32 +109,20 @@ corner_radius_top_right = 6
 corner_radius_bottom_right = 6
 corner_radius_bottom_left = 6
 
-[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_panel"]
-content_margin_left = 16.0
-content_margin_top = 16.0
-content_margin_right = 16.0
-content_margin_bottom = 16.0
-bg_color = Color(0.98, 0.98, 1, 0.75)
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_beat_tick"]
+bg_color = Color(0.98, 0.98, 1, 0.6)
 border_width_left = 1
 border_width_top = 1
 border_width_right = 1
 border_width_bottom = 1
 border_color = Color(1, 1, 1, 0.5)
-corner_radius_top_left = 16
-corner_radius_top_right = 16
-corner_radius_bottom_right = 16
-corner_radius_bottom_left = 16
-shadow_color = Color(0, 0, 0, 0.15)
-shadow_size = 12
-shadow_offset = Vector2(0, 6)
-
-[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_beat_tick"]
-bg_color = Color(1, 1, 1, 1)
-corner_radius_top_left = 3
-corner_radius_top_right = 3
-corner_radius_bottom_right = 3
-corner_radius_bottom_left = 3
-corner_detail = 4
+corner_radius_top_left = 4
+corner_radius_top_right = 4
+corner_radius_bottom_right = 4
+corner_radius_bottom_left = 4
+shadow_color = Color(0, 0, 0, 0.1)
+shadow_size = 2
+shadow_offset = Vector2(0, 1)
 
 [sub_resource type="StyleBoxFlat" id="StyleBoxFlat_slot_hover"]
 content_margin_left = 12.0
@@ -175,6 +182,7 @@ shadow_offset = Vector2(0, 1)
 [resource]
 default_font = ExtResource("1_bold")
 default_font_size = 18
+AcceptDialog/styles/panel = SubResource("StyleBoxFlat_panel")
 Button/colors/font_color = Color(0.2, 0.2, 0.2, 1)
 Button/colors/font_disabled_color = Color(0.6, 0.6, 0.6, 1)
 Button/colors/font_focus_color = Color(0.2, 0.2, 0.2, 1)
@@ -197,9 +205,11 @@ LineEdit/colors/font_color = Color(0.2, 0.2, 0.2, 1)
 LineEdit/styles/normal = SubResource("StyleBoxFlat_lineedit_normal")
 Panel/styles/panel = SubResource("StyleBoxFlat_panel")
 PanelContainer/styles/panel = SubResource("StyleBoxFlat_panel")
+PopupPanel/styles/panel = SubResource("StyleBoxFlat_panel")
 SequencerBeatTick/base_type = &"Panel"
 SequencerBeatTick/styles/panel = SubResource("StyleBoxFlat_beat_tick")
 SequencerSlot/base_type = &"Button"
 SequencerSlot/styles/hover = SubResource("StyleBoxFlat_slot_hover")
 SequencerSlot/styles/normal = SubResource("StyleBoxFlat_slot_normal")
 SequencerSlot/styles/pressed = SubResource("StyleBoxFlat_slot_pressed")
+Window/styles/embedded_border = SubResource("StyleBoxFlat_panel")

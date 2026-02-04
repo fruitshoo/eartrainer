@@ -10,7 +10,8 @@ extends Node
 # ============================================================
 # EXPORTS
 # ============================================================
-@export var beats_per_bar: int = 4
+@export var beats_per_bar: int = 4 # TODO: Remove and use ProgressionManager
+
 
 # ============================================================
 # STATE
@@ -184,7 +185,7 @@ func start_with_count_in(bars: int = 1) -> void:
 	EventBus.sequencer_playing_changed.emit(true)
 	
 	_is_counting_in = true
-	_count_in_beats_left = bars * beats_per_bar
+	_count_in_beats_left = bars * ProgressionManager.beats_per_bar # Use Manager
 	
 	# Start Timer for Count-In
 	var beat_duration := 60.0 / GameManager.bpm
@@ -216,7 +217,9 @@ func _on_beat_tick() -> void:
 			_emit_count_in_signal()
 		return
 	
+	# Get beats from Manager (Supports 3/4, 4/4 dynamic)
 	var slot_beats = ProgressionManager.get_beats_for_slot(current_step)
+
 	
 	if current_beat >= slot_beats:
 		# 슬롯 종료 -> 다음 슬롯으로
@@ -248,12 +251,14 @@ func _emit_beat() -> void:
 	# UI에 표시할 "마디 내 현재 박자" 계산 (이전 복잡한 로직 대체 필요)
 	# 이제 Slot UI가 직접 박자를 그리므로, Sequencer는 "현재 슬롯의 몇 번째 박자"만 알려주면 됨
 	# 하지만 HUD 호환성을 위해 기존 signal도 유지해야 할 수 있음.
+	var slot_beats = ProgressionManager.get_beats_for_slot(current_step)
+	
 	# New Signal: 슬롯 내 박자 업데이트 (SlotButton용 via SequenceUI)
 	# EventBus에 beat_progressed(step, beat) 추가 필요
 	# 임시로 bar_changed를 재활용하거나 새로 만듬.
 	# 기존 HUD용 (4/4박자 기준) 로직은 복잡해짐 (마디 길이가 가변이므로)
 	# 일단 기존 signal은 유지하되, 값을 대강 맞춰서 보냄
-	EventBus.beat_updated.emit(current_beat, 4) # dummy
+	EventBus.beat_updated.emit(current_beat, slot_beats)
 	EventBus.beat_pulsed.emit()
 	
 	# 시퀀서 UI에 직접 전달 (나중에 EventBus로 격상 가능)

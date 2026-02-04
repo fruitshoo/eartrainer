@@ -20,3 +20,6 @@ const CHORDS = {
 
 static func get_chord_info(type: String) -> Dictionary:
 	return CHORDS.get(type, {})
+
+static func get_chord_intervals(type: String) -> Array:
+	return CHORDS.get(type, {}).get("intervals", [])

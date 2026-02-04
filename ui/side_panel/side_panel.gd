@@ -115,9 +115,69 @@ func _ready() -> void:
 	EventBus.request_close_settings.connect(close)
 	
 	# Settings 초기화 (기존 코드 유지)
+	_init_volume_settings() # [New]
 	_init_settings_tab()
 	_init_library_tab()
 	_init_ear_trainer_tab()
+
+func _init_volume_settings() -> void:
+	# Check if Volume Section already exists to prevent duplication
+	if settings_content.find_child("VolumeGrid", true, false):
+		return
+		
+	var vbox = settings_content.find_child("SettingsVBox")
+	if not vbox: return
+	
+	# Create Section Header
+	var header = Label.new()
+	header.text = "Volume"
+	header.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	header.theme_type_variation = "HeaderSmall"
+	vbox.add_child(header)
+	vbox.move_child(header, 0) # Top of settings
+	
+	var grid = GridContainer.new()
+	grid.name = "VolumeGrid"
+	grid.columns = 2
+	vbox.add_child(grid)
+	vbox.move_child(grid, 1)
+	
+	var divider = HSeparator.new()
+	vbox.add_child(divider)
+	vbox.move_child(divider, 2)
+	
+	# Add Sliders
+	_add_volume_slider(grid, "Master", "Master")
+	_add_volume_slider(grid, "Chord", "Chord")
+	_add_volume_slider(grid, "Melody", "Melody")
+	_add_volume_slider(grid, "SFX", "SFX")
+
+func _add_volume_slider(parent: Node, label_text: String, bus_name: String) -> void:
+	var label = Label.new()
+	label.text = label_text
+	parent.add_child(label)
+	
+	var slider = HSlider.new()
+	slider.custom_minimum_size = Vector2(120, 0)
+	slider.min_value = 0.0
+	slider.max_value = 1.0
+	slider.step = 0.05
+	slider.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	
+	# Get current volume
+	var bus_idx = AudioServer.get_bus_index(bus_name)
+	if bus_idx != -1:
+		slider.value = db_to_linear(AudioServer.get_bus_volume_db(bus_idx))
+	
+	slider.value_changed.connect(func(value):
+		var idx = AudioServer.get_bus_index(bus_name)
+		if idx != -1:
+			AudioServer.set_bus_volume_db(idx, linear_to_db(value))
+			AudioServer.set_bus_mute(idx, value < 0.01)
+			# Save? Later via GameManager
+	)
+	
+	parent.add_child(slider)
 
 func _on_request_show_tab(tab_index: int) -> void:
 	var tab: Tab = tab_index as Tab
@@ -492,17 +552,393 @@ func _populate_et_grid() -> void:
 		var is_checked = semitones in QuizManager.active_intervals
 		var text = "%s (%s)" % [info.name, info.short]
 		
-		row.setup(text, is_checked, true)
+		row.setup(text, is_checked, true) # [New] Show Manage Button
 		row.checkbox.tooltip_text = "Example: %s" % info.examples[0].get("title", "")
 		
 
 		# row.toggled -> _on_et_interval_toggled
 		row.toggled.connect(func(on): _on_et_interval_toggled(on, semitones))
-		# row.edit_requested -> Open RiffEditor
-		if row.has_signal("edit_requested"):
-			row.edit_requested.connect(func(): _open_riff_editor(semitones))
+		
+		# [New] row.manage_requested -> Show Manager Dialog
+		if row.has_signal("manage_requested"):
+			row.manage_requested.connect(func(): _show_example_manager_dialog(semitones))
 		
 		et_checkboxes[semitones] = row.checkbox
+
+# var example_manager_dialog: ConfirmationDialog
+var example_list_box: VBoxContainer
+var pending_manage_interval: int = -1
+
+# var import_dialog: ConfirmationDialog
+var import_option_button: OptionButton
+var pending_delete_song: String = ""
+
+var _main_theme: Theme = preload("res://ui/resources/main_theme.tres")
+
+# --- Example Manager (Custom Overlay) ---
+var example_manager_root: Control
+# var example_manager_dialog: ConfirmationDialog
+# var example_list_box: VBoxContainer <- Duplicate removed
+
+func _show_example_manager_dialog(semitones: int) -> void:
+	pending_manage_interval = semitones
+	
+	if not example_manager_root:
+		_create_example_manager_ui()
+		
+	# Refresh and Show
+	_refresh_example_list()
+	example_manager_root.visible = true
+	
+func _create_example_manager_ui() -> void:
+	# 1. Root Overlay (Dim)
+	example_manager_root = Control.new()
+	example_manager_root.name = "ManageOverlay"
+	example_manager_root.set_anchors_preset(Control.PRESET_FULL_RECT)
+	# Add to MainUI to cover entire screen
+	get_parent().add_child(example_manager_root)
+
+	var dim = ColorRect.new()
+	dim.color = Color(0, 0, 0, 0.4)
+	dim.set_anchors_preset(Control.PRESET_FULL_RECT)
+	# Close on background click
+	dim.gui_input.connect(func(ev):
+		if ev is InputEventMouseButton and ev.pressed:
+			example_manager_root.visible = false
+	)
+	example_manager_root.add_child(dim)
+	
+	# 2. Main Panel (Centered via CenterContainer)
+	var center_cont = CenterContainer.new()
+	center_cont.set_anchors_preset(Control.PRESET_FULL_RECT)
+	# Pass clicks through to dim? No, CenterCont takes full space.
+	# We need mouse_filter to ignore on the container itself so dim gets clicks?
+	# CenterContainer defaults to MOUSE_FILTER_STOP? No, MOUSE_FILTER_PASS?
+	# Usually better to put CenterContainer ON TOP of Dim, as a sibling.
+	# But Dim is already child.
+	center_cont.mouse_filter = Control.MOUSE_FILTER_IGNORE # Let click pass to Dim if missed panel?
+	# Actually, if we click outside panel, we hit CenterContainer.
+	# If CenterContainer ignores mouse, it passes to Dim.
+	example_manager_root.add_child(center_cont)
+	
+	var panel = PanelContainer.new()
+	panel.theme = _main_theme # Use Main Theme (Glass Style)
+	panel.custom_minimum_size = Vector2(400, 300)
+	# panel.set_anchors_preset(Control.PRESET_CENTER) # No need, CenterCont handles it
+	center_cont.add_child(panel)
+	
+	# 3. Content
+	var margin = MarginContainer.new()
+	margin.add_theme_constant_override("margin_top", 16)
+	margin.add_theme_constant_override("margin_left", 16)
+	margin.add_theme_constant_override("margin_right", 16)
+	margin.add_theme_constant_override("margin_bottom", 16)
+	panel.add_child(margin)
+	
+	var vbox = VBoxContainer.new()
+	vbox.add_theme_constant_override("separation", 16)
+	margin.add_child(vbox)
+	
+	# Title
+	var title_hbox = HBoxContainer.new()
+	vbox.add_child(title_hbox)
+	
+	var title = Label.new()
+	title.text = "Manage Examples"
+	title.theme_type_variation = "HeaderMedium"
+	title.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	title_hbox.add_child(title)
+	
+	var close_btn = Button.new()
+	close_btn.text = "✖"
+	close_btn.flat = true
+	close_btn.focus_mode = Control.FOCUS_NONE
+	close_btn.pressed.connect(func(): example_manager_root.visible = false)
+	title_hbox.add_child(close_btn)
+	
+	# List Scroll
+	var scroll = ScrollContainer.new()
+	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	scroll.custom_minimum_size = Vector2(0, 150)
+	vbox.add_child(scroll)
+	
+	example_list_box = VBoxContainer.new()
+	example_list_box.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	scroll.add_child(example_list_box)
+
+	# Footer (Import)
+	var import_btn = Button.new()
+	import_btn.text = "+ Import from Song Library"
+	import_btn.custom_minimum_size = Vector2(0, 40)
+	import_btn.pressed.connect(_show_song_import_dialog)
+	vbox.add_child(import_btn)
+
+func _refresh_example_list() -> void:
+	if not example_list_box: return
+	
+	# Clear
+	for child in example_list_box.get_children():
+		child.queue_free()
+		
+	var riff_manager = _get_riff_manager()
+	if not riff_manager: return
+	
+	var riffs = riff_manager.get_riffs_for_interval(pending_manage_interval)
+	
+	if riffs.is_empty():
+		var label = Label.new()
+		label.text = "No examples yet.\nImport a song to start!"
+		label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		label.modulate = Color(0.7, 0.7, 0.7)
+		example_list_box.add_child(label)
+		return
+		
+	for i in range(riffs.size()):
+		var riff = riffs[i]
+		var title = riff.get("title", "Untitled")
+		var source = riff.get("source", "unknown")
+		
+		var hbox = HBoxContainer.new()
+		example_list_box.add_child(hbox)
+		
+		var play_btn = Button.new()
+		play_btn.text = "▶"
+		play_btn.flat = true
+		play_btn.tooltip_text = "Preview"
+		play_btn.pressed.connect(func(): _preview_riff(riff))
+		hbox.add_child(play_btn)
+		
+		var label = Label.new()
+		label.text = title
+		label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		hbox.add_child(label)
+		
+		# Delete Button (Only for User Imports)
+		if source == "user_import" or source == "user":
+			var del_btn = Button.new()
+			del_btn.text = "🗑" # Trash
+			del_btn.flat = true
+			del_btn.modulate = Color(1, 0.5, 0.5)
+			del_btn.tooltip_text = "Delete"
+			del_btn.pressed.connect(func(): _delete_example_riff(i))
+			hbox.add_child(del_btn)
+
+func _preview_riff(riff: Dictionary) -> void:
+	# Use new public wrapper
+	QuizManager.play_riff_preview(riff)
+
+func _delete_example_riff(index: int) -> void:
+	var riff_manager = _get_riff_manager()
+	if riff_manager:
+		riff_manager.delete_riff(pending_manage_interval, index, "interval")
+		_refresh_example_list()
+
+# --- Song Import ---
+# --- Song Import (Custom Overlay) ---
+var import_overlay: Control
+
+func _show_song_import_dialog() -> void:
+	if not import_overlay:
+		_create_import_ui()
+		
+	# Populate
+	import_option_button.clear()
+	var song_manager = GameManager.get_node_or_null("SongManager")
+	var has_songs = false
+	if song_manager:
+		var songs = song_manager.get_song_list()
+		if not songs.is_empty():
+			has_songs = true
+			import_btn_ref.disabled = false
+			for s in songs:
+				import_option_button.add_item(s.get("title", "Untitled"))
+	
+	if not has_songs:
+		import_option_button.add_item("No songs in library")
+		import_option_button.disabled = true
+		import_btn_ref.disabled = true
+				
+	import_overlay.visible = true
+	# We don't need to hide manage dialog because we layer on top.
+
+func _create_import_ui() -> void:
+	import_overlay = Control.new()
+	import_overlay.name = "ImportOverlay"
+	import_overlay.set_anchors_preset(Control.PRESET_FULL_RECT)
+	# Add to MainUI to cover entire screen
+	get_parent().add_child(import_overlay)
+	
+	var dim = ColorRect.new()
+	dim.color = Color(0, 0, 0, 0.4)
+	dim.set_anchors_preset(Control.PRESET_FULL_RECT)
+	dim.gui_input.connect(func(ev):
+		if ev is InputEventMouseButton and ev.pressed:
+			import_overlay.visible = false
+	)
+	import_overlay.add_child(dim)
+	
+	var center_cont = CenterContainer.new()
+	center_cont.set_anchors_preset(Control.PRESET_FULL_RECT)
+	center_cont.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	import_overlay.add_child(center_cont)
+	
+	var panel = PanelContainer.new()
+	panel.theme = _main_theme
+	panel.custom_minimum_size = Vector2(350, 200)
+	center_cont.add_child(panel)
+	
+	var margin = MarginContainer.new() # Add margin matching style
+	margin.add_theme_constant_override("margin_top", 16)
+	margin.add_theme_constant_override("margin_left", 16)
+	margin.add_theme_constant_override("margin_right", 16)
+	margin.add_theme_constant_override("margin_bottom", 16)
+	panel.add_child(margin)
+	
+	var vbox = VBoxContainer.new()
+	vbox.add_theme_constant_override("separation", 16)
+	margin.add_child(vbox)
+	
+	var title = Label.new()
+	title.text = "Import Song"
+	title.theme_type_variation = "HeaderMedium"
+	vbox.add_child(title)
+	
+	var label = Label.new()
+	label.text = "Select a song from your library:"
+	vbox.add_child(label)
+	
+	import_option_button = OptionButton.new()
+	vbox.add_child(import_option_button)
+	
+	var hbox = HBoxContainer.new()
+	hbox.alignment = BoxContainer.ALIGNMENT_END
+	vbox.add_child(hbox)
+	
+	var cancel = Button.new()
+	cancel.text = "Cancel"
+	cancel.flat = true
+	cancel.pressed.connect(func(): import_overlay.visible = false)
+	hbox.add_child(cancel)
+	
+	import_btn_ref = Button.new()
+	import_btn_ref.text = "Import"
+	import_btn_ref.pressed.connect(_on_import_confirmed)
+	hbox.add_child(import_btn_ref)
+
+var import_btn_ref: Button
+
+func _on_import_confirmed() -> void:
+	if pending_manage_interval == -1: return
+	if import_option_button.selected == -1: return
+	
+	var song_title = import_option_button.get_item_text(import_option_button.selected)
+	
+	import_overlay.visible = false # Close Import
+	# Manage dialog remains visible under it.
+	
+	var riff_manager = _get_riff_manager()
+	if riff_manager:
+		var success = riff_manager.import_song_as_riff(pending_manage_interval, song_title)
+		if success:
+			_refresh_example_list() # Update Manage List
+			pending_delete_song = song_title
+			_show_delete_prompt(song_title)
+
+func _on_import_canceled() -> void:
+	if import_overlay:
+		import_overlay.visible = false
+
+
+# Helper
+func _get_riff_manager() -> Node:
+	var rm = get_tree().root.find_child("RiffManager", true, false)
+	if not rm and GameManager.has_node("RiffManager"):
+		rm = GameManager.get_node("RiffManager")
+	return rm
+
+var delete_overlay: Control
+var delete_label_ref: Label
+
+
+func _show_delete_prompt(song_title: String) -> void:
+	if not delete_overlay:
+		_create_delete_ui()
+		
+	delete_label_ref.text = "Import successful!\n\nDo you want to delete '%s' from the Song Library\nto keep it clean? (A copy is saved in Ear Trainer)" % song_title
+	delete_overlay.visible = true
+
+func _create_delete_ui() -> void:
+	delete_overlay = Control.new()
+	delete_overlay.name = "DeleteOverlay"
+	delete_overlay.set_anchors_preset(Control.PRESET_FULL_RECT)
+	get_parent().add_child(delete_overlay)
+	
+	var dim = ColorRect.new()
+	dim.color = Color(0, 0, 0, 0.4)
+	dim.set_anchors_preset(Control.PRESET_FULL_RECT)
+	delete_overlay.add_child(dim)
+	
+	var center_cont = CenterContainer.new()
+	center_cont.set_anchors_preset(Control.PRESET_FULL_RECT)
+	center_cont.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	delete_overlay.add_child(center_cont)
+	
+	var panel = PanelContainer.new()
+	panel.theme = _main_theme
+	panel.custom_minimum_size = Vector2(350, 180)
+	center_cont.add_child(panel)
+	
+	var margin = MarginContainer.new()
+	margin.add_theme_constant_override("margin_top", 16)
+	margin.add_theme_constant_override("margin_left", 16)
+	margin.add_theme_constant_override("margin_right", 16)
+	margin.add_theme_constant_override("margin_bottom", 16)
+	panel.add_child(margin)
+	
+	var vbox = VBoxContainer.new()
+	vbox.add_theme_constant_override("separation", 16)
+	margin.add_child(vbox)
+	
+	var title = Label.new()
+	title.text = "Clean Up Library"
+	title.theme_type_variation = "HeaderMedium"
+	vbox.add_child(title)
+	
+	delete_label_ref = Label.new()
+	delete_label_ref.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	vbox.add_child(delete_label_ref)
+	
+	var hbox = HBoxContainer.new()
+	hbox.alignment = BoxContainer.ALIGNMENT_END
+	hbox.add_theme_constant_override("separation", 16)
+	vbox.add_child(hbox)
+	
+	var keep_btn = Button.new()
+	keep_btn.text = "Keep Original"
+	keep_btn.flat = true
+	keep_btn.pressed.connect(func(): delete_overlay.visible = false)
+	hbox.add_child(keep_btn)
+	
+	var del_btn = Button.new()
+	del_btn.text = "Delete"
+	del_btn.pressed.connect(func():
+		_on_delete_confirmed()
+		delete_overlay.visible = false
+	)
+	hbox.add_child(del_btn)
+
+func _on_delete_confirmed() -> void:
+	if pending_delete_song.is_empty(): return
+	
+	var song_manager = GameManager.get_node_or_null("SongManager")
+	if song_manager:
+		song_manager.delete_song(pending_delete_song)
+		print("Deleted original song: ", pending_delete_song)
+		
+	if current_library_mode == LibraryTabMode.SONGS and library_content.visible:
+		_refresh_library_list()
+	
+	pending_delete_song = ""
 
 func _open_riff_editor(semitones: int) -> void:
 	if not riff_editor_scene: return

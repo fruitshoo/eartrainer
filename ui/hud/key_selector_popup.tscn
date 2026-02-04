@@ -8,6 +8,7 @@
 [node name="KeySelectorPopup" type="PopupPanel"]
 size = Vector2i(220, 180)
 visible = false
+transparent_bg = true
 theme = ExtResource("2_theme")
 script = ExtResource("1_script")
 

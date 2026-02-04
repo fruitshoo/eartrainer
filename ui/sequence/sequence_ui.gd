@@ -15,6 +15,8 @@ var slot_button_scene: PackedScene = preload("res://ui/sequence/slot_button.tscn
 
 # Controls
 @onready var bar_count_spin_box: SpinBox = %BarCountSpinBox
+@onready var time_sig_button: Button = %TimeSigButton # [New]
+
 # @onready var split_check_button: CheckButton = %SplitCheckButton
 @onready var split_bar_button: Button = %SplitBarButton # [New]
 
@@ -60,6 +62,10 @@ func _ready() -> void:
 	if split_bar_button:
 		split_bar_button.pressed.connect(_on_split_bar_pressed)
 		split_bar_button.focus_mode = Control.FOCUS_NONE
+		
+	if time_sig_button:
+		time_sig_button.pressed.connect(_on_time_sig_pressed)
+
 	
 	# [New] Step/Beat Update Listener
 	if not EventBus.sequencer_step_beat_changed.is_connected(_on_step_beat_changed):
@@ -103,6 +109,12 @@ func _sync_ui_from_manager() -> void:
 	# split_check_button.set_pressed_no_signal(ProgressionManager.chords_per_bar == 2)
 	
 	_update_split_button_state()
+	
+	# [New] Time Sig UI
+	if time_sig_button:
+		var beats = ProgressionManager.beats_per_bar
+		time_sig_button.text = "%d/4" % beats
+
 	
 	# [New] Dynamic Grid Logic
 	var total_bars = ProgressionManager.bar_count
@@ -159,9 +171,18 @@ func _rebuild_slots() -> void:
 			
 			# Beats logic
 			var beats = 4 if density == 1 else 2
+			if density == 1:
+				beats = ProgressionManager.beats_per_bar
 			
 			# Dynamic Sizing
-			var width = 140.0 if beats >= 4 else 65.0
+			var width = 140.0
+			if beats >= 4:
+				width = 140.0
+			elif beats == 3:
+				width = 110.0 # Slightly smaller for 3/4
+			else:
+				width = 65.0
+
 			btn.custom_minimum_size = Vector2(width, 80)
 			
 			# Setup
@@ -208,8 +229,14 @@ func _on_split_bar_pressed() -> void:
 	if bar_idx >= 0:
 		ProgressionManager.toggle_bar_split(bar_idx)
 		
-		# 리빌드 후 선택 복원 시도? (인덱스가 바뀌므로 복잡, 일단 해제)
-		# ProgressionManager에서 이미 리셋됨
+	# 리빌드 후 선택 복원 시도? (인덱스가 바뀌므로 복잡, 일단 해제)
+	# ProgressionManager에서 이미 리셋됨
+
+func _on_time_sig_pressed() -> void:
+	var current = ProgressionManager.beats_per_bar
+	var next = 3 if current == 4 else 4
+	ProgressionManager.set_time_signature(next)
+
 
 # func _on_bpm_changed(value: float) -> void: ... (Removed)
 
@@ -406,6 +433,14 @@ func _update_split_button_state() -> void:
 	var bar_idx = ProgressionManager.get_bar_index_for_slot(idx)
 	var density = ProgressionManager.bar_densities[bar_idx]
 	split_bar_button.text = "Merge Bar" if density == 2 else "Split Bar"
+	
+	# [New] Disable Split in 3/4
+	if ProgressionManager.beats_per_bar == 3:
+		split_bar_button.disabled = true
+		split_bar_button.tooltip_text = "Not available in 3/4"
+	else:
+		split_bar_button.tooltip_text = "Split Selected Bar"
+
 
 # ============================================================
 # INPUT & SIGNALS

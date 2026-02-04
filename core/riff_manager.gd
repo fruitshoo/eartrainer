@@ -12,6 +12,58 @@ var playback_preferences: Dictionary = {} # { "interval_7": { "mode": "random" }
 func _ready():
 	_load_riffs()
 
+# [New] Import Song as Riff (User Request)
+func import_song_as_riff(interval: int, song_title: String) -> bool:
+	var song_manager = GameManager.get_node_or_null("SongManager")
+	if not song_manager:
+		print("[RiffManager] SongManager not found.")
+		return false
+		
+	# 1. Fetch Song Data
+	var songs = song_manager.get_song_list()
+	var target_song = {}
+	for s in songs:
+		if s.get("title") == song_title:
+			target_song = s
+			break
+			
+	if target_song.is_empty():
+		print("[RiffManager] Song not found: ", song_title)
+		return false
+		
+	# 2. Extract Data
+	var notes = target_song.get("melody", []).duplicate(true)
+	var slots = target_song.get("slots", []).duplicate(true) # [New] Preserve Chords
+	var bpm = target_song.get("bpm", 120) # [New]
+	
+	if notes.is_empty() and slots.is_empty():
+		print("[RiffManager] Song is empty.")
+		return false
+		
+	# 3. Create Riff Data
+	var riff_data = {
+		"title": song_title,
+		"source": "user_import",
+		"direction": 0, # Default to Ascending? Or let user set? For now Default.
+		"notes": notes,
+		"slots": slots, # [New]
+		"bpm": bpm # [New]
+	}
+	
+	# 4. Save to User Riffs
+	add_riff(interval, riff_data, "interval")
+	
+	# 5. Auto-set Preference
+	# If this is the first one, or user explicitly requested, set as preferred?
+	# For now, let's just set it as preferred to make "Assign" feel immediate.
+	# We need the ID that was generated in add_riff.
+	# add_riff modifies the dictionary in-place by adding ID? Yes.
+	var new_id = riff_data.get("id")
+	if new_id:
+		set_playback_preference(interval, "interval", "single", str(new_id))
+		
+	return true
+
 func add_riff(key: int, riff_data: Dictionary, type: String = "interval") -> void:
 	# Add timestamp/ID if needed
 	riff_data["id"] = Time.get_unix_time_from_system()
