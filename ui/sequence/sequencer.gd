@@ -36,7 +36,7 @@ const STRUM_DELAY_SEC := 0.05
 const ACCENT_VOLUME_STRONG := 1.0 # Beat 1
 const ACCENT_VOLUME_NORMAL := 0.8 # Beat 2, 3, 4...
 const ACCENT_VOLUME_WEAK := 0.6 # Half-beats
-vk
+
 # ============================================================
 # PRIVATE
 # ============================================================
