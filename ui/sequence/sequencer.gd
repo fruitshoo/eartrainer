@@ -26,6 +26,18 @@ var _is_counting_in: bool = false # [New] 카운트인 상태
 var _count_in_beats_left: int = 0
 
 # ============================================================
+# CONSTANTS - PLAYBACK & ACCENTS
+# ============================================================
+const PLAYBACK_STYLE_BLOCK := "block"
+const PLAYBACK_STYLE_STRUM := "strum"
+
+const STRUM_DELAY_SEC := 0.05
+
+const ACCENT_VOLUME_STRONG := 1.0 # Beat 1
+const ACCENT_VOLUME_NORMAL := 0.8 # Beat 2, 3, 4...
+const ACCENT_VOLUME_WEAK := 0.6 # Half-beats
+vk
+# ============================================================
 # PRIVATE
 # ============================================================
 var _beat_timer: Timer
@@ -289,104 +301,21 @@ func _update_game_state_from_slot() -> void:
 	GameManager.current_chord_root = data.root
 	GameManager.current_chord_type = data.type
 
+# ============================================================
+# UNIFIED PLAYBACK LOGIC
+# ============================================================
 func _play_slot_strum() -> void:
 	var data = ProgressionManager.get_slot(current_step)
-	if data == null:
-		return
-	_play_strum(data)
+	if data:
+		_play_chord_internal(data, PLAYBACK_STYLE_STRUM)
 
-func _play_strum(data: Dictionary) -> void:
-	if data.is_empty(): return
-	
-	var accent_volume := _get_current_accent_volume()
-	
-	var root_fret := MusicTheory.get_fret_position(data.root, data.string)
-	var voicing_key := MusicTheory.get_voicing_key(data.string)
-	var offsets: Array = MusicTheory.VOICING_SHAPES.get(voicing_key, {}).get(data.type, [[0, 0]])
-	
-	# 1. Heuristic: Power Chords ("5") should play as Block Chords (punchy)
-	# Other chords play as Arpeggio (Strum style)
-	var is_power_chord: bool = (data.type == "5")
-	var strum_delay: float = 0.0 if is_power_chord else 0.05
-	
-	for offset in offsets:
-		var target_string: int = data.string + offset[0]
-		var target_fret: int = root_fret + offset[1]
-		
-		var tile = GameManager.find_tile(target_string, target_fret)
-		if tile and is_instance_valid(tile):
-			AudioEngine.play_note(tile.midi_note, tile.string_index, "chord", accent_volume)
-			tile.apply_sequencer_highlight(null)
-			_highlighted_tiles.append(tile)
-		
-		if not is_power_chord:
-			await get_tree().create_timer(strum_delay).timeout
-
-# ============================================================
-# TIME & STATE ACCESS (For MelodyManager)
-# ============================================================
-func get_playback_state() -> Dictionary:
-	return {
-		"is_playing": is_playing,
-		"step": current_step,
-		"beat": current_beat,
-		"last_beat_time": _last_beat_time_ms,
-		"bpm": GameManager.bpm
-	}
-
-# ============================================================
-# RHYTHM TRAINING LOGIC
-# ============================================================
-## 비트 판정 (4분/8분 지원)
-func check_rhythm_timing() -> Dictionary:
-	if not is_playing:
-		return {"valid": false}
-		
-	var now := Time.get_ticks_msec()
-	var elapsed := now - _last_beat_time_ms
-	var beat_duration_ms: float = (60.0 / GameManager.bpm) * 1000.0
-	
-	# 8분음표(반박자) 지원 여부에 따라 간격 결정
-	var interval := beat_duration_ms
-	# 기본적으로는 4분음표(메트로놈 클릭) 기준으로만 판정 (사용자 편의성)
-	var target_interval := interval
-	
-	# 오차 계산
-	var offset: float = fmod(elapsed, target_interval)
-	var deviation: float = offset
-	if offset > target_interval / 2.0:
-		deviation = offset - target_interval
-		
-	# 판정
-	var abs_dev := absf(deviation)
-	var rating := ""
-	var color := Color.WHITE
-	
-	if abs_dev < 40.0:
-		rating = "Perfect!"
-		color = Color.CYAN
-	elif abs_dev < 150.0:
-		rating = "Early" if deviation < 0 else "Late"
-		color = Color.GREEN if abs_dev < 100.0 else Color.YELLOW
-	elif abs_dev < 250.0:
-		rating = "Too Early" if deviation < 0 else "Too Late"
-		color = Color.ORANGE
-	else:
-		rating = "Miss"
-		color = Color.GRAY
-		
-	return {
-		"valid": true,
-		"deviation": deviation,
-		"rating": rating,
-		"color": color,
-		"ms_error": int(deviation)
-	}
-	
-
-## [New] 동시에 모든 음 재생 (중간 재생 시 컨텍스트 제공용)
 func _play_block_chord() -> void:
 	var data = ProgressionManager.get_chord_data(current_step)
+	if not data.is_empty():
+		_play_chord_internal(data, PLAYBACK_STYLE_BLOCK)
+		
+## 통합된 코드 재생 함수 (블록/스트럼/파워코드 자동 처리)
+func _play_chord_internal(data: Dictionary, requested_style: String) -> void:
 	if data.is_empty(): return
 	
 	var accent_volume := _get_current_accent_volume()
@@ -394,6 +323,10 @@ func _play_block_chord() -> void:
 	var root_fret := MusicTheory.get_fret_position(data.root, data.string)
 	var voicing_key := MusicTheory.get_voicing_key(data.string)
 	var offsets: Array = MusicTheory.VOICING_SHAPES.get(voicing_key, {}).get(data.type, [[0, 0]])
+	
+	# Heuristic: Power Chords are ALWAYS Block Style
+	var is_power_chord: bool = (data.type == "5")
+	var actual_style = PLAYBACK_STYLE_BLOCK if is_power_chord else requested_style
 	
 	for offset in offsets:
 		var target_string: int = data.string + offset[0]
@@ -404,18 +337,18 @@ func _play_block_chord() -> void:
 			AudioEngine.play_note(tile.midi_note, tile.string_index, "chord", accent_volume)
 			tile.apply_sequencer_highlight(null)
 			_highlighted_tiles.append(tile)
+		
+		# Strum Delay applies only if style is STRUM
+		if actual_style == PLAYBACK_STYLE_STRUM:
+			await get_tree().create_timer(STRUM_DELAY_SEC).timeout
 
 func _get_current_accent_volume() -> float:
-	# Heuristic: 
-	# Beat 0: 1.0 (Strong)
-	# Other full beats: 0.8 (Normal)
-	# Half-beats: 0.6 (Weak)
 	if current_beat == 0 and _sub_beat == 0:
-		return 1.0
+		return ACCENT_VOLUME_STRONG
 	elif _sub_beat != 0:
-		return 0.6
+		return ACCENT_VOLUME_WEAK
 	else:
-		return 0.8
+		return ACCENT_VOLUME_NORMAL
 ## [New] 코드 모양 시각화 (오디오 없음)
 func _visualize_slot_chord(data: Dictionary) -> void:
 	var root_fret := MusicTheory.get_fret_position(data.root, data.string)
