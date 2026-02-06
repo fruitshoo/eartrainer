@@ -304,6 +304,18 @@ func _update_game_state_from_slot() -> void:
 # ============================================================
 # UNIFIED PLAYBACK LOGIC
 # ============================================================
+# ============================================================
+# TIME & STATE ACCESS (For MelodyManager)
+# ============================================================
+func get_playback_state() -> Dictionary:
+	return {
+		"is_playing": is_playing,
+		"step": current_step,
+		"beat": current_beat,
+		"last_beat_time": _last_beat_time_ms,
+		"bpm": GameManager.bpm
+	}
+
 func _play_slot_strum() -> void:
 	var data = ProgressionManager.get_slot(current_step)
 	if data:
