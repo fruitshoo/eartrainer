@@ -157,61 +157,63 @@ layout_mode = 2
 layout_mode = 2
 text = "Camera"
 
-[node name="FocusRangeRow" type="HBoxContainer" parent="VBoxContainer/ContentContainer/SettingsContent/MarginContainer/SettingsVBox"]
+[node name="CamGrid" type="GridContainer" parent="VBoxContainer/ContentContainer/SettingsContent/MarginContainer/SettingsVBox"]
 layout_mode = 2
+theme_override_constants/h_separation = 12
+theme_override_constants/v_separation = 12
+columns = 2
 
-[node name="Label" type="Label" parent="VBoxContainer/ContentContainer/SettingsContent/MarginContainer/SettingsVBox/FocusRangeRow"]
+[node name="FocusLabel" type="Label" parent="VBoxContainer/ContentContainer/SettingsContent/MarginContainer/SettingsVBox/CamGrid"]
 layout_mode = 2
 text = "Focus Range"
 
-[node name="Spacer" type="Control" parent="VBoxContainer/ContentContainer/SettingsContent/MarginContainer/SettingsVBox/FocusRangeRow"]
+[node name="FocusControls" type="HBoxContainer" parent="VBoxContainer/ContentContainer/SettingsContent/MarginContainer/SettingsVBox/CamGrid"]
 layout_mode = 2
-size_flags_horizontal = 3
+size_flags_horizontal = 10
+theme_override_constants/separation = 4
 
-[node name="MinusButton" type="Button" parent="VBoxContainer/ContentContainer/SettingsContent/MarginContainer/SettingsVBox/FocusRangeRow"]
+[node name="MinusButton" type="Button" parent="VBoxContainer/ContentContainer/SettingsContent/MarginContainer/SettingsVBox/CamGrid/FocusControls"]
 unique_name_in_owner = true
 custom_minimum_size = Vector2(32, 0)
 layout_mode = 2
 text = "-"
 
-[node name="ValueLabel" type="Label" parent="VBoxContainer/ContentContainer/SettingsContent/MarginContainer/SettingsVBox/FocusRangeRow"]
+[node name="ValueLabel" type="Label" parent="VBoxContainer/ContentContainer/SettingsContent/MarginContainer/SettingsVBox/CamGrid/FocusControls"]
 unique_name_in_owner = true
-custom_minimum_size = Vector2(32, 0)
+custom_minimum_size = Vector2(40, 0)
 layout_mode = 2
 text = "3"
 horizontal_alignment = 1
 
-[node name="PlusButton" type="Button" parent="VBoxContainer/ContentContainer/SettingsContent/MarginContainer/SettingsVBox/FocusRangeRow"]
+[node name="PlusButton" type="Button" parent="VBoxContainer/ContentContainer/SettingsContent/MarginContainer/SettingsVBox/CamGrid/FocusControls"]
 unique_name_in_owner = true
 custom_minimum_size = Vector2(32, 0)
 layout_mode = 2
 text = "+"
 
-[node name="DeadzoneRow" type="HBoxContainer" parent="VBoxContainer/ContentContainer/SettingsContent/MarginContainer/SettingsVBox"]
-layout_mode = 2
-
-[node name="Label" type="Label" parent="VBoxContainer/ContentContainer/SettingsContent/MarginContainer/SettingsVBox/DeadzoneRow"]
+[node name="DeadzoneLabel" type="Label" parent="VBoxContainer/ContentContainer/SettingsContent/MarginContainer/SettingsVBox/CamGrid"]
 layout_mode = 2
 text = "Deadzone"
 
-[node name="Spacer" type="Control" parent="VBoxContainer/ContentContainer/SettingsContent/MarginContainer/SettingsVBox/DeadzoneRow"]
+[node name="DeadzoneControls" type="HBoxContainer" parent="VBoxContainer/ContentContainer/SettingsContent/MarginContainer/SettingsVBox/CamGrid"]
 layout_mode = 2
-size_flags_horizontal = 3
+size_flags_horizontal = 10
+theme_override_constants/separation = 4
 
-[node name="DeadzoneMinus" type="Button" parent="VBoxContainer/ContentContainer/SettingsContent/MarginContainer/SettingsVBox/DeadzoneRow"]
+[node name="DeadzoneMinus" type="Button" parent="VBoxContainer/ContentContainer/SettingsContent/MarginContainer/SettingsVBox/CamGrid/DeadzoneControls"]
 unique_name_in_owner = true
 custom_minimum_size = Vector2(32, 0)
 layout_mode = 2
 text = "-"
 
-[node name="DeadzoneValue" type="Label" parent="VBoxContainer/ContentContainer/SettingsContent/MarginContainer/SettingsVBox/DeadzoneRow"]
+[node name="DeadzoneValue" type="Label" parent="VBoxContainer/ContentContainer/SettingsContent/MarginContainer/SettingsVBox/CamGrid/DeadzoneControls"]
 unique_name_in_owner = true
 custom_minimum_size = Vector2(40, 0)
 layout_mode = 2
 text = "4.0"
 horizontal_alignment = 1
 
-[node name="DeadzonePlus" type="Button" parent="VBoxContainer/ContentContainer/SettingsContent/MarginContainer/SettingsVBox/DeadzoneRow"]
+[node name="DeadzonePlus" type="Button" parent="VBoxContainer/ContentContainer/SettingsContent/MarginContainer/SettingsVBox/CamGrid/DeadzoneControls"]
 unique_name_in_owner = true
 custom_minimum_size = Vector2(32, 0)
 layout_mode = 2
