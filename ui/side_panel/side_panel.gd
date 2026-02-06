@@ -136,7 +136,7 @@ func _init_volume_settings() -> void:
 	# Create Section Header
 	var header = Label.new()
 	header.text = "Volume"
-	header.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	# header.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER # Removed for unify left-alignment
 	header.theme_type_variation = "HeaderSmall"
 	vbox.add_child(header)
 	vbox.move_child(header, 0) # Top of settings
@@ -144,6 +144,7 @@ func _init_volume_settings() -> void:
 	var grid = GridContainer.new()
 	grid.name = "VolumeGrid"
 	grid.columns = 2
+	grid.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	vbox.add_child(grid)
 	vbox.move_child(grid, 1)
 	
