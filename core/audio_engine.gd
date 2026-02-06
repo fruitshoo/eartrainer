@@ -253,9 +253,11 @@ func set_metronome_enabled(enabled: bool) -> void:
 # PUBLIC API - 기타 음 재생
 # ============================================================
 # context: "chord" or "melody" (or "default")
-func play_note(midi_note: int, string_index: int = -1, context: String = "chord") -> void:
+func play_note(midi_note: int, string_index: int = -1, context: String = "chord", volume_linear: float = 1.0) -> void:
 	var player = AudioStreamPlayer.new()
 	add_child(player)
+	
+	player.volume_db = linear_to_db(volume_linear)
 	
 	# Select Sample based on String Index or Pitch
 	var selected_string_idx = 0

@@ -84,7 +84,23 @@ layout_mode = 2
 min_value = 2.0
 max_value = 8.0
 value = 4.0
+focus_mode = 0
 suffix = "Bars"
+
+[node name="PlaybackModeButton" type="OptionButton" parent="RootMargin/MainPanel/InnerMargin/MainVBox/ToolbarHBox" unique_id=441234567]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(100, 30)
+layout_mode = 2
+tooltip_text = "Chord Playback Style"
+item_count = 3
+selected = 0
+focus_mode = 0
+popup/item_0/text = "Once"
+popup/item_0/id = 0
+popup/item_1/text = "Every Beat"
+popup/item_1/id = 1
+popup/item_2/text = "Half-Beat"
+popup/item_2/id = 2
 
 [node name="SplitBarButton" type="Button" parent="RootMargin/MainPanel/InnerMargin/MainVBox/ToolbarHBox" unique_id=293847102]
 unique_name_in_owner = true
@@ -92,6 +108,7 @@ custom_minimum_size = Vector2(30, 30)
 layout_mode = 2
 tooltip_text = "Split Selected Bar"
 text = "✂"
+focus_mode = 0
 disabled = true
 
 [node name="VSeparator3" type="VSeparator" parent="RootMargin/MainPanel/InnerMargin/MainVBox/ToolbarHBox"]

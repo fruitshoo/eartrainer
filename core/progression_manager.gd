@@ -17,6 +17,7 @@ signal settings_updated(bar_count: int, chords_per_bar: int) # [New] 설정 변�
 # ============================================================
 var bar_count: int = 4
 var beats_per_bar: int = 4 # [New] 4/4 or 3/4
+var playback_mode: MusicTheory.ChordPlaybackMode = MusicTheory.ChordPlaybackMode.ONCE
 
 
 # var chords_per_bar: int = 1 # Replaced by bar_densities
@@ -297,6 +298,13 @@ func get_slot(index: int) -> Variant:
 		return slots[index]
 	return null
 
+## [New] 특정 슬롯의 데이터를 Dictionary로 반환 (Null 안전)
+func get_chord_data(index: int) -> Dictionary:
+	var s = get_slot(index)
+	if s is Dictionary:
+		return s
+	return {}
+
 ## 모든 슬롯 초기화
 func clear_all() -> void:
 	for i in range(slots.size()):
@@ -357,6 +365,7 @@ func save_session() -> void:
 		"version": 1,
 		"bar_count": bar_count,
 		"beats_per_bar": beats_per_bar,
+		"playback_mode": playback_mode,
 
 		"bar_densities": bar_densities,
 		"slots": slots,
@@ -391,6 +400,7 @@ func load_session() -> void:
 func _deserialize_data(data: Dictionary) -> void:
 	bar_count = data.get("bar_count", 4)
 	beats_per_bar = data.get("beats_per_bar", 4) # [New]
+	playback_mode = int(data.get("playback_mode", MusicTheory.ChordPlaybackMode.ONCE)) as MusicTheory.ChordPlaybackMode
 	# EventBus.debug_log.emit("Deserializing: Bars=%d" % bar_count)
 	
 	var saved_densities = data.get("bar_densities", [])

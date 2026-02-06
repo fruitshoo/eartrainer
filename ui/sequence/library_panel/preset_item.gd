@@ -18,6 +18,11 @@ var item_index: int = -1
 var is_selected: bool = false
 var is_default: bool = false
 
+func _init() -> void:
+	# Ensure internal buttons don't steal focus
+	# These will be initialized in _ready, but setting parent focus_mode is a good safety
+	focus_mode = Control.FOCUS_NONE
+
 func setup(data: Dictionary, index: int) -> void:
 	preset_name = data.get("name", "Untitled")
 	item_index = index
@@ -47,6 +52,10 @@ func _ready() -> void:
 	load_button.pressed.connect(func(): load_requested.emit(preset_name))
 	delete_button.pressed.connect(func(): delete_requested.emit(preset_name))
 	default_button.toggled.connect(_on_default_toggled)
+	
+	load_button.focus_mode = Control.FOCUS_NONE
+	delete_button.focus_mode = Control.FOCUS_NONE
+	default_button.focus_mode = Control.FOCUS_NONE
 	
 	# Input Handling for Selection
 	gui_input.connect(_on_gui_input)

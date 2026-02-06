@@ -16,6 +16,7 @@ var slot_button_scene: PackedScene = preload("res://ui/sequence/slot_button.tscn
 # Controls
 @onready var bar_count_spin_box: SpinBox = %BarCountSpinBox
 @onready var time_sig_button: Button = %TimeSigButton # [New]
+@onready var playback_mode_button: OptionButton = %PlaybackModeButton # [New]
 
 # @onready var split_check_button: CheckButton = %SplitCheckButton
 @onready var split_bar_button: Button = %SplitBarButton # [New]
@@ -67,6 +68,9 @@ func _ready() -> void:
 		
 	if time_sig_button:
 		time_sig_button.pressed.connect(_on_time_sig_pressed)
+		
+	if playback_mode_button:
+		playback_mode_button.item_selected.connect(_on_playback_mode_selected)
 
 	
 	# [New] Step/Beat Update Listener
@@ -148,6 +152,9 @@ func _sync_ui_from_manager() -> void:
 	if time_sig_button:
 		var beats = ProgressionManager.beats_per_bar
 		time_sig_button.text = "%d/4" % beats
+		
+	if playback_mode_button:
+		playback_mode_button.selected = ProgressionManager.playback_mode
 
 	
 	# [New] Dynamic Grid Logic
@@ -270,6 +277,10 @@ func _on_time_sig_pressed() -> void:
 	var current = ProgressionManager.beats_per_bar
 	var next = 3 if current == 4 else 4
 	ProgressionManager.set_time_signature(next)
+
+func _on_playback_mode_selected(index: int) -> void:
+	ProgressionManager.playback_mode = index as MusicTheory.ChordPlaybackMode
+	ProgressionManager.save_session()
 
 
 # func _on_bpm_changed(value: float) -> void: ... (Removed)
@@ -579,6 +590,10 @@ func _show_chord_context_menu(index: int) -> void:
 	context_menu.add_separator("변형 (Alteration)")
 	_add_chord_item("dim7", "dim7", root_note, string_idx)
 	_add_chord_item("aug", "aug", root_note, string_idx)
+	
+	# --- 파워코드 (Power) ---
+	context_menu.add_separator("파워코드 (Power)")
+	_add_chord_item("5", "5 (Power Chord)", root_note, string_idx)
 	
 	# --- 특수 보이싱 (Special Voicings) ---
 	# [New] Submenu Logic

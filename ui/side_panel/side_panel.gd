@@ -934,6 +934,7 @@ func _create_import_ui() -> void:
 	vbox.add_child(label)
 	
 	import_option_button = OptionButton.new()
+	import_option_button.focus_mode = Control.FOCUS_NONE
 	vbox.add_child(import_option_button)
 	
 	var hbox = HBoxContainer.new()
@@ -943,11 +944,13 @@ func _create_import_ui() -> void:
 	var cancel = Button.new()
 	cancel.text = "Cancel"
 	cancel.flat = true
+	cancel.focus_mode = Control.FOCUS_NONE
 	cancel.pressed.connect(func(): import_overlay.visible = false)
 	hbox.add_child(cancel)
 	
 	import_btn_ref = Button.new()
 	import_btn_ref.text = "Import"
+	import_btn_ref.focus_mode = Control.FOCUS_NONE
 	import_btn_ref.pressed.connect(_on_import_confirmed)
 	hbox.add_child(import_btn_ref)
 
