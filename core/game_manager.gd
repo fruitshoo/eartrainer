@@ -22,9 +22,19 @@ var current_mode: MusicTheory.ScaleMode = MusicTheory.ScaleMode.MAJOR:
 		current_mode = value
 		_apply_diatonic_chord(KEY_1) # 모드 변경 시 1도로 리셋
 
-var current_notation: MusicTheory.NotationMode = MusicTheory.NotationMode.BOTH:
+var show_notation_cde: bool = true:
 	set(value):
-		current_notation = value
+		show_notation_cde = value
+		settings_changed.emit()
+
+var show_notation_doremi: bool = true:
+	set(value):
+		show_notation_doremi = value
+		settings_changed.emit()
+
+var show_notation_degree: bool = false:
+	set(value):
+		show_notation_degree = value
 		settings_changed.emit()
 
 # Visualization Settings
@@ -164,13 +174,24 @@ func get_note_label(midi_note: int) -> String:
 	if relative < 0: relative += 12
 	var movable_name: String = MusicTheory.get_doremi_name(relative, use_flats)
 	
-	match current_notation:
-		MusicTheory.NotationMode.CDE:
-			return fixed_name
-		MusicTheory.NotationMode.DOREMI:
-			return movable_name
-		_:
-			return "%s (%s)" % [fixed_name, movable_name]
+	var labels: Array[String] = []
+	
+	if show_notation_cde:
+		labels.append(fixed_name)
+	if show_notation_doremi:
+		labels.append(movable_name)
+	if show_notation_degree:
+		labels.append(MusicTheory.get_degree_number_name(midi_note, current_key))
+		
+	if labels.is_empty():
+		return ""
+	elif labels.size() == 1:
+		return labels[0]
+	else:
+		# Primary (First) \n (Secondary joined by /)
+		var primary = labels[0]
+		var secondary = " / ".join(labels.slice(1))
+		return "%s\n%s" % [primary, secondary]
 
 ## 음이 현재 스케일에 포함되는지
 func is_in_scale(midi_note: int) -> bool:
@@ -228,7 +249,9 @@ func save_settings() -> void:
 	var data = {
 		"current_key": current_key,
 		"current_mode": current_mode,
-		"current_notation": current_notation,
+		"show_notation_cde": show_notation_cde,
+		"show_notation_doremi": show_notation_doremi,
+		"show_notation_degree": show_notation_degree,
 		"bpm": bpm,
 		"show_note_labels": show_note_labels,
 		"highlight_root": highlight_root,
@@ -273,7 +296,26 @@ func load_settings() -> void:
 func _deserialize_settings(data: Dictionary) -> void:
 	current_key = int(data.get("current_key", 0))
 	current_mode = int(data.get("current_mode", MusicTheory.ScaleMode.MAJOR)) as MusicTheory.ScaleMode
-	current_notation = int(data.get("current_notation", MusicTheory.NotationMode.BOTH)) as MusicTheory.NotationMode
+	show_notation_cde = data.get("show_notation_cde", true)
+	show_notation_doremi = data.get("show_notation_doremi", true)
+	show_notation_degree = data.get("show_notation_degree", false)
+	
+	# [Migration] Handle old "current_notation" data if present
+	if data.has("current_notation"):
+		var old_mode = int(data.get("current_notation"))
+		match old_mode:
+			0: # CDE
+				show_notation_cde = true
+				show_notation_doremi = false
+				show_notation_degree = false
+			1: # DOREMI
+				show_notation_cde = false
+				show_notation_doremi = true
+				show_notation_degree = false
+			2: # BOTH
+				show_notation_cde = true
+				show_notation_doremi = true
+				show_notation_degree = false
 	bpm = int(data.get("bpm", 120))
 	
 	show_note_labels = data.get("show_note_labels", true)

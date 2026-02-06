@@ -5,7 +5,7 @@ class_name MusicTheory
 # ============================================================
 # ENUMS
 # ============================================================
-enum NotationMode {CDE, DOREMI, BOTH}
+enum NotationMode {CDE, DOREMI, BOTH, DEGREE}
 enum ScaleMode {MAJOR, MINOR}
 
 # ============================================================
@@ -76,7 +76,7 @@ const DIATONIC_MAP := {
 }
 
 # ============================================================
-# CONSTANTS - 도수 레이블 (시퀀서 UI용)
+# CONSTANTS - 도수 레이블 (시퀀서 UI용 - 로마자)
 # ============================================================
 const DEGREE_LABELS := {
 	ScaleMode.MAJOR: {
@@ -87,6 +87,14 @@ const DEGREE_LABELS := {
 		0: "i", 1: "bII", 2: "ii°", 3: "bIII", 4: "III", 5: "iv",
 		6: "#iv", 7: "v", 8: "bVI", 9: "VI", 10: "bVII", 11: "vii°"
 	}
+}
+
+# ============================================================
+# CONSTANTS - 도수 레이블 (NotationMode.DEGREE 용 - 숫자)
+# ============================================================
+const DEGREE_NUMBERS = {
+	0: "1", 1: "b2", 2: "2", 3: "b3", 4: "3", 5: "4",
+	6: "b5", 7: "5", 8: "b6", 9: "6", 10: "b7", 11: "7"
 }
 
 # ============================================================
@@ -107,47 +115,6 @@ const VOICING_SHAPES := {
 		"aug": [[0, 0], [2, 1], [3, 1], [4, 1]], # Augmented
 		
 		"M/2": [[0, 2], [2, 2], [3, 1], [4, 0]], # G/A form (5x543x => Bass+2, Root+2, 3rd+1, 5th+0).
-		# Logic check:
-		# Root G (3rd fret). Bass A (5th fret, +2).
-		# D str G (5th fret, +2 from F? No. Relative to 6th str root).
-		# If Root is 6th str (index 0). Offset [0, y].
-		# Root G -> Fret 3.
-		# Str 6 (Bass): Fret 5 (A). Offset +2? Yes. `[0, 2]`.
-		# Str 5 (Mute).
-		# Str 4 (D str): Fret 5 (G). Root.
-		#   If Root G (6th str/3rd fret).
-		#   D str Open is D. G is 5th fret.
-		#   Root fret for 4th string? 
-		#     If I use get_fret_position(root, 4) -> It returns fret for G on D string? -> 5.
-		#     So offset from "Root Fret on target string"?
-		#     Wait. `MusicTheory.get_tab_string`: `root_fret = get_fret_position(root, string_index)`
-		#     This calculates root fret relative to the *Voicing Key String* (string_index).
-		#     If `voicing_key` is `6th_string`, then `string_index` passed to `get_tab_string` must be 0?
-		#     Yes, `_add_chord_item` passes `string_idx` from slot data.
-		#     If slot is 6th string root, `string_idx` is 0.
-		#     So `root_fret` is calculated for 6th string.
-		#     Then loop `target_fret = root_fret + offset[1]`.
-		#     Wait. `offset[1]` is added to `root_fret` (which is on 6th string!).
-		#     But the target note is on `target_string_idx`.
-		#     Does `root_fret` (on 6th string) make sense as a base for other strings?
-		#     ONLY if the offsets are defined relative to that fret number across the board.
-		#     Ex: 5th fret Barre chord. Root is 5th fret.
-		#     Str 6: 5 (Offset 0).
-		#     Str 5: 7 (Offset 2).
-		#     Str 4: 7 (Offset 2).
-		#     Str 3: 6 (Offset 1).
-		#     This assumes "Fret 5" is the base.
-		#     So yes, my offsets `[[0, 2], [2, 2], [3, 1], [4, 0]]` mean:
-		#       Str 6: RootFret + 2.
-		#       Str 4: RootFret + 2.
-		#       Str 3: RootFret + 1.
-		#       Str 2: RootFret + 0.
-		#     If Root G is Fret 3.
-		#       Str 6: 5 (A). Correct.
-		#       Str 4: 5 (G). Correct.
-		#       Str 3: 4 (B). Correct.
-		#       Str 2: 3 (D). Correct.
-		#     This matches 5x543 perfectly.
 		
 		"M/3": [[0, 4], [2, 4], [3, 4], [4, 5]] # E/G# form (Bass+4, 9th, 5th, Root)
 	},
@@ -208,6 +175,11 @@ static func get_doremi_name(relative_note: int, use_flats: bool = false) -> Stri
 		return NOTE_NAMES_DOREMI_FLAT[index]
 	return NOTE_NAMES_DOREMI_SHARP[index]
 
+## 숫자 기반 도수 표기 (1, b2, 2, b3...) 반환
+static func get_degree_number_name(midi_note: int, key_root: int) -> String:
+	var interval := _get_interval(midi_note, key_root)
+	return DEGREE_NUMBERS.get(interval, "?")
+
 ## 해당 음이 스케일에 포함되는지 확인
 static func is_in_scale(midi_note: int, key_root: int, mode: ScaleMode) -> bool:
 	var interval := _get_interval(midi_note, key_root)
@@ -216,7 +188,6 @@ static func is_in_scale(midi_note: int, key_root: int, mode: ScaleMode) -> bool:
 ## 3-Tier 시각화용 계층 반환 (1=Root, 2=ChordTone, 3=ScaleTone, 4=Avoid)
 static func get_visual_tier(midi_note: int, chord_root: int, chord_type: String, key_root: int, mode: ScaleMode) -> int:
 	# [DEBUG] 값 추적 - 문제 해결 후 삭제할 것
-	# print("get_visual_tier -> Note:%d ChordRoot:%d Type:%s KeyRoot:%d Mode:%d" % [midi_note, chord_root, chord_type, key_root, mode])
 	var chord_interval := _get_interval(midi_note, chord_root)
 	
 	if chord_interval == 0:
@@ -315,14 +286,8 @@ static func get_tab_string(root: int, type: String, string_index: int) -> String
 		var target_fret = root_fret + offset[1]
 		
 		# String index in array (Godot project logic seems to use 0 for 6th string?)
-		# Let's verify string indexing in audio_engine or tile.
-		# Usually standard is 0=Low E (6th), 5=High e (1st).
-		
-		# Mapping:
-		# 0(6th) -> tabs[0]
+		# Mapping: 0(6th) -> tabs[0]
 		if target_string_idx >= 0 and target_string_idx < 6:
 			tabs[target_string_idx] = str(target_fret)
 			
-	# Return formatted string (Low to High? or Standard Tab High to Low?)
-	# Text representation usually "3x0003" (Low E to High e) for single line text.
 	return "".join(tabs)

@@ -98,7 +98,8 @@ func setup(s_idx: int, f_idx: int, note_val: int, label_container: CanvasLayer =
 		label_container.add_child(_label_2d)
 		_label_2d.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		_label_2d.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-		# Style
+		# [v0.9] Stacked Notation Support
+		# Simply centered alignment handles explicit newlines (\n) correctly by default.
 		_label_2d.add_theme_font_size_override("font_size", 16)
 		_label_2d.modulate = Color(1, 1, 1, 0.9)
 		# Shadow

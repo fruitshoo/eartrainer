@@ -315,12 +315,52 @@ func show_tab(tab: Tab) -> void:
 # ============================================================
 func _init_settings_tab() -> void:
 	# Notation dropdown
+	# Notation Checkboxes (Replaces Dropdown)
 	if notation_option:
-		notation_option.clear()
-		notation_option.add_item("CDE", 0)
-		notation_option.add_item("도레미", 1)
-		notation_option.add_item("Both", 2)
-		notation_option.item_selected.connect(_on_notation_changed)
+		notation_option.visible = false # Hide the old dropdown
+		
+		var container = notation_option.get_parent()
+		
+		# CDE Checkbox
+		var cde_cb = CheckBox.new()
+		cde_cb.text = "CDE"
+		cde_cb.size_flags_horizontal = Control.SIZE_EXPAND_FILL # Ensure it takes space
+		cde_cb.toggled.connect(func(v):
+			GameManager.show_notation_cde = v
+			GameManager.save_settings()
+		)
+		container.add_child(cde_cb)
+		# Note: notation_option is now first child of NotationGrid
+		# cde_cb will naturally follow in the grid logic.
+		# move_child isn't strictly necessary if it's a grid, but safe to keep.
+		container.move_child(cde_cb, notation_option.get_index() + 1)
+		
+		# DoReMi Checkbox
+		var doremi_cb = CheckBox.new()
+		doremi_cb.text = "도레미"
+		doremi_cb.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		doremi_cb.toggled.connect(func(v):
+			GameManager.show_notation_doremi = v
+			GameManager.save_settings()
+		)
+		container.add_child(doremi_cb)
+		container.move_child(doremi_cb, notation_option.get_index() + 2)
+		
+		# Degree Checkbox
+		var degree_cb = CheckBox.new()
+		degree_cb.text = "123 (Degree)"
+		degree_cb.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		degree_cb.toggled.connect(func(v):
+			GameManager.show_notation_degree = v
+			GameManager.save_settings()
+		)
+		container.add_child(degree_cb)
+		container.move_child(degree_cb, notation_option.get_index() + 3)
+		
+		# Store references for sync
+		cde_cb.set_meta("id", "cde_cb")
+		doremi_cb.set_meta("id", "doremi_cb")
+		degree_cb.set_meta("id", "degree_cb")
 	
 	# Visual toggles
 	if note_label_check:
@@ -349,7 +389,13 @@ func _init_settings_tab() -> void:
 
 func _sync_settings_from_game_manager() -> void:
 	if notation_option:
-		notation_option.selected = GameManager.current_notation
+		var container = notation_option.get_parent()
+		for child in container.get_children():
+			if child.has_meta("id"):
+				match child.get_meta("id"):
+					"cde_cb": child.set_pressed_no_signal(GameManager.show_notation_cde)
+					"doremi_cb": child.set_pressed_no_signal(GameManager.show_notation_doremi)
+					"degree_cb": child.set_pressed_no_signal(GameManager.show_notation_degree)
 	if note_label_check:
 		note_label_check.button_pressed = GameManager.show_note_labels
 	if root_check:
@@ -363,9 +409,7 @@ func _sync_settings_from_game_manager() -> void:
 	if deadzone_value_label:
 		deadzone_value_label.text = str(GameManager.camera_deadzone)
 
-func _on_notation_changed(index: int) -> void:
-	GameManager.current_notation = index as MusicTheory.NotationMode
-	GameManager.save_settings()
+# Notation changed handler removed (logic moved to inline lambdas)
 
 func _adjust_focus_range(delta: int) -> void:
 	GameManager.focus_range = clampi(GameManager.focus_range + delta, 1, 12)

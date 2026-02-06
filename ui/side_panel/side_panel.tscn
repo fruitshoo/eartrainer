@@ -83,30 +83,32 @@ horizontal_scroll_mode = 0
 [node name="MarginContainer" type="MarginContainer" parent="VBoxContainer/ContentContainer/SettingsContent"]
 layout_mode = 2
 size_flags_horizontal = 3
-theme_override_constants/margin_left = 12
-theme_override_constants/margin_top = 8
-theme_override_constants/margin_right = 12
-theme_override_constants/margin_bottom = 12
+theme_override_constants/margin_left = 20
+theme_override_constants/margin_top = 16
+theme_override_constants/margin_right = 20
+theme_override_constants/margin_bottom = 20
 
 [node name="SettingsVBox" type="VBoxContainer" parent="VBoxContainer/ContentContainer/SettingsContent/MarginContainer"]
 layout_mode = 2
-theme_override_constants/separation = 8
+size_flags_horizontal = 3
+theme_override_constants/separation = 16
 
-[node name="NotationSetting" type="HBoxContainer" parent="VBoxContainer/ContentContainer/SettingsContent/MarginContainer/SettingsVBox"]
-layout_mode = 2
-
-[node name="Label" type="Label" parent="VBoxContainer/ContentContainer/SettingsContent/MarginContainer/SettingsVBox/NotationSetting"]
+[node name="NotationLabel" type="Label" parent="VBoxContainer/ContentContainer/SettingsContent/MarginContainer/SettingsVBox"]
 layout_mode = 2
 text = "Notation"
 
-[node name="Spacer" type="Control" parent="VBoxContainer/ContentContainer/SettingsContent/MarginContainer/SettingsVBox/NotationSetting"]
+[node name="NotationGrid" type="GridContainer" parent="VBoxContainer/ContentContainer/SettingsContent/MarginContainer/SettingsVBox"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_constants/h_separation = 12
+theme_override_constants/v_separation = 8
+columns = 2
+
+[node name="NotationOptionButton" type="OptionButton" parent="VBoxContainer/ContentContainer/SettingsContent/MarginContainer/SettingsVBox/NotationGrid"]
+unique_name_in_owner = true
+visible = false
 layout_mode = 2
 size_flags_horizontal = 3
-
-[node name="NotationOptionButton" type="OptionButton" parent="VBoxContainer/ContentContainer/SettingsContent/MarginContainer/SettingsVBox/NotationSetting"]
-unique_name_in_owner = true
-custom_minimum_size = Vector2(120, 0)
-layout_mode = 2
 
 [node name="VizDivider" type="HSeparator" parent="VBoxContainer/ContentContainer/SettingsContent/MarginContainer/SettingsVBox"]
 layout_mode = 2

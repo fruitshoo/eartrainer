@@ -36,7 +36,9 @@ func _ready() -> void:
 func save_settings() -> void:
 	_config.set_value("Music", "key", GameManager.current_key)
 	_config.set_value("Music", "mode", int(GameManager.current_mode))
-	_config.set_value("Music", "notation", int(GameManager.current_notation))
+	_config.set_value("Music", "show_cde", GameManager.show_notation_cde)
+	_config.set_value("Music", "show_doremi", GameManager.show_notation_doremi)
+	_config.set_value("Music", "show_degree", GameManager.show_notation_degree)
 	
 	# [New] Visual Settings
 	_config.set_value("Display", "show_note_labels", GameManager.show_note_labels)
@@ -63,8 +65,24 @@ func load_settings() -> void:
 	GameManager.current_key = _config.get_value("Music", "key", 0)
 	var mode_int: int = _config.get_value("Music", "mode", 0)
 	GameManager.current_mode = mode_int as MusicTheory.ScaleMode
-	var notation_int: int = _config.get_value("Music", "notation", 2)
-	GameManager.current_notation = notation_int as MusicTheory.NotationMode
+	GameManager.show_notation_cde = _config.get_value("Music", "show_cde", true)
+	GameManager.show_notation_doremi = _config.get_value("Music", "show_doremi", true)
+	GameManager.show_notation_degree = _config.get_value("Music", "show_degree", false)
+	
+	# Migrate old "notation" key if present
+	if _config.has_section_key("Music", "notation"):
+		var old_val = _config.get_value("Music", "notation")
+		if old_val is int:
+			match old_val:
+				0: # CDE
+					GameManager.show_notation_cde = true
+					GameManager.show_notation_doremi = false
+				1: # DOREMI
+					GameManager.show_notation_cde = false
+					GameManager.show_notation_doremi = true
+				2: # BOTH
+					GameManager.show_notation_cde = true
+					GameManager.show_notation_doremi = true
 	
 	# [New] Visual Settings
 	GameManager.show_note_labels = _config.get_value("Display", "show_note_labels", true)
@@ -90,7 +108,9 @@ func reset_to_defaults() -> void:
 	# GameManager를 기본값으로 리셋
 	GameManager.current_key = 0 # C
 	GameManager.current_mode = MusicTheory.ScaleMode.MAJOR
-	GameManager.current_notation = MusicTheory.NotationMode.BOTH
+	GameManager.show_notation_cde = true
+	GameManager.show_notation_doremi = true
+	GameManager.show_notation_degree = false
 	
 	GameManager.show_note_labels = true
 	GameManager.highlight_root = true
