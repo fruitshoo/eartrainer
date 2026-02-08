@@ -65,7 +65,6 @@ func _ready() -> void:
 	_update_position(false)
 	
 	# 3. EventBus
-	EventBus.request_show_side_panel_tab.connect(func(_idx): open())
 	EventBus.request_collapse_side_panel.connect(close)
 	EventBus.request_close_settings.connect(close)
 	
