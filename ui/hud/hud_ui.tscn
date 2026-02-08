@@ -100,6 +100,18 @@ alignment = 1
 [node name="VSeparator3" type="VSeparator" parent="TopBarContainer/TopBarPanel/MarginContainer/TopBar" unique_id=541898970]
 layout_mode = 2
 
+[node name="LibraryButton" type="Button" parent="TopBarContainer/TopBarPanel/MarginContainer/TopBar"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "Library"
+flat = true
+
+[node name="TrainerButton" type="Button" parent="TopBarContainer/TopBarPanel/MarginContainer/TopBar"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "Training"
+flat = true
+
 [node name="SettingsButton" type="Button" parent="TopBarContainer/TopBarPanel/MarginContainer/TopBar" unique_id=231635344]
 unique_name_in_owner = true
 custom_minimum_size = Vector2(40, 40)

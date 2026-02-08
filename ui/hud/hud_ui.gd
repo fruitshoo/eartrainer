@@ -22,7 +22,9 @@ const BEAT_DOT_OFF_COLOR := Color(0.3, 0.3, 0.3, 0.5)
 @onready var record_button: Button = %RecordButton
 @onready var bpm_spin_box: SpinBox = %BPMSpinBox
 @onready var metronome_button: Button = %MetronomeButton
-@onready var settings_button: Button = %SettingsButton # [New]
+@onready var settings_button: Button = %SettingsButton
+@onready var library_button: Button = %LibraryButton
+@onready var trainer_button: Button = %TrainerButton
 
 # ============================================================
 # STATE
@@ -86,6 +88,14 @@ func _ready() -> void:
 	if settings_button:
 		settings_button.pressed.connect(func(): EventBus.request_toggle_settings.emit())
 		settings_button.focus_mode = Control.FOCUS_NONE
+
+	if library_button:
+		library_button.pressed.connect(func(): EventBus.request_show_side_panel_tab.emit(0)) # 0 = Library
+		library_button.focus_mode = Control.FOCUS_NONE
+
+	if trainer_button:
+		trainer_button.pressed.connect(func(): EventBus.request_show_side_panel_tab.emit(1)) # 1 = Ear Trainer
+		trainer_button.focus_mode = Control.FOCUS_NONE
 	
 	_setup_visual_style()
 	call_deferred("_delayed_setup")

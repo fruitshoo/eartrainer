@@ -12,7 +12,7 @@ signal toggled(is_open: bool)
 # ENUMS
 # ============================================================
 # enum SheetState {MINIMIZED, HALF, MAXIMIZED} # Deprecated
-enum Tab {SETTINGS, LIBRARY, EAR_TRAINER}
+enum Tab {LIBRARY, EAR_TRAINER}
 enum LibraryTabMode {PRESETS, SONGS} # [New]
 
 # ============================================================
@@ -39,30 +39,12 @@ var riff_editor_scene: PackedScene = preload("res://ui/side_panel/RiffEditor.tsc
 @onready var tab_bar: HBoxContainer = %TabBar
 @onready var content_container: Control = %ContentContainer
 
-@onready var settings_tab: Button = %SettingsTab
 @onready var library_tab: Button = %LibraryTab
 @onready var ear_trainer_tab: Button = %EarTrainerTab
 
-@onready var settings_content: Control = %SettingsContent
 @onready var library_content: Control = %LibraryContent
 @onready var ear_trainer_content: Control = %EarTrainerContent
 
-# Settings Tab References
-@onready var notation_option: OptionButton = %NotationOptionButton
-@onready var note_label_check: CheckBox = %NoteLabelCheck
-@onready var root_check: CheckBox = %RootCheck
-@onready var chord_check: CheckBox = %ChordCheck
-@onready var scale_check: CheckBox = %ScaleCheck
-
-# Focus Range Controls
-@onready var focus_minus_btn: Button = %MinusButton
-@onready var focus_value_label: Label = %ValueLabel
-@onready var focus_plus_btn: Button = %PlusButton
-
-# Deadzone Controls
-@onready var deadzone_minus_btn: Button = %DeadzoneMinus
-@onready var deadzone_value_label: Label = %DeadzoneValue
-@onready var deadzone_plus_btn: Button = %DeadzonePlus
 
 # Library Tab References [New]
 @onready var presets_tab_btn: Button = %PresetsTab
@@ -85,7 +67,7 @@ var riff_editor_scene: PackedScene = preload("res://ui/side_panel/RiffEditor.tsc
 # STATE
 # ============================================================
 var is_open: bool = false
-var current_tab: Tab = Tab.SETTINGS
+var current_tab: Tab = Tab.LIBRARY
 var current_library_mode: LibraryTabMode = LibraryTabMode.PRESETS # [New]
 var selected_library_item: String = "" # [New]
 
@@ -101,89 +83,24 @@ const ET_ROW_SCENE = preload("res://ui/side_panel/EarTrainerItemRow.tscn") # [Ne
 func _ready() -> void:
 	# 초기 상태 설정: 닫힘 (화면 밖)
 	_update_position(false)
-	_switch_tab(Tab.SETTINGS, false)
+	_switch_tab(Tab.LIBRARY, false)
 	
 	# 시그널 연결
-	settings_tab.pressed.connect(func(): _switch_tab(Tab.SETTINGS))
 	library_tab.pressed.connect(func(): _switch_tab(Tab.LIBRARY))
 	ear_trainer_tab.pressed.connect(func(): _switch_tab(Tab.EAR_TRAINER))
 	
 	# [Fix] Prevent Spacebar from re-triggering tabs (re-opening panel)
-	settings_tab.focus_mode = Control.FOCUS_NONE
 	library_tab.focus_mode = Control.FOCUS_NONE
 	ear_trainer_tab.focus_mode = Control.FOCUS_NONE
 	
 	# EventBus 연결
-	EventBus.request_toggle_settings.connect(toggle)
 	EventBus.request_show_side_panel_tab.connect(_on_request_show_tab)
 	EventBus.request_collapse_side_panel.connect(close)
 	EventBus.request_close_settings.connect(close)
 	
-	# Settings 초기화 (기존 코드 유지)
-	_init_volume_settings() # [New]
-	_init_settings_tab()
 	_init_library_tab()
 	_init_ear_trainer_tab()
 
-func _init_volume_settings() -> void:
-	# Check if Volume Section already exists to prevent duplication
-	if settings_content.find_child("VolumeGrid", true, false):
-		return
-		
-	var vbox = settings_content.find_child("SettingsVBox")
-	if not vbox: return
-	
-	# Create Section Header
-	var header = Label.new()
-	header.text = "Volume"
-	# header.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER # Removed for unify left-alignment
-	header.theme_type_variation = "HeaderSmall"
-	vbox.add_child(header)
-	vbox.move_child(header, 0) # Top of settings
-	
-	var grid = GridContainer.new()
-	grid.name = "VolumeGrid"
-	grid.columns = 2
-	grid.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	vbox.add_child(grid)
-	vbox.move_child(grid, 1)
-	
-	var divider = HSeparator.new()
-	vbox.add_child(divider)
-	vbox.move_child(divider, 2)
-	
-	# Add Sliders
-	_add_volume_slider(grid, "Master", "Master")
-	_add_volume_slider(grid, "Chord", "Chord")
-	_add_volume_slider(grid, "Melody", "Melody")
-	_add_volume_slider(grid, "SFX", "SFX")
-
-func _add_volume_slider(parent: Node, label_text: String, bus_name: String) -> void:
-	var label = Label.new()
-	label.text = label_text
-	parent.add_child(label)
-	
-	var slider = HSlider.new()
-	slider.custom_minimum_size = Vector2(120, 0)
-	slider.min_value = 0.0
-	slider.max_value = 1.0
-	slider.step = 0.05
-	slider.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	
-	# Get current volume
-	var bus_idx = AudioServer.get_bus_index(bus_name)
-	if bus_idx != -1:
-		slider.value = db_to_linear(AudioServer.get_bus_volume_db(bus_idx))
-	
-	slider.value_changed.connect(func(value):
-		var idx = AudioServer.get_bus_index(bus_name)
-		if idx != -1:
-			AudioServer.set_bus_volume_db(idx, linear_to_db(value))
-			AudioServer.set_bus_mute(idx, value < 0.01)
-			# Save? Later via GameManager
-	)
-	
-	parent.add_child(slider)
 
 func _on_request_show_tab(tab_index: int) -> void:
 	var tab: Tab = tab_index as Tab
@@ -198,29 +115,29 @@ func open() -> void:
 func close() -> void:
 	set_open(false)
 
-func set_open(open: bool) -> void:
-	if is_open != open:
-		is_open = open
-		_animate_slide(open)
+func set_open(do_open: bool) -> void:
+	if is_open != do_open:
+		is_open = do_open
+		_animate_slide(do_open)
 		
 		# [Auto-Stop] If closing Ear Trainer, stop quiz
-		if not open and current_tab == Tab.EAR_TRAINER:
+		if not do_open and current_tab == Tab.EAR_TRAINER:
 			QuizManager.stop_quiz()
 		
 		# [Fix] Release focus when closing to prevent lingering inputs (e.g. Spacebar triggers hidden buttons)
-		if not open:
+		if not do_open:
 			# If a child of this panel has focus, release it
 			var focus_owner = get_viewport().gui_get_focus_owner()
 			if focus_owner and is_ancestor_of(focus_owner):
 				focus_owner.release_focus()
 		
-		toggled.emit(open)
+		toggled.emit(do_open)
 		# 열릴 때 EventBus 등으로 알림 가능
-		EventBus.settings_visibility_changed.emit(open)
+		EventBus.settings_visibility_changed.emit(do_open)
 
 # Position Update using Offsets (Anchor Right)
-func _update_position(open: bool) -> void:
-	if open:
+func _update_position(do_open: bool) -> void:
+	if do_open:
 		offset_left = - PANEL_WIDTH
 		offset_right = 0
 	else:
@@ -229,12 +146,12 @@ func _update_position(open: bool) -> void:
 		
 	# Height is handled by Anchor Bottom = 1.0 automatically.
 
-func _animate_slide(open: bool) -> void:
+func _animate_slide(do_open: bool) -> void:
 	if _tween:
 		_tween.kill()
 	
-	var target_l = - PANEL_WIDTH if open else 0.0
-	var target_r = 0.0 if open else PANEL_WIDTH
+	var target_l = - PANEL_WIDTH if do_open else 0.0
+	var target_r = 0.0 if do_open else PANEL_WIDTH
 	
 	_tween = create_tween()
 	_tween.set_ease(Tween.EASE_OUT)
@@ -264,7 +181,6 @@ func _switch_tab(tab: Tab, animate: bool = true) -> void:
 	current_tab = tab
 	
 	# 탭 버튼 상태 업데이트
-	settings_tab.button_pressed = (tab == Tab.SETTINGS)
 	library_tab.button_pressed = (tab == Tab.LIBRARY)
 	ear_trainer_tab.button_pressed = (tab == Tab.EAR_TRAINER)
 	
@@ -278,7 +194,7 @@ func _switch_tab(tab: Tab, animate: bool = true) -> void:
 	tab_changed.emit(tab)
 
 func _show_content(tab: Tab, animate: bool = true) -> void:
-	var contents := [settings_content, library_content, ear_trainer_content]
+	var contents := [library_content, ear_trainer_content]
 	
 	for i in range(contents.size()):
 		var content: Control = contents[i]
@@ -311,118 +227,6 @@ func show_tab(tab: Tab) -> void:
 	if not is_open:
 		open()
 
-# ============================================================
-# SETTINGS TAB
-# ============================================================
-func _init_settings_tab() -> void:
-	# Notation dropdown
-	# Notation Checkboxes (Replaces Dropdown)
-	if notation_option:
-		notation_option.visible = false # Hide the old dropdown
-		
-		var container = notation_option.get_parent()
-		
-		# CDE Checkbox
-		var cde_cb = CheckBox.new()
-		cde_cb.text = "CDE"
-		cde_cb.size_flags_horizontal = Control.SIZE_EXPAND_FILL # Ensure it takes space
-		cde_cb.toggled.connect(func(v):
-			GameManager.show_notation_cde = v
-			GameManager.save_settings()
-		)
-		container.add_child(cde_cb)
-		# Note: notation_option is now first child of NotationGrid
-		# cde_cb will naturally follow in the grid logic.
-		# move_child isn't strictly necessary if it's a grid, but safe to keep.
-		container.move_child(cde_cb, notation_option.get_index() + 1)
-		
-		# DoReMi Checkbox
-		var doremi_cb = CheckBox.new()
-		doremi_cb.text = "도레미"
-		doremi_cb.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		doremi_cb.toggled.connect(func(v):
-			GameManager.show_notation_doremi = v
-			GameManager.save_settings()
-		)
-		container.add_child(doremi_cb)
-		container.move_child(doremi_cb, notation_option.get_index() + 2)
-		
-		# Degree Checkbox
-		var degree_cb = CheckBox.new()
-		degree_cb.text = "123 (Degree)"
-		degree_cb.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		degree_cb.toggled.connect(func(v):
-			GameManager.show_notation_degree = v
-			GameManager.save_settings()
-		)
-		container.add_child(degree_cb)
-		container.move_child(degree_cb, notation_option.get_index() + 3)
-		
-		# Store references for sync
-		cde_cb.set_meta("id", "cde_cb")
-		doremi_cb.set_meta("id", "doremi_cb")
-		degree_cb.set_meta("id", "degree_cb")
-	
-	# Visual toggles
-	if note_label_check:
-		note_label_check.toggled.connect(func(v): GameManager.show_note_labels = v)
-	if root_check:
-		root_check.toggled.connect(func(v): GameManager.highlight_root = v)
-	if chord_check:
-		chord_check.toggled.connect(func(v): GameManager.highlight_chord = v)
-	if scale_check:
-		scale_check.toggled.connect(func(v): GameManager.highlight_scale = v)
-	
-	# Focus Range buttons
-	if focus_minus_btn:
-		focus_minus_btn.pressed.connect(func(): _adjust_focus_range(-1))
-	if focus_plus_btn:
-		focus_plus_btn.pressed.connect(func(): _adjust_focus_range(1))
-	
-	# Deadzone buttons
-	if deadzone_minus_btn:
-		deadzone_minus_btn.pressed.connect(func(): _adjust_deadzone(-0.5))
-	if deadzone_plus_btn:
-		deadzone_plus_btn.pressed.connect(func(): _adjust_deadzone(0.5))
-	
-	# Sync initial values
-	_sync_settings_from_game_manager()
-
-func _sync_settings_from_game_manager() -> void:
-	if notation_option:
-		var container = notation_option.get_parent()
-		for child in container.get_children():
-			if child.has_meta("id"):
-				match child.get_meta("id"):
-					"cde_cb": child.set_pressed_no_signal(GameManager.show_notation_cde)
-					"doremi_cb": child.set_pressed_no_signal(GameManager.show_notation_doremi)
-					"degree_cb": child.set_pressed_no_signal(GameManager.show_notation_degree)
-	if note_label_check:
-		note_label_check.button_pressed = GameManager.show_note_labels
-	if root_check:
-		root_check.button_pressed = GameManager.highlight_root
-	if chord_check:
-		chord_check.button_pressed = GameManager.highlight_chord
-	if scale_check:
-		scale_check.button_pressed = GameManager.highlight_scale
-	if focus_value_label:
-		focus_value_label.text = str(GameManager.focus_range)
-	if deadzone_value_label:
-		deadzone_value_label.text = str(GameManager.camera_deadzone)
-
-# Notation changed handler removed (logic moved to inline lambdas)
-
-func _adjust_focus_range(delta: int) -> void:
-	GameManager.focus_range = clampi(GameManager.focus_range + delta, 1, 12)
-	if focus_value_label:
-		focus_value_label.text = str(GameManager.focus_range)
-	GameManager.save_settings()
-
-func _adjust_deadzone(delta: float) -> void:
-	GameManager.camera_deadzone = clampf(GameManager.camera_deadzone + delta, 0.0, 10.0)
-	if deadzone_value_label:
-		deadzone_value_label.text = str(GameManager.camera_deadzone)
-	GameManager.save_settings()
 
 # ============================================================
 # LIBRARY TAB

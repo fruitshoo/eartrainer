@@ -4,6 +4,7 @@
 [ext_resource type="PackedScene" path="res://ui/hud/hud_ui.tscn" id="2_hud"]
 [ext_resource type="PackedScene" path="res://ui/sequence/sequence_ui.tscn" id="3_sequence"]
 [ext_resource type="PackedScene" path="res://ui/side_panel/side_panel.tscn" id="4_sidepanel"]
+[ext_resource type="PackedScene" uid="uid://settingswindowscene" path="res://ui/settings/settings_window.tscn" id="5_settings"]
 
 [node name="MainUI" type="CanvasLayer" unique_id=1293947862]
 script = ExtResource("1_script")
@@ -36,4 +37,8 @@ anchor_bottom = 1.0
 [node name="SequenceUI" parent="SafeArea/GameUIContainer" unique_id=99102141 instance=ExtResource("3_sequence")]
 layout_mode = 1
 
-[node name="SidePanel" parent="." unique_id_in_owner="true" instance=ExtResource("4_sidepanel")]
+[node name="SidePanel" parent="." instance=ExtResource("4_sidepanel")]
+unique_name_in_owner = true
+
+[node name="SettingsWindow" parent="." instance=ExtResource("5_settings")]
+unique_name_in_owner = true

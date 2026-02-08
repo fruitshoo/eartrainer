@@ -7,6 +7,13 @@ extends CanvasLayer
 @onready var game_ui_container: Control = %GameUIContainer
 @onready var hud: Control = game_ui_container.get_node("HUD")
 @onready var sequence_ui: Control = game_ui_container.get_node("SequenceUI")
+@onready var settings_window: Control = %SettingsWindow
 
 func _ready() -> void:
-	pass # 현재는 특별한 초기화 없음
+	EventBus.request_toggle_settings.connect(_on_request_toggle_settings)
+
+func _on_request_toggle_settings() -> void:
+	if settings_window.visible:
+		settings_window.close()
+	else:
+		settings_window.open()
