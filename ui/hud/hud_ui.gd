@@ -90,7 +90,7 @@ func _ready() -> void:
 		settings_button.focus_mode = Control.FOCUS_NONE
 
 	if library_button:
-		library_button.pressed.connect(func(): EventBus.request_show_side_panel_tab.emit(0)) # 0 = Library
+		library_button.pressed.connect(func(): EventBus.request_toggle_library.emit())
 		library_button.focus_mode = Control.FOCUS_NONE
 
 	if trainer_button:
