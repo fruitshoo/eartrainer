@@ -62,6 +62,7 @@ func set_open(do_open: bool) -> void:
 	if is_open != do_open:
 		is_open = do_open
 		_animate_slide(do_open)
+		EventBus.settings_visibility_changed.emit(do_open)
 
 func _update_position(do_open: bool) -> void:
 	if do_open:
@@ -91,9 +92,8 @@ func _animate_slide(do_open: bool) -> void:
 # UI BUILDER
 # ============================================================
 func _build_ui() -> void:
-	anchors_preset = Control.PRESET_RIGHT_WIDE
-	offset_left = 0
-	offset_right = PANEL_WIDTH
+	set_anchors_and_offsets_preset(Control.PRESET_RIGHT_WIDE)
+	mouse_filter = Control.MOUSE_FILTER_IGNORE
 	theme = _main_theme
 	
 	var root_margin = MarginContainer.new()
