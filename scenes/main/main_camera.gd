@@ -162,6 +162,10 @@ func _update_dof(target_pos: Vector3):
 	attributes.dof_blur_near_enabled = dof_enabled
 
 func _unhandled_input(event):
+	# Skip if mouse is hovering UI (prevents zoom when scrolling menus)
+	if get_viewport().gui_get_hovered_control():
+		return
+		
 	if event is InputEventMouseButton:
 		# Zoom
 		if event.button_index == MOUSE_BUTTON_WHEEL_UP:

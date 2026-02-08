@@ -23,7 +23,9 @@ func _ready() -> void:
 	_sync_settings_from_game_manager()
 
 func _input(event: InputEvent) -> void:
-	if visible and event.is_action_pressed("ui_cancel"):
+	if not visible: return
+	
+	if event.is_action_pressed("ui_cancel"):
 		close()
 		get_viewport().set_input_as_handled()
 
@@ -290,7 +292,7 @@ func _sync_settings_from_game_manager() -> void:
 	# Recursive or direct finding is tricky with code-gen if we don't store refs.
 	# But we can iterate grids.
 	# Helper to find checkbox by meta key in a grid
-	var find_cb = func(grid_idx: int, key: String) -> CheckBox:
+	var find_cb = func(_grid_idx: int, key: String) -> CheckBox:
 		# Grids are children 1, 4, 7... of content_container (Header, Grid, Divider...)
 		# But easier to just traverse
 		for child in content_container.get_children():

@@ -160,8 +160,10 @@ func _animate_slide(do_open: bool) -> void:
 	_tween.tween_property(self, "offset_left", target_l, TWEEN_DURATION)
 	_tween.tween_property(self, "offset_right", target_r, TWEEN_DURATION)
 
-func _unhandled_input(event: InputEvent) -> void:
-	if is_open and event.is_action_pressed("ui_cancel"):
+func _input(event: InputEvent) -> void:
+	if not is_open: return
+	
+	if event.is_action_pressed("ui_cancel"):
 		close()
 		get_viewport().set_input_as_handled()
 
