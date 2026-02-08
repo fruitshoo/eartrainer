@@ -314,7 +314,7 @@ func _on_key_button_pressed() -> void:
 	
 	# [Fix] If the popup was just hidden (likely by clicking this button),
 	# don't immediately re-open it.
-	if Time.get_ticks_msec() - _popup_hide_timestamp < 100:
+	if Time.get_ticks_msec() - _popup_hide_timestamp < 500:
 		return
 		
 	key_selector_popup.popup_centered_under_control(key_button)

@@ -8,7 +8,7 @@ extends CanvasLayer
 @onready var hud: Control = game_ui_container.get_node("HUD")
 @onready var sequence_ui: Control = game_ui_container.get_node("SequenceUI")
 @onready var settings_window: Control = %SettingsWindow
-@onready var library_window: LibraryWindow = %LibraryWindow
+@onready var library_window := %LibraryWindow as LibraryWindow
 
 func _ready() -> void:
 	EventBus.request_toggle_settings.connect(_on_request_toggle_settings)
