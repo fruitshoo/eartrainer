@@ -29,7 +29,7 @@ var midi_note: int = 0
 # PRIVATE STATE
 # ============================================================
 var _active_tween: Tween = null
-var _label_2d: Label = null # 2D Overlay Label
+var _label_3d: Label3D = null # [v1.1] ABC Chocolate Style (3D)
 
 # [v0.4] 3-Layer Visual System
 # Layer 3: Flash (Transient Hit Feedback) - Highest Priority
@@ -66,48 +66,45 @@ func _ready() -> void:
 	_refresh_visuals()
 
 func _exit_tree():
-	# Use robust validity check
-	if is_instance_valid(_label_2d) and not _label_2d.is_queued_for_deletion():
-		# Only manually free if the parent container is NOT dying.
-		# If parent is dying, it will free the label automatically.
-		var parent = _label_2d.get_parent()
-		if parent and is_instance_valid(parent) and not parent.is_queued_for_deletion():
-			_label_2d.queue_free()
-	_label_2d = null
+	# No manual cleanup needed for Label3D as it's a child node.
+	_label_3d = null
 
-func _process(delta):
-	if is_instance_valid(_label_2d) and _label_2d.visible:
-		var cam = get_viewport().get_camera_3d()
-		if cam and not cam.is_position_behind(global_position):
-			# Project 3D position to 2D Screen Space
-			# Offset slightly by 0.2 along Y (up) to float above tile
-			var screen_pos = cam.unproject_position(global_position + Vector3(0, 0.15, 0))
-			_label_2d.position = screen_pos - _label_2d.size / 2 # Center the label
-		else:
-			_label_2d.visible = false
+func _process(_delta):
+	# 3D Labels follow mesh automatically; no projection needed.
+	pass
 
 ## 타일 초기화 (FretboardManager에서 호출)
-func setup(s_idx: int, f_idx: int, note_val: int, label_container: CanvasLayer = null) -> void:
+func setup(s_idx: int, f_idx: int, note_val: int, _label_container: CanvasLayer = null) -> void:
 	string_index = s_idx
 	fret_index = f_idx
 	midi_note = note_val
 	
-	# Create 2D Label if container provided
-	if label_container:
-		_label_2d = Label.new()
-		label_container.add_child(_label_2d)
-		_label_2d.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-		_label_2d.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-		# [v0.9] Stacked Notation Support
-		# Simply centered alignment handles explicit newlines (\n) correctly by default.
-		_label_2d.add_theme_font_size_override("font_size", 16)
-		_label_2d.modulate = Color(1, 1, 1, 0.9)
-		# Shadow
-		_label_2d.add_theme_color_override("font_shadow_color", Color.BLACK)
-		_label_2d.add_theme_constant_override("shadow_offset_x", 1)
-		_label_2d.add_theme_constant_override("shadow_offset_y", 1)
-		# Critical fix: Prevent label from blocking mouse input to 3D Area
-		_label_2d.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	# [v1.1] 3D Label3D Setup
+	# Parent to MESH so it follows the "press" and "bounce" animations perfectly.
+	if _label_3d == null:
+		_label_3d = Label3D.new()
+		mesh.add_child(_label_3d)
+		
+		# [Position & Orientation]
+		# Half of 0.5 height + small offset
+		_label_3d.position = Vector3(0, 0.251, 0)
+		_label_3d.rotation_degrees = Vector3(-90, 0, 0) # Lying down
+		
+		# [Style]
+		var theme = preload("res://ui/resources/main_theme.tres")
+		if theme and theme.default_font:
+			_label_3d.font = theme.default_font
+			
+		_label_3d.font_size = 180 # Large & Chunky
+		_label_3d.outline_size = 20
+		_label_3d.modulate = Color(1, 1, 1, 0.9)
+		_label_3d.outline_modulate = Color(0, 0, 0, 0.6)
+		
+		# [Rendering]
+		_label_3d.billboard = BaseMaterial3D.BILLBOARD_DISABLED
+		_label_3d.no_depth_test = false # Keep it behind strings/fingers
+		_label_3d.alpha_cut = Label3D.ALPHA_CUT_DISABLED
+		_label_3d.double_sided = false
 	
 	_refresh_visuals()
 
@@ -135,19 +132,19 @@ func _refresh_visuals() -> void:
 	# even if base tier is hidden for Anti-Cheat.
 	var can_show = is_in_focus and GameManager.show_note_labels and (visual_tier < 4 or _marker_active or _effect_active)
 	
-	# 2. Update Label (2D)
-	if is_instance_valid(_label_2d):
+	# 2. Update Label (3D)
+	if is_instance_valid(_label_3d):
 		if can_show:
-			_label_2d.text = GameManager.get_note_label(midi_note)
-			_label_2d.visible = true
+			_label_3d.text = GameManager.get_note_label(midi_note)
+			_label_3d.visible = true
 			
-			# Optional: Color coding for label?
+			# High contrast for Root note
 			if midi_note % 12 == 0: # C
-				_label_2d.modulate = Color(1, 0.8, 0.2, 0.95)
+				_label_3d.modulate = Color(1, 0.8, 0.2, 0.95)
 			else:
-				_label_2d.modulate = Color(1, 1, 1, 0.9)
+				_label_3d.modulate = Color(1, 1, 1, 0.9)
 		else:
-			_label_2d.visible = false
+			_label_3d.visible = false
 	
 	# 3. Apply Style (Material) via Layer Resolution
 	_update_material_state()
