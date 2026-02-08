@@ -32,12 +32,11 @@ func _on_request_toggle_library() -> void:
 		library_window.open()
 
 func _on_side_panel_requested(_tab_idx: int) -> void:
-	# SidePanel has its own internal tab logic, but we care about closing others
-	if not side_panel.is_open:
+	if side_panel.is_open:
+		side_panel.close()
+	else:
 		_close_all_side_panels()
-		# SidePanel handles its own open() via EventBus internally, 
-		# but doing it here might be redundant or cleaner.
-		# For now, let's just make sure others are closed.
+		side_panel.open()
 
 func _close_all_side_panels() -> void:
 	if settings_window.is_open: settings_window.close()
