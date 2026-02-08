@@ -7,9 +7,9 @@ extends CanvasLayer
 @onready var game_ui_container: Control = %GameUIContainer
 @onready var hud: Control = game_ui_container.get_node("HUD")
 @onready var sequence_ui: Control = game_ui_container.get_node("SequenceUI")
-@onready var settings_window: Control = %SettingsWindow
-@onready var library_window: Control = %LibraryWindow
-@onready var side_panel: Control = %SidePanel
+@onready var settings_window: SettingsWindow = %SettingsWindow
+@onready var library_window: LibraryWindow = %LibraryWindow
+@onready var side_panel: SidePanel = %SidePanel
 
 func _ready() -> void:
 	add_to_group("main_ui")
@@ -18,27 +18,27 @@ func _ready() -> void:
 	EventBus.request_show_side_panel_tab.connect(_on_side_panel_requested)
 
 func _on_request_toggle_settings() -> void:
-	if settings_window.get("is_open"):
+	if settings_window.is_open:
 		settings_window.close()
 	else:
 		_close_all_side_panels()
 		settings_window.open()
 
 func _on_request_toggle_library() -> void:
-	if library_window.get("is_open"):
+	if library_window.is_open:
 		library_window.close()
 	else:
 		_close_all_side_panels()
 		library_window.open()
 
 func _on_side_panel_requested(_tab_idx: int) -> void:
-	if side_panel.get("is_open"):
+	if side_panel.is_open:
 		side_panel.close()
 	else:
 		_close_all_side_panels()
 		side_panel.open()
 
 func _close_all_side_panels() -> void:
-	if settings_window.get("is_open"): settings_window.close()
-	if library_window.get("is_open"): library_window.close()
-	if side_panel.get("is_open"): side_panel.close()
+	if settings_window.is_open: settings_window.close()
+	if library_window.is_open: library_window.close()
+	if side_panel.is_open: side_panel.close()

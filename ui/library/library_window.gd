@@ -45,8 +45,8 @@ var _tween: Tween
 # ============================================================
 func _ready() -> void:
 	_build_ui()
-	visible = false
 	_update_position(false)
+	visible = false
 	_refresh_list()
 
 func open() -> void:
@@ -56,7 +56,6 @@ func open() -> void:
 
 func close() -> void:
 	set_open(false)
-	EventBus.request_close_library.emit()
 
 func set_open(do_open: bool) -> void:
 	if is_open != do_open:
@@ -98,6 +97,7 @@ func _build_ui() -> void:
 	
 	var root_margin = MarginContainer.new()
 	root_margin.set_anchors_preset(Control.PRESET_FULL_RECT)
+	root_margin.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	root_margin.add_theme_constant_override("margin_top", 100)
 	root_margin.add_theme_constant_override("margin_bottom", 120)
 	add_child(root_margin)

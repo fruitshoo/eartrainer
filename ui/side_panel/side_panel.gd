@@ -67,7 +67,6 @@ func _ready() -> void:
 	
 	# 3. EventBus
 	EventBus.request_collapse_side_panel.connect(close)
-	EventBus.request_close_settings.connect(close)
 	
 	# 4. Inits
 	_populate_et_grid()
@@ -83,6 +82,7 @@ func _build_ui() -> void:
 	
 	var root_margin = MarginContainer.new()
 	root_margin.set_anchors_preset(Control.PRESET_FULL_RECT)
+	root_margin.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	root_margin.add_theme_constant_override("margin_top", 100) # 80 -> 100
 	root_margin.add_theme_constant_override("margin_bottom", 120)
 	add_child(root_margin)

@@ -21,16 +21,13 @@ var focus_value_label: Label
 var deadzone_value_label: Label
 var notation_option: OptionButton
 
-# ============================================================
-# LIFECYCLE
-# ============================================================
 func _ready() -> void:
 	# 1. Build the UI Hierarchy
 	_build_ui()
 	
 	# 2. Initial Setup
-	visible = false
 	_update_position(false)
+	visible = false
 	_sync_settings_from_game_manager()
 
 func _input(event: InputEvent) -> void:
@@ -50,7 +47,6 @@ func open() -> void:
 
 func close() -> void:
 	set_open(false)
-	EventBus.request_close_settings.emit()
 
 func set_open(do_open: bool) -> void:
 	if is_open != do_open:
@@ -92,6 +88,7 @@ func _build_ui() -> void:
 	
 	var root_margin = MarginContainer.new()
 	root_margin.set_anchors_preset(Control.PRESET_FULL_RECT)
+	root_margin.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	root_margin.add_theme_constant_override("margin_top", 100)
 	root_margin.add_theme_constant_override("margin_bottom", 120)
 	add_child(root_margin)
