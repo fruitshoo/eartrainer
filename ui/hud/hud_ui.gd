@@ -97,6 +97,9 @@ func _ready() -> void:
 		trainer_button.pressed.connect(func(): EventBus.request_show_side_panel_tab.emit(1)) # 1 = Ear Trainer
 		trainer_button.focus_mode = Control.FOCUS_NONE
 	
+	if key_selector_popup:
+		key_selector_popup.popup_hide.connect(_on_key_selector_popup_hide)
+		
 	_setup_visual_style()
 	call_deferred("_delayed_setup")
 
@@ -300,9 +303,21 @@ func _on_recording_stopped() -> void:
 		record_button.set_pressed_no_signal(false)
 		record_button.modulate = Color.WHITE
 
+var _popup_hide_timestamp: int = 0
+
 func _on_key_button_pressed() -> void:
-	if key_selector_popup:
-		if key_selector_popup.visible:
-			key_selector_popup.hide()
-		else:
-			key_selector_popup.popup_centered_under_control(key_button)
+	if not key_selector_popup: return
+	
+	if key_selector_popup.visible:
+		key_selector_popup.hide()
+		return
+	
+	# [Fix] If the popup was just hidden (likely by clicking this button),
+	# don't immediately re-open it.
+	if Time.get_ticks_msec() - _popup_hide_timestamp < 100:
+		return
+		
+	key_selector_popup.popup_centered_under_control(key_button)
+
+func _on_key_selector_popup_hide() -> void:
+	_popup_hide_timestamp = Time.get_ticks_msec()
