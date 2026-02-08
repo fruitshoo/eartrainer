@@ -9,20 +9,37 @@ extends CanvasLayer
 @onready var sequence_ui: Control = game_ui_container.get_node("SequenceUI")
 @onready var settings_window: Control = %SettingsWindow
 @onready var library_window := %LibraryWindow as LibraryWindow
+@onready var side_panel: SidePanel = %SidePanel
 
 func _ready() -> void:
 	add_to_group("main_ui")
 	EventBus.request_toggle_settings.connect(_on_request_toggle_settings)
 	EventBus.request_toggle_library.connect(_on_request_toggle_library)
+	EventBus.request_show_side_panel_tab.connect(_on_side_panel_requested)
 
 func _on_request_toggle_settings() -> void:
-	if settings_window.visible:
+	if settings_window.is_open:
 		settings_window.close()
 	else:
+		_close_all_side_panels()
 		settings_window.open()
 
 func _on_request_toggle_library() -> void:
-	if library_window.visible:
+	if library_window.is_open:
 		library_window.close()
 	else:
+		_close_all_side_panels()
 		library_window.open()
+
+func _on_side_panel_requested(_tab_idx: int) -> void:
+	# SidePanel has its own internal tab logic, but we care about closing others
+	if not side_panel.is_open:
+		_close_all_side_panels()
+		# SidePanel handles its own open() via EventBus internally, 
+		# but doing it here might be redundant or cleaner.
+		# For now, let's just make sure others are closed.
+
+func _close_all_side_panels() -> void:
+	if settings_window.is_open: settings_window.close()
+	if library_window.is_open: library_window.close()
+	if side_panel.is_open: side_panel.close()

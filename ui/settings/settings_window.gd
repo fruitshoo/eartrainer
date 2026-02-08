@@ -2,10 +2,14 @@ class_name SettingsWindow
 extends Control
 
 # ============================================================
-# STATE & REFERENCES
+# CONSTANTS & STATE
 # ============================================================
+const PANEL_WIDTH := 320.0
+const TWEEN_DURATION := 0.3
+
 var content_container: VBoxContainer
-var close_button: Button
+var is_open: bool = false
+var _tween: Tween
 
 # Labels to update dynamically
 var focus_value_label: Label
@@ -20,11 +24,11 @@ func _ready() -> void:
 	_build_ui()
 	
 	# 2. Initial Setup
-	visible = false
+	_update_position(false)
 	_sync_settings_from_game_manager()
 
 func _input(event: InputEvent) -> void:
-	if not visible: return
+	if not is_open: return
 	
 	if event.is_action_pressed("ui_cancel"):
 		close()
@@ -35,76 +39,106 @@ func _input(event: InputEvent) -> void:
 # ============================================================
 func open() -> void:
 	visible = true
+	set_open(true)
 	_sync_settings_from_game_manager()
-	# Optional: Animate pop in
 
 func close() -> void:
-	visible = false
+	set_open(false)
 	EventBus.request_close_settings.emit()
+
+func set_open(do_open: bool) -> void:
+	if is_open != do_open:
+		is_open = do_open
+		_animate_slide(do_open)
+
+func _update_position(do_open: bool) -> void:
+	if do_open:
+		offset_left = - PANEL_WIDTH
+		offset_right = 0
+	else:
+		offset_left = 0
+		offset_right = PANEL_WIDTH
+
+func _animate_slide(do_open: bool) -> void:
+	if _tween: _tween.kill()
+	var target_l = - PANEL_WIDTH if do_open else 0.0
+	var target_r = 0.0 if do_open else PANEL_WIDTH
+	
+	if do_open: visible = true
+	
+	_tween = create_tween()
+	_tween.set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_CUBIC).set_parallel(true)
+	_tween.tween_property(self, "offset_left", target_l, TWEEN_DURATION)
+	_tween.tween_property(self, "offset_right", target_r, TWEEN_DURATION)
+	
+	if not do_open:
+		_tween.set_parallel(false) # Follow-up after parallel
+		_tween.tween_callback(func(): visible = false)
 
 # ============================================================
 # UI BUILDER
 # ============================================================
 func _build_ui() -> void:
-	# Root resizing
-	anchors_preset = Control.PRESET_FULL_RECT
+	anchors_preset = Control.PRESET_RIGHT_WIDE
+	offset_left = 0
+	offset_right = PANEL_WIDTH
 	
-	# 1. Dimmer Background
-	var dimmer = ColorRect.new()
-	dimmer.color = Color(0, 0, 0, 0.4)
-	dimmer.set_anchors_preset(Control.PRESET_FULL_RECT)
-	add_child(dimmer)
+	var root_margin = MarginContainer.new()
+	root_margin.set_anchors_preset(Control.PRESET_FULL_RECT)
+	root_margin.add_theme_constant_override("margin_top", 100)
+	root_margin.add_theme_constant_override("margin_bottom", 120)
+	add_child(root_margin)
 	
-	# 2. Centering Container
-	var center_cont = CenterContainer.new()
-	center_cont.set_anchors_preset(Control.PRESET_FULL_RECT)
-	add_child(center_cont)
+	var bg = PanelContainer.new()
+	root_margin.add_child(bg)
 	
-	# 3. Panel Container
-	var panel = PanelContainer.new()
-	panel.custom_minimum_size = Vector2(500, 400)
-	panel.theme_type_variation = "PanelContainerGlass"
-	center_cont.add_child(panel)
+	# Light Theme Style (Sync with main_theme.tres)
+	var bg_style = StyleBoxFlat.new()
+	bg_style.bg_color = Color(0.98, 0.98, 1, 0.75)
+	bg_style.corner_radius_top_left = 24
+	bg_style.corner_radius_bottom_left = 24
+	bg_style.border_width_left = 1
+	bg_style.border_width_top = 1
+	bg_style.border_width_bottom = 1
+	bg_style.border_color = Color(1, 1, 1, 0.5)
+	bg_style.shadow_color = Color(0, 0, 0, 0.1)
+	bg_style.shadow_size = 8
+	bg.add_theme_stylebox_override("panel", bg_style)
 	
-	# 4. Margins
-	var margin = MarginContainer.new()
-	margin.add_theme_constant_override("margin_left", 24)
-	margin.add_theme_constant_override("margin_top", 20)
-	margin.add_theme_constant_override("margin_right", 24)
-	margin.add_theme_constant_override("margin_bottom", 20)
-	panel.add_child(margin)
-	
-	# 5. Main VBox (Title + Scroll)
 	var main_vbox = VBoxContainer.new()
-	main_vbox.add_theme_constant_override("separation", 20)
-	margin.add_child(main_vbox)
+	main_vbox.add_theme_constant_override("separation", 0)
+	bg.add_child(main_vbox)
 	
-	# --- Title Row ---
-	var title_row = HBoxContainer.new()
-	main_vbox.add_child(title_row)
+	# Floating Close Button
+	var close_overlay = Control.new()
+	close_overlay.set_anchors_preset(Control.PRESET_FULL_RECT)
+	close_overlay.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	bg.add_child(close_overlay)
 	
-	var title_lbl = Label.new()
-	title_lbl.text = "Settings"
-	title_lbl.theme_type_variation = "HeaderMedium"
-	title_lbl.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	title_row.add_child(title_lbl)
+	var close_btn = Button.new()
+	close_btn.text = "✖"
+	close_btn.flat = true
+	close_btn.modulate = Color(0, 0, 0, 0.4)
+	close_btn.set_anchors_preset(Control.PRESET_TOP_RIGHT)
+	close_btn.offset_left = -40
+	close_btn.offset_top = 8
+	close_btn.offset_right = -8
+	close_btn.offset_bottom = 40
+	close_btn.pressed.connect(close)
+	close_overlay.add_child(close_btn)
 	
-	close_button = Button.new()
-	close_button.text = "✖"
-	close_button.flat = true
-	close_button.pressed.connect(close)
-	title_row.add_child(close_button)
-	
-	# --- Scroll & Content ---
+	# --- Content Area ---
 	var scroll = ScrollContainer.new()
 	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
 	main_vbox.add_child(scroll)
 	
-	# Inner Margin for Content (Spacing from Scrollbar)
 	var scroll_margin = MarginContainer.new()
 	scroll_margin.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	scroll_margin.add_theme_constant_override("margin_right", 12) # Padding for Scrollbar
+	scroll_margin.add_theme_constant_override("margin_left", 20)
+	scroll_margin.add_theme_constant_override("margin_right", 20)
+	scroll_margin.add_theme_constant_override("margin_top", 24)
+	scroll_margin.add_theme_constant_override("margin_bottom", 24)
 	scroll.add_child(scroll_margin)
 	
 	content_container = VBoxContainer.new()
