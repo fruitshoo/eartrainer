@@ -11,6 +11,7 @@ extends CanvasLayer
 @onready var library_window := %LibraryWindow as LibraryWindow
 
 func _ready() -> void:
+	add_to_group("main_ui")
 	EventBus.request_toggle_settings.connect(_on_request_toggle_settings)
 	EventBus.request_toggle_library.connect(_on_request_toggle_library)
 

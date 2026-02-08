@@ -80,6 +80,9 @@ func _ready() -> void:
 	# [New] Close Library Request
 	EventBus.request_close_library.connect(_close_library_panel)
 	
+	# [New] Right Click Chord Picker
+	EventBus.tile_right_clicked.connect(_on_tile_right_clicked)
+	
 	_setup_context_menu() # [New]
 	
 	# Initial Setup
@@ -678,3 +681,72 @@ func _on_special_menu_id_pressed(id: int) -> void:
 		if type_code and _context_menu_target_slot != -1:
 			_update_slot_type(_context_menu_target_slot, type_code)
 			_context_menu_target_slot = -1
+
+# ============================================================
+# PIE MENU (RIGHT CLICK)
+# ============================================================
+func _on_tile_right_clicked(midi_note: int, string_index: int, world_pos: Vector3) -> void:
+	# Only allow if a slot is selected OR if we want to allow quick assignment to current slot?
+	# Let's check if a slot is selected.
+	var selected_idx = ProgressionManager.selected_index
+	if selected_idx == -1:
+		# If no slot is selected, maybe we don't show the menu?
+		# Or we auto-select the "next" empty slot? 
+		# For now, let's require a slot to be selected (consistent with current flow).
+		return
+		
+	# Convert 3D world pos to 2D screen pos
+	var cam = get_viewport().get_camera_3d()
+	if not cam: return
+	
+	var screen_pos = cam.unproject_position(world_pos)
+	
+	# Instantiate Pie Menu
+	var pie = PieMenu.new()
+	pie.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	
+	# Add to MainUI or this Control
+	var main_ui = get_tree().get_first_node_in_group("main_ui")
+	if main_ui:
+		main_ui.add_child(pie)
+	else:
+		add_child(pie)
+	
+	pie.setup(screen_pos)
+	
+	# Handle Selection
+	pie.chord_type_selected.connect(func(type):
+		_apply_chord_from_tile(midi_note, string_index, type, selected_idx)
+	)
+	
+	# [New] Handle Hover Preview
+	pie.chord_type_hovered.connect(func(type):
+		if %Sequencer:
+			%Sequencer.preview_chord(midi_note, type, string_index)
+	)
+	
+	pie.chord_type_unhovered.connect(func():
+		if %Sequencer:
+			%Sequencer.clear_preview()
+	)
+	
+	# Clear preview when the whole menu closes (if not selected)
+	pie.closed.connect(func():
+		if %Sequencer:
+			%Sequencer.clear_preview()
+	)
+
+func _apply_chord_from_tile(midi_note: int, string_index: int, type: String, slot_index: int) -> void:
+	# Update ProgressionManager
+	var slot_data := {"root": midi_note, "type": type, "string": string_index}
+	ProgressionManager.slots[slot_index] = slot_data
+	ProgressionManager.slot_updated.emit(slot_index, slot_data)
+	ProgressionManager.save_session()
+	
+	# Clear selection
+	ProgressionManager.selected_index = -1
+	ProgressionManager.selection_cleared.emit()
+	
+	# Visual/Audio feedback
+	if AudioEngine:
+		AudioEngine.play_note(midi_note, string_index, "chord")

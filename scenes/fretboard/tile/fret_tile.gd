@@ -45,7 +45,10 @@ var _effect_energy: float = 0.0
 # Layer 1: Marker (Question Root, User Selection) - Medium Priority
 var _marker_active: bool = false
 var _marker_color: Color = Color.TRANSPARENT
-var _marker_energy: float = 1.0
+var _marker_energy: float = 0.0
+
+# [New] Input State
+var _is_pressing: bool = false
 
 # Layer 0: Base (Theory Tiers) - Lowest Priority
 # (Calculated dynamically via _get_base_state)
@@ -339,18 +342,37 @@ func _animate_press() -> void:
 	_anim_tween.tween_property(mesh, "position:y", 0.0, 0.15) \
 		.set_trans(Tween.TRANS_ELASTIC).set_ease(Tween.EASE_OUT)
 
+# [New] Global input listener to fix "Release Outside" stuck bug
+func _input(event: InputEvent) -> void:
+	if _is_pressing and event is InputEventMouseButton and not event.pressed:
+		if event.button_index == MOUSE_BUTTON_LEFT:
+			_is_pressing = false
+			EventBus.tile_released.emit(midi_note, string_index)
+
 # ============================================================
 # INPUT
 # ============================================================
 func _on_input_event(_camera, event, _event_position, _normal, _shape_idx):
-	if event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT:
-		if event.pressed:
-			_animate_press() # [New] Juice
-			trigger_flash(Color.WHITE, 0.15, 3.0) # [New] Hit Flash (Layer 3)
-			EventBus.tile_pressed.emit(midi_note, string_index)
-			EventBus.tile_clicked.emit(midi_note, string_index, {
-				"position": global_position,
-				"fret_index": fret_index
-			})
-		else:
-			EventBus.tile_released.emit(midi_note, string_index)
+	if event is InputEventMouseButton:
+		if event.button_index == MOUSE_BUTTON_LEFT:
+			if event.pressed:
+				_is_pressing = true
+				_animate_press()
+				trigger_flash(Color.WHITE, 0.15, 3.0)
+				EventBus.tile_pressed.emit(midi_note, string_index)
+				
+				# [Fix] Immediate Response: Emit Click on PRESS
+				# This makes character movement feel much snappier
+				EventBus.tile_clicked.emit(midi_note, string_index, {
+					"position": global_position,
+					"fret_index": fret_index,
+					"shift": Input.is_key_pressed(KEY_SHIFT),
+					"alt": Input.is_key_pressed(KEY_ALT)
+				})
+			# Release is now handled by _input() to catch "release outside" events
+			
+		elif event.button_index == MOUSE_BUTTON_RIGHT and event.pressed:
+			# [New] Right Click -> Pie Menu Trigger
+			_animate_press() # Visual feedback
+			trigger_flash(Color.CYAN, 0.2, 1.5)
+			EventBus.tile_right_clicked.emit(midi_note, string_index, global_position)

@@ -6,8 +6,9 @@ extends Node
 # TILE INTERACTION SIGNALS
 # ============================================================
 signal tile_clicked(midi_note: int, string_index: int, modifiers: Dictionary)
-signal tile_pressed(midi_note: int, string_index: int) # [New]
-signal tile_released(midi_note: int, string_index: int) # [New]
+signal tile_pressed(midi_note: int, string_index: int)
+signal tile_released(midi_note: int, string_index: int)
+signal tile_right_clicked(midi_note: int, string_index: int, position: Vector3) # [New] Replacement for Long Press
 signal visual_note_on(midi_note: int, string_index: int) # [New] For generic visual feedback
 signal visual_note_off(midi_note: int, string_index: int) # [New]
 

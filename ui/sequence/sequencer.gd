@@ -115,6 +115,21 @@ func stop_and_reset() -> void:
 	_pause_playback() # 타이머 정지
 	reset_position() # 위치 및 UI 리셋
 
+## [New] 코드 미리보기 (하이라이트만)
+func preview_chord(root: int, type: String, string_idx: int) -> void:
+	_clear_all_highlights()
+	var data = {"root": root, "type": type, "string": string_idx}
+	_visualize_slot_chord(data)
+
+## [New] 미리보기 해제
+func clear_preview() -> void:
+	_clear_all_highlights()
+	# 만약 재생 중이 아니면 현재 슬롯의 원래 코드로 복구
+	if not is_playing:
+		var data = ProgressionManager.get_slot(current_step)
+		if data:
+			_visualize_slot_chord(data)
+
 
 # ============================================================
 # PLAYBACK CONTROL

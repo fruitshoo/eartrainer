@@ -173,28 +173,31 @@ func _unhandled_input(event):
 		elif event.button_index == MOUSE_BUTTON_WHEEL_DOWN:
 			target_size = clamp(target_size + 1.0, 3.0, 20.0)
 		
-		# Middle Button -> Pan
+		# Middle Button -> Pan OR Orbit
 		if event.button_index == MOUSE_BUTTON_MIDDLE:
+			var cmd_pressed = event.is_command_or_control_pressed()
+			var meta_pressed = event.meta_pressed
+			var ctrl_pressed = event.ctrl_pressed
+			
+			# print("[MainCamera] Middle Click: cmd=%s, meta=%s, ctrl=%s" % [cmd_pressed, meta_pressed, ctrl_pressed])
+			
 			if event.pressed:
-				is_dragging = true
-				is_orbiting = false
+				if cmd_pressed or meta_pressed: # Meta is explicit Command on Mac
+					is_orbiting = true
+					is_dragging = false
+					Input.set_mouse_mode(Input.MOUSE_MODE_HIDDEN)
+					# print("[MainCamera] Orbiting Started")
+				else:
+					is_dragging = true
+					is_orbiting = false
+					# print("[MainCamera] Panning Started")
 			else:
 				is_dragging = false
+				is_orbiting = false
+				Input.set_mouse_mode(Input.MOUSE_MODE_VISIBLE)
 			
 			if event.double_click:
 				reset_view()
-
-	# Right Button -> Orbit
-		if event.button_index == MOUSE_BUTTON_RIGHT:
-			if event.pressed:
-				is_orbiting = true
-				is_dragging = false
-				# [Fix] Use HIDDEN instead of CAPTURED to avoid cursor centering jump
-				# This limits rotation to screen bounds, but prevents the annoying center snap.
-				Input.set_mouse_mode(Input.MOUSE_MODE_HIDDEN)
-			else:
-				is_orbiting = false
-				Input.set_mouse_mode(Input.MOUSE_MODE_VISIBLE)
 
 	# Mouse Motion
 	if event is InputEventMouseMotion:
