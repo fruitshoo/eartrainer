@@ -187,7 +187,7 @@ func _build_notation_section() -> void:
 	notation_option.add_item("123 (Degree)", 2)
 	
 	notation_option.item_selected.connect(func(idx):
-		GameManager.current_notation_mode = idx as GameManager.NotationMode
+		GameManager.current_notation_mode = idx
 		GameManager.save_settings()
 	)
 	
