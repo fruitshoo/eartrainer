@@ -59,17 +59,26 @@ func _ready() -> void:
 		play_button.focus_mode = Control.FOCUS_NONE
 		
 	if stop_button:
-		stop_button.pressed.connect(func():
-			EventBus.request_stop_playback.emit()
-			# Highlight clearing is handled by bus listener usually, or we can emit reset signal
-		)
+		stop_button.icon = preload("res://assets/icons/stop.svg")
+		stop_button.text = ""
+		stop_button.expand_icon = true
+		stop_button.icon_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		stop_button.pressed.connect(func(): EventBus.request_stop_playback.emit())
 		stop_button.focus_mode = Control.FOCUS_NONE
 		
 	if record_button:
+		record_button.icon = preload("res://assets/icons/record.svg")
+		record_button.text = ""
+		record_button.expand_icon = true
+		record_button.icon_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		record_button.toggled.connect(_on_record_toggled)
 		record_button.focus_mode = Control.FOCUS_NONE
 
 	if metronome_button:
+		metronome_button.icon = preload("res://assets/icons/metronome.svg")
+		metronome_button.text = ""
+		metronome_button.expand_icon = true
+		metronome_button.icon_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		metronome_button.button_pressed = GameManager.is_metronome_enabled
 		metronome_button.toggled.connect(func(toggled):
 			GameManager.is_metronome_enabled = toggled
@@ -90,10 +99,24 @@ func _ready() -> void:
 		settings_button.focus_mode = Control.FOCUS_NONE
 
 	if library_button:
+		library_button.icon = preload("res://assets/icons/playlist.svg")
+		library_button.text = ""
+		library_button.custom_minimum_size = Vector2(40, 40)
+		library_button.expand_icon = true
+		library_button.icon_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		library_button.tooltip_text = "Song Library"
+		library_button.flat = false
 		library_button.pressed.connect(func(): EventBus.request_toggle_library.emit())
 		library_button.focus_mode = Control.FOCUS_NONE
 
 	if trainer_button:
+		trainer_button.icon = preload("res://assets/icons/headphones.svg")
+		trainer_button.text = ""
+		trainer_button.custom_minimum_size = Vector2(40, 40)
+		trainer_button.expand_icon = true
+		trainer_button.icon_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		trainer_button.tooltip_text = "Ear Training"
+		trainer_button.flat = false
 		trainer_button.pressed.connect(func(): EventBus.request_show_side_panel_tab.emit(1)) # 1 = Ear Trainer
 		trainer_button.focus_mode = Control.FOCUS_NONE
 	

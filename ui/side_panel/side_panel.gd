@@ -84,7 +84,7 @@ func _build_ui() -> void:
 	
 	var root_margin = MarginContainer.new()
 	root_margin.set_anchors_preset(Control.PRESET_FULL_RECT)
-	root_margin.add_theme_constant_override("margin_top", 80)
+	root_margin.add_theme_constant_override("margin_top", 100) # 80 -> 100
 	root_margin.add_theme_constant_override("margin_bottom", 120)
 	add_child(root_margin)
 	
@@ -109,30 +109,23 @@ func _build_ui() -> void:
 	main_vbox.add_theme_constant_override("separation", 0)
 	bg.add_child(main_vbox)
 	
-	# Title Row
-	var title_margin = MarginContainer.new()
-	title_margin.add_theme_constant_override("margin_top", 12)
-	title_margin.add_theme_constant_override("margin_bottom", 6)
-	title_margin.add_theme_constant_override("margin_left", 16)
-	title_margin.add_theme_constant_override("margin_right", 12)
-	main_vbox.add_child(title_margin)
-	
-	var title_hbox = HBoxContainer.new()
-	title_margin.add_child(title_hbox)
-	
-	var title_lbl = Label.new()
-	title_lbl.text = "Ear Training"
-	title_lbl.theme_type_variation = "HeaderMedium"
-	title_lbl.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	title_hbox.add_child(title_lbl)
+	# Floating Close Button (Top right, no VBox space)
+	var close_overlay = Control.new()
+	close_overlay.set_anchors_preset(Control.PRESET_FULL_RECT)
+	close_overlay.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	bg.add_child(close_overlay)
 	
 	var close_btn = Button.new()
 	close_btn.text = "✖"
 	close_btn.flat = true
+	close_btn.modulate = Color(0, 0, 0, 0.4)
+	close_btn.set_anchors_preset(Control.PRESET_TOP_RIGHT)
+	close_btn.offset_left = -40
+	close_btn.offset_top = 8
+	close_btn.offset_right = -8
+	close_btn.offset_bottom = 40
 	close_btn.pressed.connect(close)
-	title_hbox.add_child(close_btn)
-	
-	main_vbox.add_child(HSeparator.new())
+	close_overlay.add_child(close_btn)
 	
 	# --- Content Area ---
 	content_container = Control.new()
