@@ -24,6 +24,7 @@ func _ready() -> void:
 	_build_ui()
 	
 	# 2. Initial Setup
+	visible = false
 	_update_position(false)
 	_sync_settings_from_game_manager()
 

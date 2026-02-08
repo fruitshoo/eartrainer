@@ -7,7 +7,7 @@ extends CanvasLayer
 @onready var game_ui_container: Control = %GameUIContainer
 @onready var hud: Control = game_ui_container.get_node("HUD")
 @onready var sequence_ui: Control = game_ui_container.get_node("SequenceUI")
-@onready var settings_window: Control = %SettingsWindow
+@onready var settings_window := %SettingsWindow as SettingsWindow
 @onready var library_window := %LibraryWindow as LibraryWindow
 @onready var side_panel: SidePanel = %SidePanel
 

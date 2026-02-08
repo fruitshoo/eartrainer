@@ -45,6 +45,7 @@ var _tween: Tween
 # ============================================================
 func _ready() -> void:
 	_build_ui()
+	visible = false
 	_update_position(false)
 	_refresh_list()
 

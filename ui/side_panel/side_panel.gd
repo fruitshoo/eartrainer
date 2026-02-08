@@ -62,6 +62,7 @@ func _ready() -> void:
 	_build_ui()
 	
 	# 2. Initial State
+	visible = false
 	_update_position(false)
 	
 	# 3. EventBus
@@ -273,6 +274,7 @@ func toggle() -> void:
 	set_open(not is_open)
 
 func open() -> void:
+	visible = true
 	set_open(true)
 
 func close() -> void:
@@ -304,10 +306,17 @@ func _animate_slide(do_open: bool) -> void:
 	if _tween: _tween.kill()
 	var target_l = - PANEL_WIDTH if do_open else 0.0
 	var target_r = 0.0 if do_open else PANEL_WIDTH
+	
+	if do_open: visible = true
+	
 	_tween = create_tween()
 	_tween.set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_CUBIC).set_parallel(true)
 	_tween.tween_property(self, "offset_left", target_l, TWEEN_DURATION)
 	_tween.tween_property(self, "offset_right", target_r, TWEEN_DURATION)
+	
+	if not do_open:
+		_tween.set_parallel(false)
+		_tween.tween_callback(func(): visible = false)
 
 func _input(event: InputEvent) -> void:
 	if not is_open: return
