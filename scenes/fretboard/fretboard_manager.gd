@@ -44,7 +44,7 @@ func spawn_fretboard():
 	spawn_fret_markers()
 
 func spawn_fret_markers() -> void:
-	var marker_frets = [3, 5, 7, 9, 12]
+	var marker_frets = [0, 3, 5, 7, 9, 12]
 	# X Pos: Outside the 6th string, on the "Floor".
 	# 6th string center is 3.75. Tile edge is ~4.45 (1.4 width).
 	# Let's put it at 5.5 for clear separation.
@@ -71,7 +71,7 @@ func spawn_fret_markers() -> void:
 		label.rotation_degrees = Vector3(-90, 90, 0)
 		
 		# Visuals (Studio floor marking style)
-		label.font_size = 150 # Increased from 96
+		label.font_size = 200 # Increased from 150
 		label.outline_render_priority = 0
 		label.modulate = Color(1, 1, 1, 0.4) # Subtle white marking
 		label.alpha_cut = Label3D.ALPHA_CUT_DISABLED # Smooth blending with floor
