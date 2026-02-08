@@ -177,7 +177,7 @@ func _unhandled_input(event):
 		if event.button_index == MOUSE_BUTTON_MIDDLE:
 			var cmd_pressed = event.is_command_or_control_pressed()
 			var meta_pressed = event.meta_pressed
-			var ctrl_pressed = event.ctrl_pressed
+			var _ctrl_pressed = event.ctrl_pressed
 			
 			# print("[MainCamera] Middle Click: cmd=%s, meta=%s, ctrl=%s" % [cmd_pressed, meta_pressed, ctrl_pressed])
 			

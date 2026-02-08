@@ -11,7 +11,7 @@ signal toggled(is_open: bool)
 # ============================================================
 # CONSTANTS & RESOURCES
 # ============================================================
-const PANEL_WIDTH := 400.0
+const PANEL_WIDTH := 320.0
 const TWEEN_DURATION := 0.3
 
 var riff_editor_scene: PackedScene = preload("res://ui/side_panel/RiffEditor.tscn")
@@ -26,9 +26,9 @@ var ear_trainer_content: ScrollContainer
 
 # Ear Trainer References
 var et_feedback_label: Label
-var et_asc_mode: CheckBox
-var et_desc_mode: CheckBox
-var et_harm_mode: CheckBox
+var et_asc_mode: Button
+var et_desc_mode: Button
+var et_harm_mode: Button
 var et_easy_mode: CheckBox
 var et_interval_grid: GridContainer
 var et_replay_btn: Button
@@ -82,20 +82,38 @@ func _build_ui() -> void:
 	offset_right = PANEL_WIDTH
 	theme = _main_theme
 	
+	var root_margin = MarginContainer.new()
+	root_margin.set_anchors_preset(Control.PRESET_FULL_RECT)
+	root_margin.add_theme_constant_override("margin_top", 80)
+	root_margin.add_theme_constant_override("margin_bottom", 120)
+	add_child(root_margin)
+	
 	var bg = PanelContainer.new()
-	bg.set_anchors_preset(Control.PRESET_FULL_RECT)
-	add_child(bg)
+	root_margin.add_child(bg)
+	
+	# Rounded corners for floating look
+	# Rounded corners for floating look - MATCHING main_theme.tres light style
+	var bg_style = StyleBoxFlat.new()
+	bg_style.bg_color = Color(0.98, 0.98, 1, 0.75) # Light, semi-transparent
+	bg_style.corner_radius_top_left = 24
+	bg_style.corner_radius_bottom_left = 24
+	bg_style.border_width_left = 1
+	bg_style.border_width_top = 1
+	bg_style.border_width_bottom = 1
+	bg_style.border_color = Color(1, 1, 1, 0.5)
+	bg_style.shadow_color = Color(0, 0, 0, 0.1)
+	bg_style.shadow_size = 8
+	bg.add_theme_stylebox_override("panel", bg_style)
 	
 	var main_vbox = VBoxContainer.new()
-	main_vbox.set_anchors_preset(Control.PRESET_FULL_RECT)
 	main_vbox.add_theme_constant_override("separation", 0)
-	add_child(main_vbox)
+	bg.add_child(main_vbox)
 	
 	# Title Row
 	var title_margin = MarginContainer.new()
 	title_margin.add_theme_constant_override("margin_top", 12)
-	title_margin.add_theme_constant_override("margin_bottom", 12)
-	title_margin.add_theme_constant_override("margin_left", 12)
+	title_margin.add_theme_constant_override("margin_bottom", 6)
+	title_margin.add_theme_constant_override("margin_left", 16)
 	title_margin.add_theme_constant_override("margin_right", 12)
 	main_vbox.add_child(title_margin)
 	
@@ -114,93 +132,136 @@ func _build_ui() -> void:
 	close_btn.pressed.connect(close)
 	title_hbox.add_child(close_btn)
 	
+	main_vbox.add_child(HSeparator.new())
+	
 	# --- Content Area ---
 	content_container = Control.new()
 	content_container.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	content_container.clip_contents = true
 	main_vbox.add_child(content_container)
 	
-	_build_ear_trainer_ui()
+	_build_ear_trainer_v2_ui()
 
-func _build_ear_trainer_ui() -> void:
-	var wrapper = VBoxContainer.new()
-	wrapper.set_anchors_preset(Control.PRESET_FULL_RECT)
-	wrapper.add_theme_constant_override("separation", 0)
-	content_container.add_child(wrapper)
+func _build_ear_trainer_v2_ui() -> void:
+	var main_vbox = VBoxContainer.new()
+	main_vbox.set_anchors_preset(Control.PRESET_FULL_RECT)
+	main_vbox.add_theme_constant_override("separation", 0)
+	content_container.add_child(main_vbox)
 	
-	var actions_margin = MarginContainer.new()
-	actions_margin.add_theme_constant_override("margin_top", 4)
-	actions_margin.add_theme_constant_override("margin_left", 12)
-	actions_margin.add_theme_constant_override("margin_right", 12)
-	actions_margin.add_theme_constant_override("margin_bottom", 12)
-	wrapper.add_child(actions_margin)
+	# 1. The Stage (Feedback Panel)
+	var stage_margin = MarginContainer.new()
+	stage_margin.add_theme_constant_override("margin_top", 16)
+	stage_margin.add_theme_constant_override("margin_left", 16)
+	stage_margin.add_theme_constant_override("margin_right", 16)
+	stage_margin.add_theme_constant_override("margin_bottom", 16)
+	main_vbox.add_child(stage_margin)
 	
-	var actions_hbox = HBoxContainer.new()
-	actions_hbox.add_theme_constant_override("separation", 8)
-	actions_margin.add_child(actions_hbox)
+	var stage_panel = PanelContainer.new()
+	stage_panel.custom_minimum_size = Vector2(0, 120) # 160 -> 120
+	stage_margin.add_child(stage_panel)
 	
-	et_replay_btn = Button.new()
-	et_replay_btn.text = "Replay"
-	et_replay_btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	et_replay_btn.focus_mode = Control.FOCUS_NONE
-	et_replay_btn.pressed.connect(QuizManager.play_current_interval)
-	actions_hbox.add_child(et_replay_btn)
+	# Glassmorphism style for Stage (White glass)
+	var stage_style = StyleBoxFlat.new()
+	stage_style.bg_color = Color(1, 1, 1, 0.4)
+	stage_style.corner_radius_top_left = 20
+	stage_style.corner_radius_top_right = 20
+	stage_style.corner_radius_bottom_left = 20
+	stage_style.corner_radius_bottom_right = 20
+	stage_style.border_width_left = 1
+	stage_style.border_width_top = 1
+	stage_style.border_color = Color(1, 1, 1, 0.6)
+	stage_panel.add_theme_stylebox_override("panel", stage_style)
 	
-	et_next_btn = Button.new()
-	et_next_btn.text = "Next"
-	et_next_btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	et_next_btn.focus_mode = Control.FOCUS_NONE
-	et_next_btn.pressed.connect(QuizManager.start_interval_quiz)
-	actions_hbox.add_child(et_next_btn)
-	
-	ear_trainer_content = ScrollContainer.new()
-	ear_trainer_content.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	ear_trainer_content.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
-	wrapper.add_child(ear_trainer_content)
-	
-	var margin = MarginContainer.new()
-	margin.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	margin.add_theme_constant_override("margin_left", 12)
-	margin.add_theme_constant_override("margin_top", 8)
-	margin.add_theme_constant_override("margin_right", 12)
-	margin.add_theme_constant_override("margin_bottom", 12)
-	ear_trainer_content.add_child(margin)
-	
-	var vbox = VBoxContainer.new()
-	vbox.add_theme_constant_override("separation", 12)
-	margin.add_child(vbox)
+	var stage_vbox = VBoxContainer.new()
+	stage_vbox.alignment = BoxContainer.ALIGNMENT_CENTER
+	stage_panel.add_child(stage_vbox)
 	
 	et_feedback_label = Label.new()
-	et_feedback_label.text = "Ready"
+	et_feedback_label.text = "READY"
 	et_feedback_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	et_feedback_label.modulate = Color(0.7, 0.7, 0.7)
-	vbox.add_child(et_feedback_label)
+	et_feedback_label.theme_type_variation = "HeaderLarge"
+	et_feedback_label.modulate = Color("#333333") # Dark text for light theme
+	et_feedback_label.pivot_offset = Vector2(100, 20)
+	stage_vbox.add_child(et_feedback_label)
+	
+	var stage_spacer = Control.new()
+	stage_spacer.custom_minimum_size = Vector2(0, 12)
+	stage_vbox.add_child(stage_spacer)
+	
+	var stage_btns_hbox = HBoxContainer.new()
+	stage_btns_hbox.alignment = BoxContainer.ALIGNMENT_CENTER
+	stage_btns_hbox.add_theme_constant_override("separation", 24)
+	stage_vbox.add_child(stage_btns_hbox)
+	
+	et_replay_btn = Button.new()
+	et_replay_btn.text = "REPLAY"
+	et_replay_btn.custom_minimum_size = Vector2(100, 45)
+	et_replay_btn.focus_mode = Control.FOCUS_NONE
+	et_replay_btn.pressed.connect(QuizManager.play_current_interval)
+	stage_btns_hbox.add_child(et_replay_btn)
+	_setup_stage_button(et_replay_btn, Color("#34495e"))
+	
+	et_next_btn = Button.new()
+	et_next_btn.text = "NEXT"
+	et_next_btn.custom_minimum_size = Vector2(100, 45)
+	et_next_btn.focus_mode = Control.FOCUS_NONE
+	et_next_btn.pressed.connect(QuizManager.start_interval_quiz)
+	stage_btns_hbox.add_child(et_next_btn)
+	_setup_stage_button(et_next_btn, Color("#3498db"))
+	
+	# 2. Segmented Mode Control (Asc/Desc/Harm)
+	var modes_margin = MarginContainer.new()
+	modes_margin.add_theme_constant_override("margin_left", 20)
+	modes_margin.add_theme_constant_override("margin_right", 20)
+	modes_margin.add_theme_constant_override("margin_bottom", 16)
+	main_vbox.add_child(modes_margin)
 	
 	var modes_hbox = HBoxContainer.new()
 	modes_hbox.alignment = BoxContainer.ALIGNMENT_CENTER
-	vbox.add_child(modes_hbox)
+	modes_hbox.add_theme_constant_override("separation", 0) # No separation for segmented look
+	modes_margin.add_child(modes_hbox)
 	
-	et_asc_mode = _create_checkbox("Asc", _on_et_mode_toggled.bind(QuizManager.IntervalMode.ASCENDING), true)
+	et_asc_mode = _create_mode_button("↗", QuizManager.IntervalMode.ASCENDING, Color("#81ecec"), 0)
+	et_desc_mode = _create_mode_button("↘", QuizManager.IntervalMode.DESCENDING, Color("#fab1a0"), 1)
+	et_harm_mode = _create_mode_button("≡", QuizManager.IntervalMode.HARMONIC, Color("#ffeaa7"), 2)
+	
 	modes_hbox.add_child(et_asc_mode)
-	
-	et_desc_mode = _create_checkbox("Desc", _on_et_mode_toggled.bind(QuizManager.IntervalMode.DESCENDING))
 	modes_hbox.add_child(et_desc_mode)
-	
-	et_harm_mode = _create_checkbox("Harm", _on_et_mode_toggled.bind(QuizManager.IntervalMode.HARMONIC))
 	modes_hbox.add_child(et_harm_mode)
 	
-	var easy_hbox = HBoxContainer.new()
-	easy_hbox.alignment = BoxContainer.ALIGNMENT_CENTER
-	vbox.add_child(easy_hbox)
-	et_easy_mode = _create_checkbox("Easy Mode", func(v): GameManager.show_target_visual = v, true)
-	easy_hbox.add_child(et_easy_mode)
+	var sep = HSeparator.new()
+	sep.modulate.a = 0.2
+	main_vbox.add_child(sep)
 	
-	vbox.add_child(HSeparator.new())
+	# 3. Interval Tiles Grid
+	var grid_scroll = ScrollContainer.new()
+	grid_scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	grid_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	main_vbox.add_child(grid_scroll)
+	
+	var grid_margin = MarginContainer.new()
+	grid_margin.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	grid_margin.add_theme_constant_override("margin_left", 20)
+	grid_margin.add_theme_constant_override("margin_right", 20)
+	grid_margin.add_theme_constant_override("margin_top", 20)
+	grid_margin.add_theme_constant_override("margin_bottom", 20)
+	grid_scroll.add_child(grid_margin)
 	
 	et_interval_grid = GridContainer.new()
-	et_interval_grid.columns = 1
-	et_interval_grid.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	vbox.add_child(et_interval_grid)
+	et_interval_grid.columns = 3
+	et_interval_grid.add_theme_constant_override("h_separation", 12)
+	et_interval_grid.add_theme_constant_override("v_separation", 12)
+	grid_margin.add_child(et_interval_grid)
+	
+	# Extra Setting: Easy Mode
+	var easy_margin = MarginContainer.new()
+	easy_margin.add_theme_constant_override("margin_bottom", 16)
+	main_vbox.add_child(easy_margin)
+	var easy_hbox = HBoxContainer.new()
+	easy_hbox.alignment = BoxContainer.ALIGNMENT_CENTER
+	easy_margin.add_child(easy_hbox)
+	et_easy_mode = _create_checkbox("Show Visual Hints", func(v): GameManager.show_target_visual = v, true)
+	easy_hbox.add_child(et_easy_mode)
 	
 	QuizManager.quiz_started.connect(_on_et_quiz_started)
 	QuizManager.quiz_answered.connect(_on_et_quiz_answered)
@@ -276,20 +337,67 @@ func _populate_et_grid() -> void:
 	if not et_interval_grid: return
 	for child in et_interval_grid.get_children(): child.queue_free()
 	et_checkboxes.clear()
+	
 	var data = IntervalQuizData.INTERVALS
 	var sorted_semitones = data.keys()
 	sorted_semitones.sort()
+	
 	for semitones in sorted_semitones:
 		var info = data[semitones]
-		var row = ET_ROW_SCENE.instantiate()
-		et_interval_grid.add_child(row)
 		var is_checked = semitones in QuizManager.active_intervals
-		row.setup("%s (%s)" % [info.name, info.short], is_checked, true)
-		row.checkbox.tooltip_text = "Example: %s" % info.examples[0].get("title", "")
-		row.toggled.connect(func(on): _on_et_interval_toggled(on, semitones))
-		if row.has_signal("manage_requested"):
-			row.manage_requested.connect(func(): _show_example_manager_dialog(semitones))
-		et_checkboxes[semitones] = row.checkbox
+		var tile = _create_interval_tile(semitones, info, is_checked)
+		et_interval_grid.add_child(tile)
+		et_checkboxes[semitones] = tile
+
+func _create_interval_tile(semitones: int, info: Dictionary, is_checked: bool) -> Button:
+	var btn = Button.new()
+	btn.text = info.short
+	btn.custom_minimum_size = Vector2(80, 80)
+	btn.focus_mode = Control.FOCUS_NONE
+	btn.toggle_mode = true
+	btn.button_pressed = is_checked
+	
+	# Initial Style
+	_update_tile_style(btn, info.color, is_checked)
+	
+	btn.toggled.connect(func(on):
+		_on_et_interval_toggled(on, semitones)
+		_update_tile_style(btn, info.color, on)
+	)
+	
+	# Long press or right click for manage? Let's use right click for now
+	btn.gui_input.connect(func(event):
+		if event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_RIGHT and event.pressed:
+			_show_example_manager_dialog(semitones)
+	)
+	
+	return btn
+
+func _update_tile_style(btn: Button, color: Color, is_active: bool) -> void:
+	var style = StyleBoxFlat.new()
+	style.corner_radius_top_left = 12
+	style.corner_radius_top_right = 12
+	style.corner_radius_bottom_left = 12
+	style.corner_radius_bottom_right = 12
+	style.border_width_left = 2
+	style.border_width_top = 2
+	style.border_width_right = 2
+	style.border_width_bottom = 2
+	
+	if is_active:
+		style.bg_color = color
+		style.border_color = color.darkened(0.2)
+		btn.add_theme_color_override("font_color", Color.WHITE)
+		btn.add_theme_color_override("font_pressed_color", Color.WHITE)
+		btn.add_theme_color_override("font_hover_color", Color.WHITE)
+	else:
+		style.bg_color = Color(color.r, color.g, color.b, 0.1)
+		style.border_color = Color(color.r, color.g, color.b, 0.2)
+		btn.add_theme_color_override("font_color", color.darkened(0.4))
+	
+	btn.add_theme_stylebox_override("normal", style)
+	btn.add_theme_stylebox_override("hover", style)
+	btn.add_theme_stylebox_override("pressed", style)
 
 func _on_et_interval_toggled(on: bool, semitones: int) -> void:
 	if on:
@@ -307,24 +415,113 @@ func _on_et_mode_toggled(on: bool, mode: int) -> void:
 
 func _sync_et_state() -> void:
 	var modes = QuizManager.active_modes
-	if et_asc_mode: et_asc_mode.set_pressed_no_signal(QuizManager.IntervalMode.ASCENDING in modes)
-	if et_desc_mode: et_desc_mode.set_pressed_no_signal(QuizManager.IntervalMode.DESCENDING in modes)
-	if et_harm_mode: et_harm_mode.set_pressed_no_signal(QuizManager.IntervalMode.HARMONIC in modes)
-	if et_easy_mode: et_easy_mode.set_pressed_no_signal(GameManager.show_target_visual)
+	if et_asc_mode:
+		et_asc_mode.set_pressed_no_signal(QuizManager.IntervalMode.ASCENDING in modes)
+		_update_mode_button_style(et_asc_mode, Color("#81ecec"), et_asc_mode.button_pressed, 0)
+		
+	if et_desc_mode:
+		et_desc_mode.set_pressed_no_signal(QuizManager.IntervalMode.DESCENDING in modes)
+		_update_mode_button_style(et_desc_mode, Color("#fab1a0"), et_desc_mode.button_pressed, 1)
+		
+	if et_harm_mode:
+		et_harm_mode.set_pressed_no_signal(QuizManager.IntervalMode.HARMONIC in modes)
+		_update_mode_button_style(et_harm_mode, Color("#ffeaa7"), et_harm_mode.button_pressed, 2)
+		
+	# if et_easy_mode: et_easy_mode.set_pressed_no_signal(GameManager.show_target_visual)
+
+func _create_mode_button(text: String, mode_id: int, color: Color, pos_idx: int) -> Button:
+	var btn = Button.new()
+	btn.text = text
+	btn.toggle_mode = true
+	btn.focus_mode = Control.FOCUS_NONE
+	btn.custom_minimum_size = Vector2(80, 40)
+	btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	
+	btn.toggled.connect(func(on):
+		_on_et_mode_toggled(on, mode_id)
+		_update_mode_button_style(btn, color, on, pos_idx)
+	)
+	
+	btn.add_theme_color_override("font_hover_color", Color.BLACK)
+	
+	_update_mode_button_style(btn, color, btn.button_pressed, pos_idx)
+	return btn
+
+func _update_mode_button_style(btn: Button, color: Color, is_active: bool, pos_idx: int) -> void:
+	var style = StyleBoxFlat.new()
+	
+	# Segmented Corners
+	style.corner_radius_top_left = 12 if pos_idx == 0 else 0
+	style.corner_radius_bottom_left = 12 if pos_idx == 0 else 0
+	style.corner_radius_top_right = 12 if pos_idx == 2 else 0
+	style.corner_radius_bottom_right = 12 if pos_idx == 2 else 0
+	
+	style.border_width_left = 1
+	style.border_width_top = 1
+	style.border_width_right = 1 if pos_idx == 2 else 0
+	style.border_width_bottom = 1
+	
+	if is_active:
+		style.bg_color = color.lightened(0.1)
+		style.border_color = color.darkened(0.1)
+		btn.add_theme_color_override("font_color", Color.BLACK)
+		btn.add_theme_color_override("font_pressed_color", Color.BLACK)
+	else:
+		style.bg_color = Color(0, 0, 0, 0.03) # Subtle indent
+		style.border_color = Color(0, 0, 0, 0.1)
+		btn.add_theme_color_override("font_color", Color(0, 0, 0, 0.5))
+	
+	btn.add_theme_stylebox_override("normal", style)
+	btn.add_theme_stylebox_override("hover", style)
+	btn.add_theme_stylebox_override("pressed", style)
+
+func _setup_stage_button(btn: Button, color: Color) -> void:
+	var normal = StyleBoxFlat.new()
+	normal.corner_radius_top_left = 20
+	normal.corner_radius_top_right = 20
+	normal.corner_radius_bottom_left = 20
+	normal.corner_radius_bottom_right = 20
+	normal.bg_color = Color(color.r, color.g, color.b, 0.6)
+	normal.border_width_left = 1
+	normal.border_width_top = 1
+	normal.border_width_right = 1
+	normal.border_width_bottom = 1
+	normal.border_color = Color(1, 1, 1, 0.3)
+	
+	var hover = normal.duplicate()
+	hover.bg_color = Color(color.r, color.g, color.b, 0.8)
+	
+	var pressed = normal.duplicate()
+	pressed.bg_color = color.darkened(0.2)
+	
+	btn.add_theme_stylebox_override("normal", normal)
+	btn.add_theme_stylebox_override("hover", hover)
+	btn.add_theme_stylebox_override("pressed", pressed)
+	btn.add_theme_color_override("font_color", Color.WHITE)
+	btn.add_theme_color_override("font_hover_color", Color.WHITE)
+	btn.add_theme_color_override("font_pressed_color", Color.WHITE)
 
 func _on_et_quiz_started(_data: Dictionary) -> void:
 	if et_feedback_label:
-		et_feedback_label.text = "Listen..."
+		et_feedback_label.text = "LISTEN..."
 		et_feedback_label.modulate = Color.WHITE
+		_animate_feedback_pop()
 
 func _on_et_quiz_answered(result: Dictionary) -> void:
 	if et_feedback_label:
 		if result.correct:
-			et_feedback_label.text = "Correct!"
-			et_feedback_label.modulate = Color.CYAN
+			et_feedback_label.text = "CORRECT!"
+			et_feedback_label.modulate = Color("#55efc4")
 		else:
-			et_feedback_label.text = "Try Again"
-			et_feedback_label.modulate = Color(1, 0.3, 0.3)
+			et_feedback_label.text = "TRY AGAIN"
+			et_feedback_label.modulate = Color("#ff7675")
+		_animate_feedback_pop()
+
+func _animate_feedback_pop() -> void:
+	var tw = create_tween()
+	tw.set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_ELASTIC)
+	et_feedback_label.scale = Vector2(0.8, 0.8)
+	tw.tween_property(et_feedback_label, "scale", Vector2(1, 1), 0.4)
 
 # ============================================================
 # OVERLAYS
