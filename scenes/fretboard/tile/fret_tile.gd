@@ -97,8 +97,8 @@ func setup(s_idx: int, f_idx: int, note_val: int, _label_container: CanvasLayer 
 			
 		_label_3d.font_size = 180 # Large & Chunky
 		_label_3d.outline_size = 20
-		_label_3d.modulate = Color(1, 1, 1, 0.9)
-		_label_3d.outline_modulate = Color(0, 0, 0, 0.6)
+		_label_3d.modulate = Color("#2C222C") # Dark Graphite (Bloom Resistant)
+		_label_3d.outline_modulate = Color(1, 1, 1, 0.2) # Soft light outline for depth
 		
 		# [Rendering]
 		_label_3d.billboard = BaseMaterial3D.BILLBOARD_DISABLED
@@ -138,11 +138,11 @@ func _refresh_visuals() -> void:
 			_label_3d.text = GameManager.get_note_label(midi_note)
 			_label_3d.visible = true
 			
-			# High contrast for Root note
-			if midi_note % 12 == 0: # C
-				_label_3d.modulate = Color(1, 0.8, 0.2, 0.95)
+			# Dark Tones for high contrast against white/bright highlights
+			if midi_note % 12 == 0: # C (Root)
+				_label_3d.modulate = Color(0.8, 0.5, 0.0) # Deep Gold/Orange
 			else:
-				_label_3d.modulate = Color(1, 1, 1, 0.9)
+				_label_3d.modulate = Color("#2C222C") # Dark Graphite
 		else:
 			_label_3d.visible = false
 	
@@ -221,7 +221,7 @@ func trigger_flash(color: Color = Color.WHITE, duration: float = 0.15, energy: f
 # Compatibility wrapper for old 'apply_sequencer_highlight'
 func apply_sequencer_highlight(color: Variant, energy: float = -1.0) -> void:
 	if color == null: color = Color.WHITE
-	if energy < 0.0: energy = 2.0
+	if energy < 0.0: energy = 1.2 # Reduced from 2.0 to avoid blowout
 	
 	_effect_active = true
 	_effect_color = color
@@ -237,13 +237,13 @@ func clear_sequencer_highlight(_fade_duration: float = 0.2) -> void:
 func apply_melody_highlight() -> void:
 	# 보상음악/멜로디 재생 시 밝은 Magenta 색상으로 강조 (User Request: Avoid Cyan/Yellow)
 	# Energy reduced to 1.2 to avoid white blowout
-	apply_sequencer_highlight(Color.MAGENTA, 1.2)
+	apply_sequencer_highlight(Color.MAGENTA, 0.8) # Reduced from 1.2
 
 func clear_melody_highlight() -> void:
 	clear_sequencer_highlight()
 
 ## Layer 1: Marker (Quiz Root / Lock)
-func set_marker(color: Color, energy: float = 1.5) -> void:
+func set_marker(color: Color, energy: float = 1.0) -> void: # Reduced from 1.5
 	_marker_active = true
 	_marker_color = color
 	_marker_energy = energy
