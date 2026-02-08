@@ -88,7 +88,7 @@ func setup(s_idx: int, f_idx: int, note_val: int, _label_container: CanvasLayer 
 		# [Position & Orientation]
 		# Half of 0.5 height + small offset
 		_label_3d.position = Vector3(0, 0.251, 0)
-		_label_3d.rotation_degrees = Vector3(-90, 0, 0) # Lying down
+		_label_3d.rotation_degrees = Vector3(-90, 90, 0) # Lying down & oriented with side markers
 		
 		# [Style]
 		var theme = preload("res://ui/resources/main_theme.tres")
