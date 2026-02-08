@@ -10,6 +10,7 @@ var close_button: Button
 # Labels to update dynamically
 var focus_value_label: Label
 var deadzone_value_label: Label
+var notation_option: OptionButton
 
 # ============================================================
 # LIFECYCLE
@@ -136,18 +137,26 @@ func _build_notation_section() -> void:
 	_add_header("Notation")
 	var grid = _add_grid()
 	
-	_add_checkbox(grid, "CDE", func(v):
-		GameManager.show_notation_cde = v
+	var label = Label.new()
+	label.text = "Label Type"
+	label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	grid.add_child(label)
+	
+	notation_option = OptionButton.new()
+	notation_option.size_flags_horizontal = Control.SIZE_SHRINK_END
+	notation_option.custom_minimum_size = Vector2(120, 0)
+	notation_option.focus_mode = Control.FOCUS_NONE
+	
+	notation_option.add_item("CDE", 0)
+	notation_option.add_item("도레미", 1)
+	notation_option.add_item("123 (Degree)", 2)
+	
+	notation_option.item_selected.connect(func(idx):
+		GameManager.current_notation_mode = idx as GameManager.NotationMode
 		GameManager.save_settings()
 	)
-	_add_checkbox(grid, "도레미", func(v):
-		GameManager.show_notation_doremi = v
-		GameManager.save_settings()
-	)
-	_add_checkbox(grid, "123 (Degree)", func(v):
-		GameManager.show_notation_degree = v
-		GameManager.save_settings()
-	)
+	
+	grid.add_child(notation_option)
 	
 	_add_divider()
 
@@ -303,14 +312,8 @@ func _sync_settings_from_game_manager() -> void:
 		return null
 
 	# Notation
-	var cb_cde = find_cb.call(0, "CDE")
-	if cb_cde: cb_cde.set_pressed_no_signal(GameManager.show_notation_cde)
-	
-	var cb_dorem = find_cb.call(0, "도레미")
-	if cb_dorem: cb_dorem.set_pressed_no_signal(GameManager.show_notation_doremi)
-	
-	var cb_deg = find_cb.call(0, "123 (Degree)")
-	if cb_deg: cb_deg.set_pressed_no_signal(GameManager.show_notation_degree)
+	if notation_option:
+		notation_option.select(GameManager.current_notation_mode)
 	
 	# Display
 	var cb_lbl = find_cb.call(0, "Labels")

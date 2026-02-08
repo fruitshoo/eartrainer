@@ -8,6 +8,8 @@ extends Node
 signal settings_changed
 signal player_moved
 
+enum NotationMode {CDE, DOREMI, DEGREE}
+
 # ============================================================
 # STATE VARIABLES - 음악 설정
 # ============================================================
@@ -22,19 +24,9 @@ var current_mode: MusicTheory.ScaleMode = MusicTheory.ScaleMode.MAJOR:
 		current_mode = value
 		_apply_diatonic_chord(KEY_1) # 모드 변경 시 1도로 리셋
 
-var show_notation_cde: bool = true:
+var current_notation_mode: NotationMode = NotationMode.CDE:
 	set(value):
-		show_notation_cde = value
-		settings_changed.emit()
-
-var show_notation_doremi: bool = true:
-	set(value):
-		show_notation_doremi = value
-		settings_changed.emit()
-
-var show_notation_degree: bool = false:
-	set(value):
-		show_notation_degree = value
+		current_notation_mode = value
 		settings_changed.emit()
 
 # Visualization Settings
@@ -166,32 +158,17 @@ func get_current_chord_interval(midi_note: int) -> int:
 func get_note_label(midi_note: int) -> String:
 	var use_flats := MusicTheory.should_use_flats(current_key, current_mode)
 	
-	# 1. CDE 표기 (Fixed)
-	var fixed_name: String = MusicTheory.get_note_name(midi_note, use_flats)
-	
-	# 2. DoReMi 표기 (Relative)
-	var relative := (midi_note - current_key) % 12
-	if relative < 0: relative += 12
-	var movable_name: String = MusicTheory.get_doremi_name(relative, use_flats)
-	
-	var labels: Array[String] = []
-	
-	if show_notation_cde:
-		labels.append(fixed_name)
-	if show_notation_doremi:
-		labels.append(movable_name)
-	if show_notation_degree:
-		labels.append(MusicTheory.get_degree_number_name(midi_note, current_key))
-		
-	if labels.is_empty():
-		return ""
-	elif labels.size() == 1:
-		return labels[0]
-	else:
-		# Primary (First) \n (Secondary joined by /)
-		var primary = labels[0]
-		var secondary = " / ".join(labels.slice(1))
-		return "%s\n%s" % [primary, secondary]
+	match current_notation_mode:
+		NotationMode.CDE:
+			return MusicTheory.get_note_name(midi_note, use_flats)
+		NotationMode.DOREMI:
+			var relative := (midi_note - current_key) % 12
+			if relative < 0: relative += 12
+			return MusicTheory.get_doremi_name(relative, use_flats)
+		NotationMode.DEGREE:
+			return MusicTheory.get_degree_number_name(midi_note, current_key)
+			
+	return ""
 
 ## 음이 현재 스케일에 포함되는지
 func is_in_scale(midi_note: int) -> bool:
@@ -249,9 +226,7 @@ func save_settings() -> void:
 	var data = {
 		"current_key": current_key,
 		"current_mode": current_mode,
-		"show_notation_cde": show_notation_cde,
-		"show_notation_doremi": show_notation_doremi,
-		"show_notation_degree": show_notation_degree,
+		"current_notation_mode": current_notation_mode,
 		"bpm": bpm,
 		"show_note_labels": show_note_labels,
 		"highlight_root": highlight_root,
@@ -296,26 +271,23 @@ func load_settings() -> void:
 func _deserialize_settings(data: Dictionary) -> void:
 	current_key = int(data.get("current_key", 0))
 	current_mode = int(data.get("current_mode", MusicTheory.ScaleMode.MAJOR)) as MusicTheory.ScaleMode
-	show_notation_cde = data.get("show_notation_cde", true)
-	show_notation_doremi = data.get("show_notation_doremi", true)
-	show_notation_degree = data.get("show_notation_degree", false)
+	current_notation_mode = int(data.get("current_notation_mode", NotationMode.CDE)) as NotationMode
 	
-	# [Migration] Handle old "current_notation" data if present
+	# [Migration] Handle old boolean flags or old "current_notation" index
 	if data.has("current_notation"):
-		var old_mode = int(data.get("current_notation"))
-		match old_mode:
-			0: # CDE
-				show_notation_cde = true
-				show_notation_doremi = false
-				show_notation_degree = false
-			1: # DOREMI
-				show_notation_cde = false
-				show_notation_doremi = true
-				show_notation_degree = false
-			2: # BOTH
-				show_notation_cde = true
-				show_notation_doremi = true
-				show_notation_degree = false
+		var old_notation = int(data.get("current_notation"))
+		match old_notation:
+			0: current_notation_mode = NotationMode.CDE
+			1: current_notation_mode = NotationMode.DOREMI
+			2: current_notation_mode = NotationMode.CDE # Backwards compatibility fallback if it was "BOTH"
+	elif data.has("show_notation_cde"):
+		# Handle very old boolean flags
+		if data.get("show_notation_degree", false):
+			current_notation_mode = NotationMode.DEGREE
+		elif data.get("show_notation_doremi", false):
+			current_notation_mode = NotationMode.DOREMI
+		else:
+			current_notation_mode = NotationMode.CDE
 	bpm = int(data.get("bpm", 120))
 	
 	show_note_labels = data.get("show_note_labels", true)
