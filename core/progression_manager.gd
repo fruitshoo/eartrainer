@@ -470,6 +470,7 @@ func save_preset(name: String) -> void:
 		"key": GameManager.current_key,
 		"mode": GameManager.current_mode,
 		"bar_count": bar_count,
+		"beats_per_bar": beats_per_bar, # [Fix] Persist Time Signature
 		"bar_densities": bar_densities,
 		"slots": slots,
 		"melody_tracks": [],
