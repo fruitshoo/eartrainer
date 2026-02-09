@@ -28,6 +28,7 @@ func save_song(title: String) -> bool:
 		"key": GameManager.current_key,
 		"mode": GameManager.current_mode,
 		"bar_count": ProgressionManager.bar_count,
+		"beats_per_bar": ProgressionManager.beats_per_bar, # [Fix] Persist Time Signature
 		"slots": ProgressionManager.slots,
 		"melody": melody_data
 	}
@@ -113,7 +114,10 @@ func _apply_song_state(data: Dictionary) -> void:
 	
 	# 2. Progression
 	var new_bar_count = int(data.get("bar_count", 4))
+	var new_beats = int(data.get("beats_per_bar", 4)) # [Fix] Load Time Signature
+	
 	ProgressionManager.update_settings(new_bar_count)
+	ProgressionManager.set_time_signature(new_beats) # [Fix] Apply Time Signature
 	
 	var saved_slots = data.get("slots", [])
 	if saved_slots is Array:
