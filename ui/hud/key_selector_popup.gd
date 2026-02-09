@@ -2,17 +2,14 @@ class_name KeySelectorPopup
 extends PopupPanel
 
 @onready var root_grid: GridContainer = %RootGrid
-@onready var major_button: Button = %MajorButton
-@onready var minor_button: Button = %MinorButton
+@onready var scale_option_button: OptionButton = %ScaleOptionButton
 
-var _roots = ["C", "C#", "D", "Eb", "E", "F", "F#", "G", "Ab", "A", "Bb", "B"]
+const ROOTS_MAJOR = ["C", "Db", "D", "Eb", "E", "F", "F#", "G", "Ab", "A", "Bb", "B"]
+const ROOTS_MINOR = ["C", "C#", "D", "Eb", "E", "F", "F#", "G", "G#", "A", "Bb", "B"]
 
 func _ready() -> void:
 	_build_grid()
-	
-	# Connect Mode Buttons
-	major_button.pressed.connect(_on_major_pressed)
-	minor_button.pressed.connect(_on_minor_pressed)
+	_setup_scale_options()
 	
 	# Update initially
 	_update_visuals()
@@ -20,42 +17,82 @@ func _ready() -> void:
 func _build_grid() -> void:
 	for i in range(12):
 		var btn = Button.new()
-		btn.text = _roots[i]
+		# Text will be set in _update_visuals
 		btn.custom_minimum_size = Vector2(30, 30)
 		btn.focus_mode = Control.FOCUS_NONE
 		btn.pressed.connect(_on_root_selected.bind(i))
 		root_grid.add_child(btn)
 
+func _setup_scale_options() -> void:
+	scale_option_button.clear()
+	
+	# Explicit order for better UX
+	var ordered_modes = [
+		MusicTheory.ScaleMode.MAJOR,
+		MusicTheory.ScaleMode.MINOR,
+		MusicTheory.ScaleMode.DORIAN,
+		MusicTheory.ScaleMode.PHRYGIAN,
+		MusicTheory.ScaleMode.LYDIAN,
+		MusicTheory.ScaleMode.MIXOLYDIAN,
+		MusicTheory.ScaleMode.LOCRIAN,
+		MusicTheory.ScaleMode.MAJOR_PENTATONIC,
+		MusicTheory.ScaleMode.MINOR_PENTATONIC
+	]
+	
+	for scale_mode in ordered_modes:
+		var data = MusicTheory.SCALE_DATA.get(scale_mode)
+		if data:
+			scale_option_button.add_item(data["name"], scale_mode)
+			
+	scale_option_button.item_selected.connect(_on_scale_selected)
+
 func _on_root_selected(root_idx: int) -> void:
 	GameManager.current_key = root_idx
 	_update_visuals()
 
-func _on_major_pressed() -> void:
-	GameManager.current_mode = MusicTheory.ScaleMode.MAJOR
-	_update_visuals()
-	
-func _on_minor_pressed() -> void:
-	GameManager.current_mode = MusicTheory.ScaleMode.MINOR
+func _on_scale_selected(index: int) -> void:
+	var mode_id = scale_option_button.get_item_id(index)
+	GameManager.current_mode = mode_id as MusicTheory.ScaleMode
 	_update_visuals()
 
 func _update_visuals() -> void:
-	# Update Root Buttons Highlight
+	# Update Root Buttons Highlight & Text
 	var current_key = GameManager.current_key
+	
+	# Determine if we should prioritize Flats or Sharps for Root Labels
+	# Logic: Major-like = Flats, Minor-like = Sharps
+	# Pentatonic Major -> Major-like, Pentatonic Minor -> Minor-like
+	# Modes:
+	# Dorian (Minor-like) -> Sharps
+	# Phrygian (Minor-like) -> Sharps
+	# Lydian (Major-like) -> Flats
+	# Mixolydian (Major-like) -> Flats
+	# Locrian (Minor-like) -> Sharps
+	
+	var is_major_like = true
+	var mode_intervals = MusicTheory.SCALE_DATA[GameManager.current_mode]["intervals"]
+	# Simple check: Major 3rd (4 semitones) vs Minor 3rd (3 semitones)
+	if 3 in mode_intervals:
+		is_major_like = false # It has a Minor 3rd
+		
+	var labels = ROOTS_MAJOR if is_major_like else ROOTS_MINOR
+	
 	for i in range(root_grid.get_child_count()):
 		var btn = root_grid.get_child(i) as Button
+		# Update Label Smartly
+		if i < labels.size():
+			btn.text = labels[i]
+			
 		if i == current_key:
 			btn.modulate = Color(1.0, 0.8, 0.2) # Gold Highlight
 		else:
 			btn.modulate = Color.WHITE
 			
-	# Update Mode Buttons State
-	var is_major = (GameManager.current_mode == MusicTheory.ScaleMode.MAJOR)
-	major_button.set_pressed_no_signal(is_major)
-	minor_button.set_pressed_no_signal(not is_major)
-	
-	# Toggle button logic visual
-	major_button.modulate = Color(1.0, 0.8, 0.2) if is_major else Color.WHITE
-	minor_button.modulate = Color(1.0, 0.8, 0.2) if not is_major else Color.WHITE
+	# Update OptionButton Selection (Sync if changed externally)
+	var current_mode_id = GameManager.current_mode
+	var idx = scale_option_button.get_item_index(current_mode_id)
+	if idx != -1 and scale_option_button.selected != idx:
+		scale_option_button.select(idx)
 
 func popup_centered_under_control(control: Control) -> void:
 	# Calculate position

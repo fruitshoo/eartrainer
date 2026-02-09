@@ -94,9 +94,20 @@ var player_fret: int = 0:
 			player_fret = value
 			player_moved.emit()
 
+var player_string: int = 0: # [New] Track player string for focus logic
+	set(value):
+		if player_string != value:
+			player_string = value
+			player_moved.emit()
+
 var focus_range: int = 3:
 	set(value):
 		focus_range = value
+		settings_changed.emit()
+
+var string_focus_range: int = 6: # [New] 6=All, 2=Wide, 1=Standard, 0=Single
+	set(value):
+		string_focus_range = value
 		settings_changed.emit()
 
 var camera_deadzone: float = 4.0:
@@ -185,11 +196,20 @@ func find_tile(string_idx: int, fret_idx: int) -> Node:
 # PRIVATE METHODS
 # ============================================================
 func _toggle_mode() -> void:
-	if current_mode == MusicTheory.ScaleMode.MAJOR:
-		current_mode = MusicTheory.ScaleMode.MINOR
-	else:
-		current_mode = MusicTheory.ScaleMode.MAJOR
-
+	# Simple Toggle: Major <-> Minor (Context aware?)
+	# If current is Major-like, switch to Minor. If Minor-like, switch to Major.
+	match current_mode:
+		MusicTheory.ScaleMode.MAJOR:
+			current_mode = MusicTheory.ScaleMode.MINOR
+		MusicTheory.ScaleMode.MINOR:
+			current_mode = MusicTheory.ScaleMode.MAJOR
+		MusicTheory.ScaleMode.MAJOR_PENTATONIC:
+			current_mode = MusicTheory.ScaleMode.MINOR_PENTATONIC
+		MusicTheory.ScaleMode.MINOR_PENTATONIC:
+			current_mode = MusicTheory.ScaleMode.MAJOR_PENTATONIC
+		_:
+			# For other modes, default to Major
+			current_mode = MusicTheory.ScaleMode.MAJOR
 
 	settings_changed.emit()
 

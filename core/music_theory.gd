@@ -6,7 +6,18 @@ class_name MusicTheory
 # ENUMS
 # ============================================================
 enum NotationMode {CDE, DOREMI, BOTH, DEGREE}
-enum ScaleMode {MAJOR, MINOR}
+enum ScaleMode {
+	MAJOR,
+	MINOR,
+	DORIAN,
+	PHRYGIAN,
+	LYDIAN,
+	MIXOLYDIAN,
+	LOCRIAN,
+	MAJOR_PENTATONIC,
+	MINOR_PENTATONIC
+}
+
 enum ChordPlaybackMode {ONCE, BEAT, HALF_BEAT}
 
 # ============================================================
@@ -22,10 +33,66 @@ const NOTE_NAMES_DOREMI: Array[String] = NOTE_NAMES_DOREMI_SHARP
 # ============================================================
 # CONSTANTS - 스케일 & 코드
 # ============================================================
-const SCALE_INTERVALS := {
-	ScaleMode.MAJOR: [0, 2, 4, 5, 7, 9, 11],
-	ScaleMode.MINOR: [0, 2, 3, 5, 7, 8, 10]
+const SCALE_DATA := {
+	ScaleMode.MAJOR: {
+		"name": "Major (Ionian)",
+		"intervals": [0, 2, 4, 5, 7, 9, 11],
+		"category": "Diatonic",
+		"parent_mode": null
+	},
+	ScaleMode.MINOR: {
+		"name": "Minor (Aeolian)",
+		"intervals": [0, 2, 3, 5, 7, 8, 10],
+		"category": "Diatonic",
+		"parent_mode": null
+	},
+	ScaleMode.DORIAN: {
+		"name": "Dorian",
+		"intervals": [0, 2, 3, 5, 7, 9, 10],
+		"category": "Modes",
+		"parent_mode": null
+	},
+	ScaleMode.PHRYGIAN: {
+		"name": "Phrygian",
+		"intervals": [0, 1, 3, 5, 7, 8, 10],
+		"category": "Modes",
+		"parent_mode": null
+	},
+	ScaleMode.LYDIAN: {
+		"name": "Lydian",
+		"intervals": [0, 2, 4, 6, 7, 9, 11],
+		"category": "Modes",
+		"parent_mode": null
+	},
+	ScaleMode.MIXOLYDIAN: {
+		"name": "Mixolydian",
+		"intervals": [0, 2, 4, 5, 7, 9, 10],
+		"category": "Modes",
+		"parent_mode": null
+	},
+	ScaleMode.LOCRIAN: {
+		"name": "Locrian",
+		"intervals": [0, 1, 3, 5, 6, 8, 10],
+		"category": "Modes",
+		"parent_mode": null
+	},
+	ScaleMode.MAJOR_PENTATONIC: {
+		"name": "Major Pentatonic",
+		"intervals": [0, 2, 4, 7, 9],
+		"category": "Pentatonic",
+		"parent_mode": ScaleMode.MAJOR
+	},
+	ScaleMode.MINOR_PENTATONIC: {
+		"name": "Minor Pentatonic",
+		"intervals": [0, 3, 5, 7, 10],
+		"category": "Pentatonic",
+		"parent_mode": ScaleMode.MINOR
+	}
 }
+
+# [Backward Compatibility] Shortcut for old dict access style
+static func _get_scale_intervals(mode: ScaleMode) -> Array:
+	return SCALE_DATA[mode]["intervals"]
 
 const CHORD_INTERVALS := {
 	"M": [0, 4, 7],
@@ -58,26 +125,7 @@ const OPEN_STRING_MIDI := [40, 45, 50, 55, 59, 64]
 # ============================================================
 # CONSTANTS - 다이어토닉 매핑 (키보드 입력용)
 # ============================================================
-const DIATONIC_MAP := {
-	ScaleMode.MAJOR: {
-		KEY_1: [0, "M7", "I"],
-		KEY_2: [2, "m7", "ii"],
-		KEY_3: [4, "m7", "iii"],
-		KEY_4: [5, "M7", "IV"],
-		KEY_5: [7, "7", "V"],
-		KEY_6: [9, "m7", "vi"],
-		KEY_7: [11, "m7b5", "vii°"]
-	},
-	ScaleMode.MINOR: {
-		KEY_1: [0, "m7", "i"],
-		KEY_2: [2, "m7b5", "ii°"],
-		KEY_3: [3, "M7", "bIII"],
-		KEY_4: [5, "m7", "iv"],
-		KEY_5: [7, "m7", "v"],
-		KEY_6: [8, "M7", "bVI"],
-		KEY_7: [10, "7", "bVII"]
-	}
-}
+# DIATONIC_MAP removed (Replaced by Dynamic Generation)
 
 # ============================================================
 # CONSTANTS - 도수 레이블 (시퀀서 UI용 - 로마자)
@@ -164,8 +212,9 @@ const VOICING_SHAPES := {
 static func should_use_flats(key_root: int, mode: ScaleMode) -> bool:
 	var root_index := key_root % 12
 	if mode == ScaleMode.MAJOR:
-		# F(5), Bb(10), Eb(3), Ab(8), Db(1), Gb(6) Major -> Flat
-		return root_index in [1, 3, 5, 6, 8, 10]
+		# F(5), Bb(10), Eb(3), Ab(8), Db(1) Major -> Flat
+		# F#(6) is now treated as Sharp based on user preference
+		return root_index in [1, 3, 5, 8, 10]
 	else:
 		# C(0), D(2), Eb(3), F(5), G(7), Bb(10) Minor -> Flat
 		# (Note: Minor keys relative to Major flat keys)
@@ -196,7 +245,7 @@ static func get_degree_number_name(midi_note: int, key_root: int) -> String:
 ## 해당 음이 스케일에 포함되는지 확인
 static func is_in_scale(midi_note: int, key_root: int, mode: ScaleMode) -> bool:
 	var interval := _get_interval(midi_note, key_root)
-	return interval in SCALE_INTERVALS[mode]
+	return interval in SCALE_DATA[mode]["intervals"]
 
 ## 3-Tier 시각화용 계층 반환 (1=Root, 2=ChordTone, 3=ScaleTone, 4=Avoid)
 static func get_visual_tier(midi_note: int, chord_root: int, chord_type: String, key_root: int, mode: ScaleMode) -> int:
@@ -215,16 +264,59 @@ static func get_visual_tier(midi_note: int, chord_root: int, chord_type: String,
 # STATIC FUNCTIONS - 다이어토닉 타입 추론
 # ============================================================
 
-## 클릭한 음의 다이어토닉 코드 타입 자동 추론
+## 클릭한 음의 다이어토닉 코드 타입 자동 추론 (Dynamic)
 static func get_diatonic_type(midi_note: int, key_root: int, mode: ScaleMode) -> String:
-	var interval := _get_interval(midi_note, key_root)
+	# 1. Determine which mode to use for chords (Parent vs Self)
+	var chord_mode = mode
+	var parent_mode = SCALE_DATA[mode].get("parent_mode")
+	if parent_mode != null:
+		chord_mode = parent_mode
+		
+	# 2. Get Intervals
+	var intervals = SCALE_DATA[chord_mode]["intervals"]
+	var target_interval := _get_interval(midi_note, key_root)
 	
-	for key_code in DIATONIC_MAP[mode]:
-		var data: Array = DIATONIC_MAP[mode][key_code]
-		if data[0] == interval:
-			return data[1] # "M7", "m7" 등
+	# 3. Check if the note is a scale tone
+	var degree_idx = intervals.find(target_interval)
+	if degree_idx == -1:
+		return "M7" # Non-diatonic (Chromatic) root -> Default to M7
+		
+	# 4. Stack Thirds to determine quality
+	# Scale degrees (0-based index in intervals array)
+	var third_idx = (degree_idx + 2) % intervals.size()
+	var fifth_idx = (degree_idx + 4) % intervals.size()
+	var seventh_idx = (degree_idx + 6) % intervals.size()
 	
-	return "M7" # 크로매틱 음에 대한 기본값
+	var root_val = intervals[degree_idx]
+	var third_val = intervals[third_idx]
+	var fifth_val = intervals[fifth_idx]
+	var seventh_val = intervals[seventh_idx]
+	
+	# Adjust for octave wrapping
+	if third_idx < degree_idx: third_val += 12
+	if fifth_idx < degree_idx: fifth_val += 12
+	if seventh_idx < degree_idx: seventh_val += 12
+	
+	var dist_third = third_val - root_val
+	var dist_fifth = fifth_val - root_val
+	var dist_seventh = seventh_val - root_val
+	
+	# Analyze Triad & Seventh
+	if dist_third == 4: # Major 3rd
+		if dist_fifth == 7: # Perfect 5th
+			if dist_seventh == 11: return "M7"
+			else: return "7" # b7
+		elif dist_fifth == 8: # Augmented 5th
+			return "aug"
+	elif dist_third == 3: # Minor 3rd
+		if dist_fifth == 7: # Perfect 5th
+			if dist_seventh == 11: return "mM7" # Rare but exists
+			else: return "m7"
+		elif dist_fifth == 6: # Diminished 5th
+			if dist_seventh == 9: return "dim7" # Full Dim
+			else: return "m7b5" # Half Dim (b7)
+			
+	return "M7" # Fallback
 
 ## Maj7 ↔ m7 토글 (Alt 키용)
 static func toggle_quality(current_type: String) -> String:
@@ -261,10 +353,36 @@ static func get_voicing_key(string_index: int) -> String:
 		_: return "6th_string" # Default fallback
 
 ## 키보드 입력 → 코드 데이터 반환 (game_manager용)
+## 키보드 입력 → 코드 데이터 반환 (game_manager용)
 static func get_chord_from_keycode(mode: ScaleMode, keycode: int) -> Array:
-	if DIATONIC_MAP[mode].has(keycode):
-		return DIATONIC_MAP[mode][keycode]
-	return []
+	var degree_idx = -1
+	match keycode:
+		KEY_1: degree_idx = 0
+		KEY_2: degree_idx = 1
+		KEY_3: degree_idx = 2
+		KEY_4: degree_idx = 3
+		KEY_5: degree_idx = 4
+		KEY_6: degree_idx = 5
+		KEY_7: degree_idx = 6
+	
+	if degree_idx == -1: return []
+	
+	# Determine Chord Mode (Parent vs Self)
+	var chord_mode = mode
+	var parent_mode = SCALE_DATA[mode].get("parent_mode")
+	if parent_mode != null:
+		chord_mode = parent_mode
+		
+	var intervals = SCALE_DATA[chord_mode]["intervals"]
+	if degree_idx >= intervals.size(): return []
+	
+	var interval = intervals[degree_idx]
+	var type = get_diatonic_type(interval, 0, chord_mode) # Pass 0 as root to simulate relative check
+	
+	# Generate Roman Numeral (Simplified for now)
+	var roman = DEGREE_LABELS.get(chord_mode, DEGREE_LABELS[ScaleMode.MAJOR]).get(interval, "?")
+	
+	return [interval, type, roman]
 
 # ============================================================
 # PRIVATE HELPER

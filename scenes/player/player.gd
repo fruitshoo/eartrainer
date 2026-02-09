@@ -37,8 +37,10 @@ func _initialize_position() -> void:
 		global_position = target_tile.global_position
 		global_position.y = LAND_Y # [Fix] Apply offset
 		GameManager.player_fret = SettingsManager.last_fret
+		GameManager.player_string = SettingsManager.last_string
 	else:
 		GameManager.player_fret = SettingsManager.DEFAULT_FRET
+		GameManager.player_string = SettingsManager.DEFAULT_STRING # Assuming DEFAULT_STRING exists or use 0
 		global_position.y = LAND_Y
 
 # ============================================================
@@ -56,6 +58,7 @@ func _on_tile_clicked(_midi_note: int, string_index: int, modifiers: Dictionary)
 	
 	jump_to(target_pos)
 	GameManager.player_fret = fret_index # 즉시 신호 발생 → 하이라이트 업데이트
+	GameManager.player_string = string_index
 	SettingsManager.last_string = string_index
 
 # ============================================================

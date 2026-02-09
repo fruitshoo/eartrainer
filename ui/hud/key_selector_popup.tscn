@@ -3,7 +3,6 @@
 [ext_resource type="Script" path="res://ui/hud/key_selector_popup.gd" id="1_script"]
 [ext_resource type="Theme" uid="uid://b6x5n4w0q2x3" path="res://ui/resources/main_theme.tres" id="2_theme"]
 
-[sub_resource type="ButtonGroup" id="ButtonGroup_mode"]
 
 [node name="KeySelectorPopup" type="PopupPanel"]
 size = Vector2i(220, 180)
@@ -42,23 +41,7 @@ theme_override_constants/v_separation = 8
 [node name="HSeparator" type="HSeparator" parent="MarginContainer/VBoxContainer"]
 layout_mode = 2
 
-[node name="ModeHBox" type="HBoxContainer" parent="MarginContainer/VBoxContainer"]
+[node name="ScaleOptionButton" type="OptionButton" parent="MarginContainer/VBoxContainer"]
+unique_name_in_owner = true
 layout_mode = 2
 alignment = 1
-theme_override_constants/separation = 10
-
-[node name="MajorButton" type="Button" parent="MarginContainer/VBoxContainer/ModeHBox"]
-unique_name_in_owner = true
-custom_minimum_size = Vector2(80, 30)
-layout_mode = 2
-toggle_mode = true
-button_group = SubResource("ButtonGroup_mode")
-text = "Major"
-
-[node name="MinorButton" type="Button" parent="MarginContainer/VBoxContainer/ModeHBox"]
-unique_name_in_owner = true
-custom_minimum_size = Vector2(80, 30)
-layout_mode = 2
-toggle_mode = true
-button_group = SubResource("ButtonGroup_mode")
-text = "Minor"

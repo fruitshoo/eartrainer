@@ -49,6 +49,20 @@ func _ready() -> void:
 	remove_theme_stylebox_override("panel")
 	theme = load("res://ui/resources/main_theme.tres")
 	
+	# [Style] Small Icon Buttons (Ultra-Compact Horizontal Row - V4.5 Polish)
+	load_button.icon = preload("res://assets/icons/play.svg")
+	load_button.text = ""
+	load_button.expand_icon = true
+	load_button.icon_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	load_button.custom_minimum_size = Vector2(32, 32)
+	
+	delete_button.text = "✖"
+	delete_button.custom_minimum_size = Vector2(32, 32)
+	delete_button.tooltip_text = "Delete"
+	delete_button.modulate.a = 0.7
+	# Bold cross to match Play icon weight
+	delete_button.add_theme_font_size_override("font_size", 14)
+	
 	load_button.pressed.connect(func(): load_requested.emit(preset_name))
 	delete_button.pressed.connect(func(): delete_requested.emit(preset_name))
 	default_button.toggled.connect(_on_default_toggled)

@@ -25,9 +25,8 @@ var _main_theme: Theme = preload("res://ui/resources/main_theme.tres")
 var presets_tab_btn: Button
 var songs_tab_btn: Button
 var preset_list_container: VBoxContainer
-var name_input: LineEdit
 var save_btn: Button
-var close_button: Button
+var name_input: LineEdit
 
 # ============================================================
 # CONSTANTS & STATE
@@ -122,31 +121,13 @@ func _build_ui() -> void:
 	main_vbox.add_theme_constant_override("separation", 0)
 	bg.add_child(main_vbox)
 	
-	# Floating Close Button
-	var close_overlay = Control.new()
-	close_overlay.set_anchors_preset(Control.PRESET_FULL_RECT)
-	close_overlay.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	bg.add_child(close_overlay)
-	
-	var close_btn = Button.new()
-	close_btn.text = "✖"
-	close_btn.flat = true
-	close_btn.modulate = Color(0, 0, 0, 0.4)
-	close_btn.set_anchors_preset(Control.PRESET_TOP_RIGHT)
-	close_btn.offset_left = -40
-	close_btn.offset_top = 8
-	close_btn.offset_right = -8
-	close_btn.offset_bottom = 40
-	close_btn.pressed.connect(close)
-	close_overlay.add_child(close_btn)
-	
 	# --- Content Area ---
 	var content_margin = MarginContainer.new()
 	content_margin.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	content_margin.add_theme_constant_override("margin_left", 20)
-	content_margin.add_theme_constant_override("margin_right", 20)
-	content_margin.add_theme_constant_override("margin_top", 24)
-	content_margin.add_theme_constant_override("margin_bottom", 24)
+	content_margin.add_theme_constant_override("margin_left", 2)
+	content_margin.add_theme_constant_override("margin_right", 2)
+	content_margin.add_theme_constant_override("margin_top", 12)
+	content_margin.add_theme_constant_override("margin_bottom", 12)
 	main_vbox.add_child(content_margin)
 	
 	var content_vbox = VBoxContainer.new()
@@ -174,7 +155,7 @@ func _build_ui() -> void:
 	
 	preset_list_container = VBoxContainer.new()
 	preset_list_container.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	preset_list_container.add_theme_constant_override("separation", 8)
+	preset_list_container.add_theme_constant_override("separation", 4)
 	scroll.add_child(preset_list_container)
 	
 	content_vbox.add_child(HSeparator.new())

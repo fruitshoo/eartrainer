@@ -322,7 +322,18 @@ func _is_within_focus() -> bool:
 	# [v0.4.2] Instant Focus (Logical Distance)
 	# Use Logical Fret Distance for instant response (updates on click)
 	# instead of waiting for physical travel.
-	return abs(GameManager.player_fret - fret_index) <= GameManager.focus_range
+	
+	# 1. Horizontal Focus (Fret)
+	if abs(GameManager.player_fret - fret_index) > GameManager.focus_range:
+		return false
+		
+	# 2. Vertical Focus (String) [New]
+	# Range 6 means "Show All" (Optimization)
+	if GameManager.string_focus_range < 6:
+		if abs(GameManager.player_string - string_index) > GameManager.string_focus_range:
+			return false
+			
+	return true
 
 # ============================================================
 # ANIMATION (JUICE)

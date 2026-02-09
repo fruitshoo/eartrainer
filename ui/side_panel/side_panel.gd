@@ -108,24 +108,6 @@ func _build_ui() -> void:
 	main_vbox.add_theme_constant_override("separation", 0)
 	bg.add_child(main_vbox)
 	
-	# Floating Close Button (Top right, no VBox space)
-	var close_overlay = Control.new()
-	close_overlay.set_anchors_preset(Control.PRESET_FULL_RECT)
-	close_overlay.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	bg.add_child(close_overlay)
-	
-	var close_btn = Button.new()
-	close_btn.text = "✖"
-	close_btn.flat = true
-	close_btn.modulate = Color(0, 0, 0, 0.4)
-	close_btn.set_anchors_preset(Control.PRESET_TOP_RIGHT)
-	close_btn.offset_left = -40
-	close_btn.offset_top = 8
-	close_btn.offset_right = -8
-	close_btn.offset_bottom = 40
-	close_btn.pressed.connect(close)
-	close_overlay.add_child(close_btn)
-	
 	# --- Content Area ---
 	content_container = Control.new()
 	content_container.size_flags_vertical = Control.SIZE_EXPAND_FILL
@@ -264,6 +246,20 @@ func _create_checkbox(text: String, callback: Callable, pressed: bool = false) -
 	cb.focus_mode = Control.FOCUS_NONE
 	cb.button_pressed = pressed
 	cb.toggled.connect(callback)
+	
+	# Custom Style for Checkbox (Hover/Pressed) to improve visibility on light DB
+	var hover_style = StyleBoxFlat.new()
+	hover_style.bg_color = Color(0, 0, 0, 0.05)
+	hover_style.corner_radius_top_left = 6
+	hover_style.corner_radius_bottom_left = 6
+	hover_style.corner_radius_top_right = 6
+	hover_style.corner_radius_bottom_right = 6
+	hover_style.content_margin_left = 8
+	
+	cb.add_theme_stylebox_override("hover", hover_style)
+	cb.add_theme_stylebox_override("pressed", hover_style)
+	cb.add_theme_stylebox_override("focus", hover_style)
+	
 	return cb
 
 # ============================================================

@@ -20,6 +20,7 @@ var _tween: Tween
 var focus_value_label: Label
 var deadzone_value_label: Label
 var notation_option: OptionButton
+var string_focus_option: OptionButton # [New]
 
 func _ready() -> void:
 	# 1. Build the UI Hierarchy
@@ -113,24 +114,6 @@ func _build_ui() -> void:
 	main_vbox.add_theme_constant_override("separation", 0)
 	bg.add_child(main_vbox)
 	
-	# Floating Close Button
-	var close_overlay = Control.new()
-	close_overlay.set_anchors_preset(Control.PRESET_FULL_RECT)
-	close_overlay.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	bg.add_child(close_overlay)
-	
-	var close_btn = Button.new()
-	close_btn.text = "✖"
-	close_btn.flat = true
-	close_btn.modulate = Color(0, 0, 0, 0.4)
-	close_btn.set_anchors_preset(Control.PRESET_TOP_RIGHT)
-	close_btn.offset_left = -40
-	close_btn.offset_top = 8
-	close_btn.offset_right = -8
-	close_btn.offset_bottom = 40
-	close_btn.pressed.connect(close)
-	close_overlay.add_child(close_btn)
-	
 	# --- Content Area ---
 	var scroll = ScrollContainer.new()
 	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
@@ -213,7 +196,31 @@ func _build_camera_section() -> void:
 	_add_header("Camera")
 	var grid = _add_grid()
 	
-	# Focus Range
+	# String Focus (Vertical)
+	var str_lbl = Label.new()
+	str_lbl.text = "String Focus"
+	str_lbl.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	grid.add_child(str_lbl)
+	
+	string_focus_option = OptionButton.new()
+	string_focus_option.size_flags_horizontal = Control.SIZE_SHRINK_END
+	string_focus_option.custom_minimum_size = Vector2(140, 0)
+	string_focus_option.focus_mode = Control.FOCUS_NONE
+	
+	string_focus_option.add_item("All Strings (6)", 6)
+	string_focus_option.add_item("Wide (+/- 2)", 2)
+	string_focus_option.add_item("Standard (+/- 1)", 1)
+	string_focus_option.add_item("Single String", 0)
+	
+	string_focus_option.item_selected.connect(func(idx):
+		var range_val = string_focus_option.get_item_id(idx)
+		GameManager.string_focus_range = range_val
+		GameManager.save_settings()
+	)
+	
+	grid.add_child(string_focus_option)
+	
+	# Focus Range (Horizontal)
 	var focus_lbl = Label.new()
 	focus_lbl.text = "Focus Range"
 	focus_lbl.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -282,6 +289,19 @@ func _add_checkbox(parent: Node, text: String, callback: Callable) -> CheckBox:
 	cb.text = text
 	cb.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	cb.focus_mode = Control.FOCUS_NONE
+	
+	# Custom Style for Checkbox (Hover/Pressed) to improve visibility on light DB
+	var hover_style = StyleBoxFlat.new()
+	hover_style.bg_color = Color(0, 0, 0, 0.05)
+	hover_style.corner_radius_top_left = 6
+	hover_style.corner_radius_bottom_left = 6
+	hover_style.corner_radius_top_right = 6
+	hover_style.corner_radius_bottom_right = 6
+	hover_style.content_margin_left = 8
+	
+	cb.add_theme_stylebox_override("hover", hover_style)
+	cb.add_theme_stylebox_override("pressed", hover_style)
+	cb.add_theme_stylebox_override("focus", hover_style)
 	
 	# Connect callback
 	cb.toggled.connect(callback)
@@ -371,6 +391,14 @@ func _sync_settings_from_game_manager() -> void:
 		focus_value_label.text = str(GameManager.focus_range)
 	if deadzone_value_label:
 		deadzone_value_label.text = str(GameManager.camera_deadzone)
+		
+	if string_focus_option:
+		var current_range = GameManager.string_focus_range
+		# Find item index by ID (range value)
+		for i in range(string_focus_option.item_count):
+			if string_focus_option.get_item_id(i) == current_range:
+				string_focus_option.select(i)
+				break
 
 func _adjust_focus_range(delta: int) -> void:
 	GameManager.focus_range = clampi(GameManager.focus_range + delta, 1, 12)
