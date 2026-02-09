@@ -453,7 +453,7 @@ func _get_all_slot_buttons() -> Array:
 				buttons.append(btn)
 	return buttons
 	
-func _ensure_visible(control: Control) -> void:
+func _ensure_visible(_control: Control) -> void:
 	# Basic visibility check logic
 	# Since scrolling is manual or locked, we might want to auto scroll vertically if we had vertical scroll enabled.
 	# But actually vertical scroll is disabled now? No, we re-enabled vertical but disabled horizontal?

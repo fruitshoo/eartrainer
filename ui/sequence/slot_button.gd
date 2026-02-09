@@ -64,10 +64,10 @@ func update_playhead(active_beat: int) -> void:
 
 func _update_ticks_visual() -> void:
 	var ticks = beat_container.get_children()
-	var theme = GameManager.current_theme_name
+	var theme_name = GameManager.current_theme_name
 	
 	# Active Color (Vibrant Gold from Theme)
-	var active_color = ThemeManager.get_color(theme, "root")
+	var active_color = ThemeManager.get_color(theme_name, "root")
 	# Hover Color (Semi-transparent white/light)
 	var hover_color = Color(1, 1, 1, 0.3)
 	
@@ -86,9 +86,13 @@ func _update_ticks_visual() -> void:
 			tick.self_modulate = hover_color
 
 func _on_tick_gui_input(event: InputEvent, beat_idx: int) -> void:
-	if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
-		beat_clicked.emit(slot_index, beat_idx)
-		accept_event()
+	if event is InputEventMouseButton and event.pressed:
+		if event.button_index == MOUSE_BUTTON_LEFT:
+			beat_clicked.emit(slot_index, beat_idx)
+			accept_event()
+		elif event.button_index == MOUSE_BUTTON_RIGHT:
+			right_clicked.emit(slot_index)
+			accept_event()
 
 func _on_tick_mouse_entered(beat_idx: int) -> void:
 	_hover_beat_index = beat_idx
