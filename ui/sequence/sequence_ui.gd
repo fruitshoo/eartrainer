@@ -295,6 +295,12 @@ func _on_slot_clicked(index: int) -> void:
 	if index >= ProgressionManager.total_slots:
 		return
 	
+	# [New] Cmd+Click / Ctrl+Click: Open Chord Menu (Pie Menu)
+	# Use is_key_pressed for immediate check, or check event modifiers if passed (but this is a signal callback)
+	if Input.is_key_pressed(KEY_CTRL) or Input.is_key_pressed(KEY_META):
+		_open_pie_menu_for_slot(index)
+		return
+
 	if Input.is_key_pressed(KEY_SHIFT):
 		# [New] Shift+Click: Loop Selection
 		if ProgressionManager.selected_index != -1:
