@@ -83,6 +83,9 @@ func _ready() -> void:
 	# [New] Right Click Chord Picker
 	EventBus.tile_right_clicked.connect(_on_tile_right_clicked)
 	
+	# [New] Left Click Tile (for Input Workflow)
+	EventBus.tile_clicked.connect(_on_tile_clicked)
+	
 	_setup_context_menu() # [New]
 	
 	# Initial Setup
@@ -295,11 +298,14 @@ func _on_slot_clicked(index: int) -> void:
 	if index >= ProgressionManager.total_slots:
 		return
 	
-	# [New] Cmd+Click / Ctrl+Click: Open Chord Menu (Pie Menu)
+	# [New] Cmd+Click / Ctrl+Click: Select Slot for Input (Wait for Tile Click)
 	# Use is_key_pressed for immediate check, or check event modifiers if passed (but this is a signal callback)
 	if Input.is_key_pressed(KEY_CTRL) or Input.is_key_pressed(KEY_META):
-		_open_pie_menu_for_slot(index)
+		# Force select and clear loop
+		ProgressionManager.selected_index = index
+		ProgressionManager.clear_loop_range()
 		return
+
 
 	if Input.is_key_pressed(KEY_SHIFT):
 		# [New] Shift+Click: Loop Selection
@@ -332,7 +338,12 @@ func _on_slot_clicked(index: int) -> void:
 	_update_split_button_state()
 
 func _on_slot_beat_clicked(slot_idx: int, beat_idx: int) -> void:
-	# [New] Seek Playhead
+	# [New] Cmd+Click on Beat also triggers Slot Selection (same as clicking slot)
+	if Input.is_key_pressed(KEY_CTRL) or Input.is_key_pressed(KEY_META):
+		_on_slot_clicked(slot_idx) # Delegate to slot click handler
+		return
+		
+	# [New] Seek Playhead (Normal Click)
 	%Sequencer.seek(slot_idx, beat_idx)
 
 func _on_slot_right_clicked(index: int) -> void:
@@ -693,7 +704,23 @@ func _on_special_menu_id_pressed(id: int) -> void:
 		var type_code = special_menu.get_item_metadata(id)
 		if type_code and _context_menu_target_slot != -1:
 			_update_slot_type(_context_menu_target_slot, type_code)
+			_update_slot_type(_context_menu_target_slot, type_code)
 			_context_menu_target_slot = -1
+
+# ============================================================
+# TILE CLICK HANDLER (INPUT WORKFLOW)
+# ============================================================
+func _on_tile_clicked(midi_note: int, string_index: int, _modifiers: Dictionary) -> void:
+	# Check if we are in "Slot Editing Mode" (Sequence Slot Selected)
+	var selected_idx = ProgressionManager.selected_index
+	if selected_idx != -1:
+		# If a slot is selected, clicking a tile opens the Pie Menu for that slot
+		# centered on the mouse position (or tile position? Mouse is easier)
+		var screen_pos = get_viewport().get_mouse_position()
+		
+		# Open Pie Menu with the clicked note as Root
+		_open_pie_menu_impl(midi_note, string_index, screen_pos, selected_idx)
+
 
 # ============================================================
 # PIE MENU (RIGHT CLICK)
