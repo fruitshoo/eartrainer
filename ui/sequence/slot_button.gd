@@ -143,7 +143,7 @@ func _update_slot_background(chord_root: int, chord_type: String) -> void:
 		return
 		
 	# 3. Apply Style for Non-Diatonic
-	var bg_color = Color(0.35, 0.35, 0.4) # Cool Grey (Clean & Modern)
+	var bg_color = Color("#FFE5D9") # Coral (Warm, Intentional Variation)
 	
 	var style = StyleBoxFlat.new()
 	style.corner_radius_top_left = 8
