@@ -222,12 +222,12 @@ func _rebuild_slots() -> void:
 				beats = ProgressionManager.beats_per_bar
 			
 			# Dynamic Sizing
+			# Dynamic Sizing (Fixed Width for Consistency)
 			var width = 140.0
-			if beats >= 4:
-				width = 140.0
-			elif beats == 3:
-				width = 110.0 # Slightly smaller for 3/4
+			if beats >= 3:
+				width = 140.0 # 4/4 and 3/4 share the same width for stability
 			else:
+				# Half-bar slots (2 beats)
 				width = 65.0
 
 			btn.custom_minimum_size = Vector2(width, 80)
