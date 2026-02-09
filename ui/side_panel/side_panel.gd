@@ -14,7 +14,7 @@ signal toggled(is_open: bool)
 const PANEL_WIDTH := 340.0
 const TWEEN_DURATION := 0.3
 
-const ET_ROW_SCENE = preload("res://ui/side_panel/EarTrainerItemRow.tscn")
+const ET_ROW_SCENE = preload("res://ui/side_panel/ear_trainer_item_row.tscn")
 var _main_theme: Theme = preload("res://ui/resources/main_theme.tres")
 
 # ============================================================
