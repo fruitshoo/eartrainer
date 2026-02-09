@@ -9,7 +9,7 @@ signal toggled(is_open: bool)
 # ============================================================
 # CONSTANTS & STATE
 # ============================================================
-const PANEL_WIDTH := 320.0
+const PANEL_WIDTH := 340.0
 const TWEEN_DURATION := 0.3
 
 var content_container: VBoxContainer
@@ -92,9 +92,11 @@ func _build_ui() -> void:
 	root_margin.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	root_margin.add_theme_constant_override("margin_top", 100)
 	root_margin.add_theme_constant_override("margin_bottom", 120)
+	root_margin.add_theme_constant_override("margin_right", 12) # [v1.2] Symmetrical visual gap
 	add_child(root_margin)
 	
 	var bg = PanelContainer.new()
+	bg.clip_contents = true # [v1.4] Enforce floating boundary
 	root_margin.add_child(bg)
 	
 	# Light Theme Style (Sync with main_theme.tres)
@@ -102,28 +104,27 @@ func _build_ui() -> void:
 	bg_style.bg_color = Color(0.98, 0.98, 1, 0.75)
 	bg_style.corner_radius_top_left = 24
 	bg_style.corner_radius_bottom_left = 24
+	bg_style.corner_radius_top_right = 24 # [v1.2] Complete look
+	bg_style.corner_radius_bottom_right = 24
 	bg_style.border_width_left = 1
 	bg_style.border_width_top = 1
 	bg_style.border_width_bottom = 1
+	bg_style.border_width_right = 1 # [v1.2] Visible right border
 	bg_style.border_color = Color(1, 1, 1, 0.5)
-	bg_style.shadow_color = Color(0, 0, 0, 0.1)
+	bg_style.shadow_color = Color(0, 0, 0, 0.1) # [v1.3] Tuned for floating look
 	bg_style.shadow_size = 8
 	bg.add_theme_stylebox_override("panel", bg_style)
-	
-	var main_vbox = VBoxContainer.new()
-	main_vbox.add_theme_constant_override("separation", 0)
-	bg.add_child(main_vbox)
 	
 	# --- Content Area ---
 	var scroll = ScrollContainer.new()
 	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
-	main_vbox.add_child(scroll)
+	bg.add_child(scroll)
 	
 	var scroll_margin = MarginContainer.new()
 	scroll_margin.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	scroll_margin.add_theme_constant_override("margin_left", 20)
-	scroll_margin.add_theme_constant_override("margin_right", 20)
+	scroll_margin.add_theme_constant_override("margin_left", 24) # [v1.3] Unified Standard
+	scroll_margin.add_theme_constant_override("margin_right", 24)
 	scroll_margin.add_theme_constant_override("margin_top", 24)
 	scroll_margin.add_theme_constant_override("margin_bottom", 24)
 	scroll.add_child(scroll_margin)
@@ -165,7 +166,9 @@ func _build_notation_section() -> void:
 	
 	notation_option = OptionButton.new()
 	notation_option.size_flags_horizontal = Control.SIZE_SHRINK_END
-	notation_option.custom_minimum_size = Vector2(120, 0)
+	notation_option.custom_minimum_size = Vector2(100, 0) # [v1.5] Reduced
+	notation_option.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS # [v1.6] Prevent overflow
+	notation_option.clip_text = true # [v1.6] Safe fallback
 	notation_option.focus_mode = Control.FOCUS_NONE
 	
 	notation_option.add_item("CDE", 0)
@@ -204,7 +207,9 @@ func _build_camera_section() -> void:
 	
 	string_focus_option = OptionButton.new()
 	string_focus_option.size_flags_horizontal = Control.SIZE_SHRINK_END
-	string_focus_option.custom_minimum_size = Vector2(140, 0)
+	string_focus_option.custom_minimum_size = Vector2(100, 0) # [v1.5] Reduced
+	string_focus_option.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS # [v1.6] Prevent overflow
+	string_focus_option.clip_text = true # [v1.6] Safe fallback
 	string_focus_option.focus_mode = Control.FOCUS_NONE
 	
 	string_focus_option.add_item("All Strings (6)", 6)
@@ -276,7 +281,7 @@ func _add_grid() -> GridContainer:
 	var grid = GridContainer.new()
 	grid.columns = 2
 	grid.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	grid.add_theme_constant_override("h_separation", 24)
+	grid.add_theme_constant_override("h_separation", 16) # [v1.5] Prevent overflow
 	grid.add_theme_constant_override("v_separation", 12)
 	content_container.add_child(grid)
 	return grid
@@ -319,7 +324,7 @@ func _add_volume_slider(parent: Node, label_text: String, bus_name: String) -> v
 	parent.add_child(label)
 	
 	var slider = HSlider.new()
-	slider.custom_minimum_size = Vector2(160, 0)
+	slider.custom_minimum_size = Vector2(130, 0) # [v1.5] Fit check
 	slider.max_value = 1.0
 	slider.step = 0.05
 	slider.size_flags_horizontal = Control.SIZE_SHRINK_END

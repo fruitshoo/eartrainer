@@ -11,10 +11,9 @@ signal toggled(is_open: bool)
 # ============================================================
 # CONSTANTS & RESOURCES
 # ============================================================
-const PANEL_WIDTH := 320.0
+const PANEL_WIDTH := 340.0
 const TWEEN_DURATION := 0.3
 
-var riff_editor_scene: PackedScene = preload("res://ui/side_panel/RiffEditor.tscn")
 const ET_ROW_SCENE = preload("res://ui/side_panel/EarTrainerItemRow.tscn")
 var _main_theme: Theme = preload("res://ui/resources/main_theme.tres")
 
@@ -85,9 +84,11 @@ func _build_ui() -> void:
 	root_margin.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	root_margin.add_theme_constant_override("margin_top", 100) # 80 -> 100
 	root_margin.add_theme_constant_override("margin_bottom", 120)
+	root_margin.add_theme_constant_override("margin_right", 12) # [v1.3] Unified Float Gap
 	add_child(root_margin)
 	
 	var bg = PanelContainer.new()
+	bg.clip_contents = true # [v1.4] Enforce Floating Clip
 	root_margin.add_child(bg)
 	
 	# Rounded corners for floating look
@@ -96,9 +97,12 @@ func _build_ui() -> void:
 	bg_style.bg_color = Color(0.98, 0.98, 1, 0.75) # Light, semi-transparent
 	bg_style.corner_radius_top_left = 24
 	bg_style.corner_radius_bottom_left = 24
+	bg_style.corner_radius_top_right = 24 # [v1.3] Unified
+	bg_style.corner_radius_bottom_right = 24
 	bg_style.border_width_left = 1
 	bg_style.border_width_top = 1
 	bg_style.border_width_bottom = 1
+	bg_style.border_width_right = 1 # [v1.3] Unified Border
 	bg_style.border_color = Color(1, 1, 1, 0.5)
 	bg_style.shadow_color = Color(0, 0, 0, 0.1)
 	bg_style.shadow_size = 8
@@ -125,8 +129,8 @@ func _build_ear_trainer_v2_ui() -> void:
 	# 1. The Stage (Feedback Panel)
 	var stage_margin = MarginContainer.new()
 	stage_margin.add_theme_constant_override("margin_top", 16)
-	stage_margin.add_theme_constant_override("margin_left", 16)
-	stage_margin.add_theme_constant_override("margin_right", 16)
+	stage_margin.add_theme_constant_override("margin_left", 24) # [v1.3] Unified Padding
+	stage_margin.add_theme_constant_override("margin_right", 24)
 	stage_margin.add_theme_constant_override("margin_bottom", 16)
 	main_vbox.add_child(stage_margin)
 	
@@ -185,8 +189,8 @@ func _build_ear_trainer_v2_ui() -> void:
 	
 	# 2. Segmented Mode Control (Asc/Desc/Harm)
 	var modes_margin = MarginContainer.new()
-	modes_margin.add_theme_constant_override("margin_left", 20)
-	modes_margin.add_theme_constant_override("margin_right", 20)
+	modes_margin.add_theme_constant_override("margin_left", 24)
+	modes_margin.add_theme_constant_override("margin_right", 24)
 	modes_margin.add_theme_constant_override("margin_bottom", 16)
 	main_vbox.add_child(modes_margin)
 	
@@ -215,8 +219,8 @@ func _build_ear_trainer_v2_ui() -> void:
 	
 	var grid_margin = MarginContainer.new()
 	grid_margin.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	grid_margin.add_theme_constant_override("margin_left", 20)
-	grid_margin.add_theme_constant_override("margin_right", 20)
+	grid_margin.add_theme_constant_override("margin_left", 24)
+	grid_margin.add_theme_constant_override("margin_right", 24)
 	grid_margin.add_theme_constant_override("margin_top", 20)
 	grid_margin.add_theme_constant_override("margin_bottom", 20)
 	grid_scroll.add_child(grid_margin)

@@ -31,7 +31,7 @@ var name_input: LineEdit
 # ============================================================
 # CONSTANTS & STATE
 # ============================================================
-const PANEL_WIDTH := 320.0
+const PANEL_WIDTH := 340.0
 const TWEEN_DURATION := 0.3
 
 var current_mode: LibraryTabMode = LibraryTabMode.PRESETS
@@ -99,9 +99,11 @@ func _build_ui() -> void:
 	root_margin.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	root_margin.add_theme_constant_override("margin_top", 100)
 	root_margin.add_theme_constant_override("margin_bottom", 120)
+	root_margin.add_theme_constant_override("margin_right", 12) # [v1.3] Unified Float Gap
 	add_child(root_margin)
 	
 	var bg = PanelContainer.new()
+	bg.clip_contents = true # [v1.4] Enforce Floating Clip
 	root_margin.add_child(bg)
 	
 	# Light Theme Style (Sync with main_theme.tres)
@@ -109,9 +111,12 @@ func _build_ui() -> void:
 	bg_style.bg_color = Color(0.98, 0.98, 1, 0.75)
 	bg_style.corner_radius_top_left = 24
 	bg_style.corner_radius_bottom_left = 24
+	bg_style.corner_radius_top_right = 24 # [v1.3] Unified
+	bg_style.corner_radius_bottom_right = 24
 	bg_style.border_width_left = 1
 	bg_style.border_width_top = 1
 	bg_style.border_width_bottom = 1
+	bg_style.border_width_right = 1 # [v1.3] Unified Border
 	bg_style.border_color = Color(1, 1, 1, 0.5)
 	bg_style.shadow_color = Color(0, 0, 0, 0.1)
 	bg_style.shadow_size = 8
@@ -124,8 +129,8 @@ func _build_ui() -> void:
 	# --- Content Area ---
 	var content_margin = MarginContainer.new()
 	content_margin.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	content_margin.add_theme_constant_override("margin_left", 2)
-	content_margin.add_theme_constant_override("margin_right", 2)
+	content_margin.add_theme_constant_override("margin_left", 24) # [v1.3] Unified Padding
+	content_margin.add_theme_constant_override("margin_right", 24)
 	content_margin.add_theme_constant_override("margin_top", 12)
 	content_margin.add_theme_constant_override("margin_bottom", 12)
 	main_vbox.add_child(content_margin)
