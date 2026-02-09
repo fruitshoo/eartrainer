@@ -10,8 +10,7 @@ extends Node
 # ============================================================
 # EXPORTS
 # ============================================================
-@export var beats_per_bar: int = 4 # TODO: Remove and use ProgressionManager
-
+# beats_per_bar removed - use ProgressionManager.beats_per_bar instead
 
 # ============================================================
 # STATE
@@ -47,8 +46,6 @@ var _highlighted_tiles: Array = []
 # LIFECYCLE
 # ============================================================
 func _ready() -> void:
-	add_to_group("sequencer") # TODO: HUD refactoring 후 제거 가능
-	
 	_beat_timer = Timer.new()
 	add_child(_beat_timer)
 	_beat_timer.timeout.connect(_on_beat_tick)
@@ -79,7 +76,7 @@ func reset_position() -> void:
 	current_beat = 0
 	_is_paused = false
 	_clear_all_highlights()
-	EventBus.beat_updated.emit(-1, beats_per_bar) # UI 리셋
+	EventBus.beat_updated.emit(-1, ProgressionManager.beats_per_bar) # UI 리셋
 	EventBus.bar_changed.emit(current_step)
 	
 ## [New] 특정 위치로 이동 (재생 중이면 즉시 이동)

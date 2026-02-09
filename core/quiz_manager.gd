@@ -569,9 +569,7 @@ func _play_quiz_sound(type: QuizType):
 			_play_note_with_blink(interval_target_note, 1.0, false)
 		)
 
-func check_interval_answer(semitones: int):
-	# Legacy/Button based answer
-	pass
+# check_interval_answer removed - was unused legacy code
 
 func check_interval_answer_with_tile(clicked_note: int, string_idx: int):
 	# Prevent multiple triggers while reward is playing
@@ -658,8 +656,7 @@ func check_interval_answer_with_tile(clicked_note: int, string_idx: int):
 		# )
 		quiz_answered.emit({"correct": false})
 
-func _show_feedback_text_for_note(midi_note: int, text: String, color: Color):
-	pass
+# _show_feedback_text_for_note removed - was unimplemented
 
 # ============================================================
 # REWARD SYSTEM
@@ -723,7 +720,6 @@ func _stop_playback():
 	_is_processing_correct_answer = false # Reset input lock
 	# elif block removed - erroneous placement
 	
-	_current_playback_id += 1 # Invalidate pending callbacks
 	_current_playback_id += 1 # Invalidate pending callbacks
 	# _clear_root_highlight() # Keep visual hint during playback stops
 		
