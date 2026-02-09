@@ -31,8 +31,8 @@ func setup(data: Dictionary, index: int) -> void:
 	name_label.tooltip_text = preset_name
 	
 	# Details
-	var key_idx = data.get("key_note", 0)
-	var mode_idx = data.get("mode", 0)
+	var key_idx = int(data.get("key", 0)) # [Fix] Was 'key_note', actual save uses 'key'
+	var mode_idx = int(data.get("mode", 0))
 	var bar_count = data.get("bar_count", 4)
 	
 	var user_flats = MusicTheory.should_use_flats(key_idx, mode_idx)

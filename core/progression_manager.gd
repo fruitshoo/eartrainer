@@ -436,11 +436,11 @@ func _deserialize_data(data: Dictionary) -> void:
 	loop_end_index = data.get("loop_end", -1)
 	
 	# UI 리프레시를 위해 시그널 방출
-	# [Fix] settings_updated updates existing slots, slot_updated refreshes content.
+	# [Fix] settings_updated triggers _rebuild_slots (deferred) which calls update_info on each button.
+	# Do NOT emit slot_updated here - it causes a race condition with the deferred rebuild.
 	settings_updated.emit(bar_count, 1)
 	loop_range_changed.emit(loop_start_index, loop_end_index)
-	for i in range(slots.size()):
-		slot_updated.emit(i, slots[i] if slots[i] else {})
+	# Removed: slot_updated loop - _rebuild_slots handles this
 
 # ============================================================
 # PRESET LIBRARY (Saved Progressions)
