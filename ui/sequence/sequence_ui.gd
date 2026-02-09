@@ -572,6 +572,11 @@ func _show_chord_context_menu(index: int) -> void:
 	var root_note = data.root
 	var string_idx = data.string
 	
+	# [New] Replace Chord
+	context_menu.add_item("코드 교체 (Replace)", 1000)
+	context_menu.set_item_icon_modulate(context_menu.item_count - 1, Color(0.4, 1.0, 0.4))
+	context_menu.add_separator()
+	
 	# --- 7화음 (7th) ---
 	context_menu.add_separator("7화음 (7th)")
 	_add_chord_item("M7", "M7", root_note, string_idx)
@@ -651,6 +656,8 @@ func _on_context_menu_id_pressed(id: int) -> void:
 	
 	if id == 999: # Delete
 		ProgressionManager.clear_slot(_context_menu_target_slot)
+	elif id == 1000: # Replace (Open Pie Menu)
+		call_deferred("_open_pie_menu_for_slot", _context_menu_target_slot)
 	else:
 		# Change Type
 		var type_code = context_menu.get_item_metadata(id)
@@ -701,6 +708,23 @@ func _on_tile_right_clicked(midi_note: int, string_index: int, world_pos: Vector
 	
 	var screen_pos = cam.unproject_position(world_pos)
 	
+	_open_pie_menu_impl(midi_note, string_index, screen_pos, selected_idx)
+
+func _open_pie_menu_for_slot(slot_index: int) -> void:
+	var data = ProgressionManager.get_slot(slot_index)
+	var midi_note = 60 # Default C4
+	var string_idx = 5
+	
+	if data and not data.is_empty():
+		midi_note = data.root
+		string_idx = data.string
+	
+	# Center of screen or mouse pos?
+	var screen_pos = get_viewport().get_mouse_position()
+	
+	_open_pie_menu_impl(midi_note, string_idx, screen_pos, slot_index)
+
+func _open_pie_menu_impl(midi_note: int, string_index: int, screen_pos: Vector2, slot_index: int) -> void:
 	# Instantiate Pie Menu
 	var pie = PieMenu.new()
 	pie.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
@@ -716,12 +740,15 @@ func _on_tile_right_clicked(midi_note: int, string_index: int, world_pos: Vector
 	
 	# Handle Selection
 	pie.chord_type_selected.connect(func(type):
-		_apply_chord_from_tile(midi_note, string_index, type, selected_idx)
+		_apply_chord_from_tile(midi_note, string_index, type, slot_index)
 	)
 	
 	# [New] Handle Hover Preview
 	pie.chord_type_hovered.connect(func(type):
 		if %Sequencer:
+			# Preview needs to know we are editing a slot, not just hovering a tile
+			# But preview_chord works with note/type/string, so it's fine.
+			# However, we might want to mute the current slot playback if playing.
 			%Sequencer.preview_chord(midi_note, type, string_index)
 	)
 	
