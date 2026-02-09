@@ -129,6 +129,11 @@ func _update_slot_background(chord_root: int, chord_type: String) -> void:
 		var expected = MusicTheory.get_diatonic_type(chord_root, GameManager.current_key, GameManager.current_mode)
 		if chord_type == expected:
 			is_diatonic = true
+		elif chord_type == "5":
+			# Power chords are diatonic if the scale degree has a Perfect 5th
+			# (i.e. expected type is NOT m7b5 or dim7)
+			if expected != "m7b5" and expected != "dim7":
+				is_diatonic = true
 			
 	# 2. Reset if Diatonic (v1.9: No background for Diatonic)
 	if is_diatonic:
