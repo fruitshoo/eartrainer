@@ -422,6 +422,16 @@ func _highlight_selected(selected_idx: int) -> void:
 			btn.set_highlight("loop") # [Fixed] 루프 구간은 별도 스타일(White) 적용
 		else:
 			btn.set_highlight("none")
+	
+	# [New] Dynamic Scale Override on Slot Selection
+	if selected_idx >= 0:
+		var data = ProgressionManager.get_chord_data(selected_idx)
+		if not data.is_empty():
+			_apply_scale_override_for_slot(data)
+		else:
+			GameManager.clear_scale_override()
+	else:
+		GameManager.clear_scale_override()
 
 func _update_slot_label(index: int, data: Dictionary) -> void:
 	var buttons = _get_all_slot_buttons()
@@ -801,6 +811,7 @@ func _apply_chord_from_tile(midi_note: int, string_index: int, type: String, slo
 	var slot_data := {"root": midi_note, "type": type, "string": string_index}
 	ProgressionManager.slots[slot_index] = slot_data
 	ProgressionManager.slot_updated.emit(slot_index, slot_data)
+	
 	ProgressionManager.save_session()
 	
 	# Clear selection
@@ -810,3 +821,41 @@ func _apply_chord_from_tile(midi_note: int, string_index: int, type: String, slo
 	# Visual/Audio feedback
 	if AudioEngine:
 		AudioEngine.play_note(midi_note, string_index, "chord")
+
+# [New] Helper for Dynamic Scale Override on Selection
+func _apply_scale_override_for_slot(data: Dictionary) -> void:
+	var root = data.get("root", -1)
+	var type = data.get("type", "")
+	
+	if root == -1: return
+	
+	# Check if Diatonic
+	if MusicTheory.is_in_scale(root, GameManager.current_key, GameManager.current_mode):
+		var expected = MusicTheory.get_diatonic_type(root, GameManager.current_key, GameManager.current_mode)
+		# Power chords (5) are diatonic if expected is not diminished-ish
+		if type == expected or (type == "5" and expected != "m7b5" and expected != "dim7"):
+			GameManager.clear_scale_override()
+		else:
+			_apply_scale_override_logic(root, type)
+	else:
+		_apply_scale_override_logic(root, type)
+
+func _apply_scale_override_logic(root: int, type: String) -> void:
+	# Heuristic 1: Parallel Key (Major <-> Minor)
+	var parallel_mode = MusicTheory.ScaleMode.MINOR if GameManager.current_mode == MusicTheory.ScaleMode.MAJOR else MusicTheory.ScaleMode.MAJOR
+	
+	# Check if root/chord fits in Parallel Scale
+	if MusicTheory.is_in_scale(root, GameManager.current_key, parallel_mode):
+		var expected = MusicTheory.get_diatonic_type(root, GameManager.current_key, parallel_mode)
+		if type == expected or (type == "5" and expected != "m7b5" and expected != "dim7"):
+			GameManager.set_scale_override(GameManager.current_key, parallel_mode)
+			return
+
+	# Heuristic 2: Chord Scale (Root + Major/Minor)
+	var target_mode = MusicTheory.ScaleMode.MAJOR
+	if "m" in type and not "dim" in type and not "maj" in type:
+		target_mode = MusicTheory.ScaleMode.MINOR
+	elif "dim" in type:
+		target_mode = MusicTheory.ScaleMode.LOCRIAN
+	
+	GameManager.set_scale_override(root % 12, target_mode)

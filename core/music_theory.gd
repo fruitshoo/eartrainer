@@ -244,6 +244,10 @@ static func get_degree_number_name(midi_note: int, key_root: int) -> String:
 
 ## 해당 음이 스케일에 포함되는지 확인
 static func is_in_scale(midi_note: int, key_root: int, mode: ScaleMode) -> bool:
+	# Safety: Check for invalid mode before accessing SCALE_DATA
+	if mode == -1 or not mode in SCALE_DATA:
+		return false
+	
 	var interval := _get_interval(midi_note, key_root)
 	return interval in SCALE_DATA[mode]["intervals"]
 

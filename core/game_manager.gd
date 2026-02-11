@@ -24,6 +24,19 @@ var current_mode: MusicTheory.ScaleMode = MusicTheory.ScaleMode.MAJOR:
 		current_mode = value
 		_apply_diatonic_chord(KEY_1) # 모드 변경 시 1도로 리셋
 
+# [New] Scale Override (For Non-Diatonic Visualization)
+var override_key: int = -1:
+	set(value):
+		if override_key != value:
+			override_key = value
+			settings_changed.emit()
+
+var override_mode: int = -1:
+	set(value):
+		if override_mode != value:
+			override_mode = value
+			settings_changed.emit()
+
 var current_notation_mode: NotationMode = NotationMode.CDE:
 	set(value):
 		current_notation_mode = value
@@ -149,14 +162,35 @@ func _unhandled_input(event: InputEvent) -> void:
 # PUBLIC API
 # ============================================================
 
+## 스케일 오버라이드 설정 (일시적 변경)
+func set_scale_override(key: int, mode: int) -> void:
+	if override_key != key or override_mode != mode:
+		override_key = key
+		override_mode = mode
+		# settings_changed is emitted by setters
+
+## 스케일 오버라이드 해제
+func clear_scale_override() -> void:
+	if override_key != -1 or override_mode != -1: # Check both
+		override_key = -1
+		override_mode = -1
+		# settings_changed is emitted by setters
+
 ## 타일의 3-Tier 시각화 계층 반환
 ## 타일의 3-Tier 시각화 계층 반환
 func get_tile_tier(midi_note: int) -> int:
 	# [DEBUG] 값 추적 - print 주석 해제하여 사용
 	# print("get_tile_tier -> Note:%d ChordRoot:%d Type:%s Key:%d Mode:%d" % [midi_note, current_chord_root, current_chord_type, current_key, current_mode])
+	# Use override scale if set
+	var target_key = current_key
+	var target_mode = current_mode
+	if override_key != -1:
+		target_key = override_key
+		target_mode = override_mode
+		
 	return MusicTheory.get_visual_tier(
 		midi_note, current_chord_root, current_chord_type,
-		current_key, current_mode
+		target_key, target_mode
 	)
 
 ## 현재 코드 기준 인터벌 반환 (0=Root, 4=Major3rd, etc.)
@@ -183,7 +217,14 @@ func get_note_label(midi_note: int) -> String:
 
 ## 음이 현재 스케일에 포함되는지
 func is_in_scale(midi_note: int) -> bool:
-	return MusicTheory.is_in_scale(midi_note, current_key, current_mode)
+	var target_key = current_key
+	var target_mode = current_mode
+	# Check valid override
+	if override_key != -1 and override_mode != -1:
+		target_key = override_key
+		target_mode = override_mode
+		
+	return MusicTheory.is_in_scale(midi_note, target_key, target_mode)
 
 ## 특정 줄/프렛의 타일 찾기
 func find_tile(string_idx: int, fret_idx: int) -> Node:

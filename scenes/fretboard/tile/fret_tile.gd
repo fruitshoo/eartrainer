@@ -118,7 +118,6 @@ func _refresh_visuals() -> void:
 	# 0. Update Data Logic
 	var is_in_focus := _is_within_focus()
 	var tier := GameManager.get_tile_tier(midi_note)
-	var is_scale_tone := GameManager.is_in_scale(midi_note)
 	
 	# 1. Tier & Hierarchy Logic
 	var visual_tier := 4 # Default: Avoid (No light)
@@ -127,7 +126,7 @@ func _refresh_visuals() -> void:
 		visual_tier = 1
 	elif tier <= 2 and GameManager.highlight_chord:
 		visual_tier = 2
-	elif is_scale_tone and GameManager.highlight_scale:
+	elif tier == 3 and GameManager.highlight_scale: # [Fix] Use tier instead of separate is_scale_tone
 		visual_tier = 3
 	
 	# can_show logic
@@ -152,7 +151,7 @@ func _refresh_visuals() -> void:
 	# 3. Apply Style (Material) via Layer Resolution
 	_update_material_state()
 	
-func _get_tier_color(tier: int, _p_is_key_root: bool, _is_scale_tone: bool) -> Color:
+func _get_tier_color(tier: int) -> Color:
 	var theme = GameManager.current_theme_name
 	
 	if tier == 1:
@@ -168,8 +167,6 @@ func _get_tier_color(tier: int, _p_is_key_root: bool, _is_scale_tone: bool) -> C
 			# 5th (7) or others
 			return ThemeManager.get_color(theme, "fifth")
 	elif tier == 3:
-		return ThemeManager.get_color(theme, "scale")
-	elif _is_scale_tone:
 		return ThemeManager.get_color(theme, "scale")
 		
 	return ThemeManager.get_color(theme, "avoid")
@@ -285,7 +282,6 @@ func _update_material_state() -> void:
 func _get_base_state() -> Dictionary:
 	var visual_tier := 4
 	var tier := GameManager.get_tile_tier(midi_note)
-	var is_scale_tone := GameManager.is_in_scale(midi_note)
 	var is_in_focus := _is_within_focus()
 	
 	# [v0.4.1] Proximity Flashlight Logic
@@ -294,11 +290,11 @@ func _get_base_state() -> Dictionary:
 		visual_tier = 1
 	elif tier <= 2 and (GameManager.highlight_chord or is_in_focus):
 		visual_tier = 2
-	elif is_scale_tone and (GameManager.highlight_scale or is_in_focus):
+	elif tier == 3 and (GameManager.highlight_scale or is_in_focus): # [Fix] Use tier
 		visual_tier = 3
 	
 	# Determine Color
-	var color = _get_tier_color(visual_tier, false, true)
+	var color = _get_tier_color(visual_tier)
 	if visual_tier == 4:
 		color = ThemeManager.get_color(GameManager.current_theme_name, "avoid")
 	

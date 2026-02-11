@@ -92,9 +92,15 @@ func seek(step: int, beat: int) -> void:
 		# 정지 상태면 위치만 업데이트하고 UI/State 갱신 (Preview Mode)
 		_update_game_state_from_slot() # HUD 업데이트
 		
+		# [New] Apply Scale Override for Preview
+		var data = ProgressionManager.get_chord_data(current_step)
+		if not data.is_empty():
+			_handle_dynamic_scale_override(data)
+		else:
+			GameManager.clear_scale_override()
+		
 		# [Fixed] Fretboard Highlight Update
 		_clear_all_highlights()
-		var data = ProgressionManager.get_slot(current_step)
 		if data:
 			_visualize_slot_chord(data)
 		
@@ -111,6 +117,9 @@ func stop_and_reset() -> void:
 	
 	_pause_playback() # 타이머 정지
 	reset_position() # 위치 및 UI 리셋
+	
+	# [New] Reset Scale Override on Stop
+	GameManager.clear_scale_override()
 
 ## [New] 코드 미리보기 (하이라이트만)
 func preview_chord(root: int, type: String, string_idx: int) -> void:
@@ -165,6 +174,9 @@ func _resume_playback() -> void:
 func _pause_playback() -> void:
 	_is_paused = true
 	_beat_timer.stop()
+	
+	# [New] Reset Scale Override on Pause
+	GameManager.clear_scale_override()
 
 # ============================================================
 # PLAYBACK LOGIC
@@ -176,7 +188,13 @@ func _play_current_step(is_seek: bool = false) -> void:
 	_clear_all_highlights()
 	
 	# 1. 게임 상태 업데이트
+	# 1. 게임 상태 업데이트
 	_update_game_state_from_slot()
+	
+	# [New] Dynamic Scale Highlight Logic
+	var data = ProgressionManager.get_chord_data(current_step)
+	if not data.is_empty():
+		_handle_dynamic_scale_override(data)
 	
 	# 2. 첫 번째 비트(또는 Seek된 비트) 처리
 	# seek가 아니면 0부터 시작
@@ -412,3 +430,44 @@ func _check_chord_playback_trigger() -> void:
 			# Play on every 8th note tick (except beat 0 sub 0)
 			if not (current_beat == 0 and _sub_beat == 0):
 				_play_block_chord()
+
+# [New] Helper for Dynamic Scale Override
+func _handle_dynamic_scale_override(data: Dictionary) -> void:
+	var root = data.get("root", -1)
+	var type = data.get("type", "")
+	
+	if root == -1: return
+	
+	# Check if Diatonic
+	if MusicTheory.is_in_scale(root, GameManager.current_key, GameManager.current_mode):
+		var expected = MusicTheory.get_diatonic_type(root, GameManager.current_key, GameManager.current_mode)
+		# Power chords (5) are diatonic if expected is not diminished-ish
+		if type == expected or (type == "5" and expected != "m7b5" and expected != "dim7"):
+			GameManager.clear_scale_override()
+		else:
+			_apply_scale_override_logic(root, type)
+	else:
+		_apply_scale_override_logic(root, type)
+
+func _apply_scale_override_logic(root: int, type: String) -> void:
+	# Heuristic 1: Parallel Key (Major <-> Minor)
+	# If we are in Major, try Parallel Minor. If Minor, try Parallel Major.
+	var parallel_mode = MusicTheory.ScaleMode.MINOR if GameManager.current_mode == MusicTheory.ScaleMode.MAJOR else MusicTheory.ScaleMode.MAJOR
+	
+	# Check if root/chord fits in Parallel Scale
+	if MusicTheory.is_in_scale(root, GameManager.current_key, parallel_mode):
+		var expected = MusicTheory.get_diatonic_type(root, GameManager.current_key, parallel_mode)
+		if type == expected or (type == "5" and expected != "m7b5" and expected != "dim7"):
+			GameManager.set_scale_override(GameManager.current_key, parallel_mode)
+			return
+
+	# Heuristic 2: Chord Scale (Root + Major/Minor)
+	var target_mode = MusicTheory.ScaleMode.MAJOR
+	# Simple check: if it has 'm' (minor) but not 'dim' or 'maj', treat as minor
+	if "m" in type and not "dim" in type and not "maj" in type:
+		target_mode = MusicTheory.ScaleMode.MINOR
+	elif "dim" in type:
+		# Diminished -> Locrian matches the diatonic chord of Minor/Major keys
+		target_mode = MusicTheory.ScaleMode.LOCRIAN
+	
+	GameManager.set_scale_override(root % 12, target_mode)
