@@ -1,0 +1,23 @@
+[gd_scene load_steps=5 format=3 uid="uid://shadowfloor123"]
+
+[sub_resource type="Gradient" id="Gradient_shadow"]
+colors = PackedColorArray(0, 0, 0, 0.4, 0, 0, 0, 0)
+
+[sub_resource type="GradientTexture2D" id="GradientTexture2D_shadow"]
+gradient = SubResource("Gradient_shadow")
+fill = 1
+fill_from = Vector2(0.5, 0.5)
+fill_to = Vector2(0.9, 0.9)
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_floor"]
+transparency = 1
+shading_mode = 0
+albedo_texture = SubResource("GradientTexture2D_shadow")
+
+[sub_resource type="PlaneMesh" id="PlaneMesh_floor"]
+size = Vector2(8, 20)
+
+[node name="ShadowFloor" type="MeshInstance3D"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -1, 0)
+mesh = SubResource("PlaneMesh_floor")
+surface_material_override/0 = SubResource("StandardMaterial3D_floor")

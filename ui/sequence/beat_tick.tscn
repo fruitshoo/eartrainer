@@ -1,0 +1,7 @@
+[gd_scene format=3]
+
+[node name="BeatTick" type="Panel"]
+custom_minimum_size = Vector2(10, 8)
+size_flags_horizontal = 3
+size_flags_vertical = 3
+theme_type_variation = &"SequencerBeatTick"

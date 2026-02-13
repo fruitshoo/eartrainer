@@ -1,0 +1,53 @@
+# Godot 4 - Generated Files
+.godot/
+
+# Godot-specific ignores
+*.translation
+
+# Import files (can be regenerated)
+.import/
+
+# Mono-specific (C# builds)
+.mono/
+data_*/
+mono_crash.*.json
+
+# Export templates
+*.pck
+*.zip
+
+# Build artifacts
+*.exe
+*.app
+*.x86_64
+*.x86
+*.arm64
+*.arm32
+
+# IDE and Editor
+*.swp
+*.swo
+*~
+.vscode/
+.idea/
+
+# OS-specific
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Temporary files
+*.tmp
+*.temp
+*.bak
+*.backup
+
+# Node.js (if using web export tools)
+node_modules/
+
+# Custom
+*.log

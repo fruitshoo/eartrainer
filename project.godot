@@ -1,0 +1,48 @@
+; Engine configuration file.
+; It's best edited using the editor UI and not directly,
+; since the parameters that go here are not all obvious.
+;
+; Format:
+;   [section] ; section goes between []
+;   param=value ; assign values to parameters
+
+config_version=5
+
+[application]
+
+config/name="GuitarEarTrainer_02"
+config/features=PackedStringArray("4.6", "Forward Plus")
+config/icon="res://icon.svg"
+
+[autoload]
+
+AudioEngine="*uid://deqauwlbpdo4m"
+GameManager="*uid://cdqhxtp1ctg77"
+QuizManager="*uid://ffwv4s6js4ys"
+ProgressionManager="*uid://cdeqxx32mc6sw"
+SettingsManager="*uid://dkv3s8una25s4"
+EventBus="*uid://ckhfi55lgvtft"
+ModalManager="*res://core/modal_manager.gd"
+GameLogger="*res://core/game_logger.gd"
+
+[debug]
+
+file_logging/enable_file_logging=true
+
+[display]
+
+window/size/viewport_width=1280
+window/size/viewport_height=720
+window/stretch/mode="canvas_items"
+
+[gui]
+
+theme/custom="res://ui/resources/main_theme.tres"
+
+[physics]
+
+3d/physics_engine="Jolt Physics"
+
+[rendering]
+
+rendering_device/driver.windows="d3d12"

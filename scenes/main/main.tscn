@@ -1,0 +1,46 @@
+[gd_scene format=3 uid="uid://de4ok38d5lbo8"]
+
+[ext_resource type="PackedScene" uid="uid://dysc3i00s5p1l" path="res://scenes/fretboard/fretboard_manager.tscn" id="1_ow5a4"]
+[ext_resource type="PackedScene" uid="uid://bt7f8k18nm6ga" path="res://scenes/player/player.tscn" id="2_k2fmo"]
+[ext_resource type="Script" uid="uid://ddy07ttvmepmc" path="res://scenes/main/main_camera.gd" id="3_l3cfh"]
+[ext_resource type="PackedScene" uid="uid://cs231he7e28ir" path="res://scenes/environment/giant_desk.tscn" id="8_yyfjg"]
+[ext_resource type="PackedScene" uid="uid://mainuiscene" path="res://ui/main_ui.tscn" id="9_mainui"]
+[ext_resource type="Environment" uid="uid://dhtj1lxktuwca" path="res://environments/cozy_studio.tres" id="10_env"]
+[ext_resource type="CameraAttributesPractical" uid="uid://c2tpv54fe4hlo" path="res://environments/cozy_attributes.tres" id="11_attr"]
+[ext_resource type="PackedScene" uid="uid://u3gjejecf0tq" path="res://scenes/environment/shadow_floor.tscn" id="13_shadow"]
+
+[node name="Main" type="Node3D" unique_id=1566035042]
+
+[node name="ShadowFloor" parent="." unique_id=2084462466 instance=ExtResource("13_shadow")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -1, -8)
+
+[node name="StageSpotlight" type="SpotLight3D" parent="." unique_id=599281333]
+transform = Transform3D(1, 0, 0, 0, -4.37114e-08, 1, 0, -1, -4.37114e-08, 0, 15, -8)
+light_energy = 5.0
+shadow_enabled = true
+spot_range = 40.0
+spot_attenuation = 0.5
+
+[node name="FretboardManger" parent="." unique_id=1419062901 instance=ExtResource("1_ow5a4")]
+
+[node name="Player" parent="." unique_id=1910528158 instance=ExtResource("2_k2fmo")]
+
+[node name="WorldEnvironment" type="WorldEnvironment" parent="." unique_id=1642191298]
+environment = ExtResource("10_env")
+camera_attributes = ExtResource("11_attr")
+
+[node name="DirectionalLight3D" type="DirectionalLight3D" parent="." unique_id=2065457007]
+transform = Transform3D(0.9803125, 0.19745204, 0, -0.19745204, 0.9803125, 0, 0, 0, 1, 0, 0, 0)
+light_color = Color(0.3, 0.3, 0.35, 1)
+shadow_enabled = true
+
+[node name="MainCamera" type="Camera3D" parent="." unique_id=743275868]
+transform = Transform3D(-0.70710677, -0.35355338, 0.6123724, 0, 0.8660254, 0.5, -0.70710677, 0.35355338, -0.6123724, 18, 14, -18)
+attributes = ExtResource("11_attr")
+current = true
+fov = 25.0
+script = ExtResource("3_l3cfh")
+
+[node name="MainUI" parent="." unique_id=112609361 instance=ExtResource("9_mainui")]
+
+[node name="GiantDesk" parent="." unique_id=103852947 instance=ExtResource("8_yyfjg")]

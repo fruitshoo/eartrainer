@@ -1,0 +1,30 @@
+[gd_scene format=3 uid="uid://c8j6y7v5n4x3"]
+
+[ext_resource type="Script" uid="uid://dhpcdoc6f2hxm" path="res://ui/side_panel/ear_trainer_item_row.gd" id="1_script"]
+
+[node name="EarTrainerItemRow" type="HBoxContainer" unique_id=1029425089]
+layout_mode = 2
+size_flags_horizontal = 3
+script = ExtResource("1_script")
+
+[node name="CheckBox" type="CheckBox" parent="." unique_id=843240515]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+text = "Item"
+text_overrun_behavior = 3
+clip_text = true
+
+[node name="EditButton" type="Button" parent="." unique_id=91039198]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(32, 0)
+layout_mode = 2
+text = "✎"
+tooltip_text = "Edit Riff"
+flat = true
+
+[node name="Spacer" type="Control" parent="." unique_id=634715608]
+unique_name_in_owner = true
+visible = false
+layout_mode = 2
+mouse_filter = 2

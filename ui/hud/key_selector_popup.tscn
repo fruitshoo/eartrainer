@@ -1,0 +1,47 @@
+[gd_scene format=3 uid="uid://d3y8h2k1n4m6p"]
+
+[ext_resource type="Script" path="res://ui/hud/key_selector_popup.gd" id="1_script"]
+[ext_resource type="Theme" uid="uid://b6x5n4w0q2x3" path="res://ui/resources/main_theme.tres" id="2_theme"]
+
+
+[node name="KeySelectorPopup" type="PopupPanel"]
+size = Vector2i(220, 180)
+visible = false
+transparent_bg = true
+theme = ExtResource("2_theme")
+script = ExtResource("1_script")
+
+[node name="MarginContainer" type="MarginContainer" parent="."]
+offset_left = 4.0
+offset_top = 4.0
+offset_right = 216.0
+offset_bottom = 176.0
+theme_override_constants/margin_left = 10
+theme_override_constants/margin_top = 10
+theme_override_constants/margin_right = 10
+theme_override_constants/margin_bottom = 10
+
+[node name="VBoxContainer" type="VBoxContainer" parent="MarginContainer"]
+layout_mode = 2
+theme_override_constants/separation = 10
+
+[node name="Label" type="Label" parent="MarginContainer/VBoxContainer"]
+layout_mode = 2
+text = "Select Key"
+horizontal_alignment = 1
+
+[node name="RootGrid" type="GridContainer" parent="MarginContainer/VBoxContainer"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 4
+columns = 4
+theme_override_constants/h_separation = 8
+theme_override_constants/v_separation = 8
+
+[node name="HSeparator" type="HSeparator" parent="MarginContainer/VBoxContainer"]
+layout_mode = 2
+
+[node name="ScaleOptionButton" type="OptionButton" parent="MarginContainer/VBoxContainer"]
+unique_name_in_owner = true
+layout_mode = 2
+alignment = 1

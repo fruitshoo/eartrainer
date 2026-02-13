@@ -1,0 +1,49 @@
+[gd_scene format=3 uid="uid://mainuiscene"]
+
+[ext_resource type="Script" path="res://ui/main_ui.gd" id="1_script"]
+[ext_resource type="PackedScene" path="res://ui/hud/hud_ui.tscn" id="2_hud"]
+[ext_resource type="PackedScene" path="res://ui/sequence/sequence_ui.tscn" id="3_sequence"]
+[ext_resource type="PackedScene" path="res://ui/side_panel/side_panel.tscn" id="4_sidepanel"]
+[ext_resource type="PackedScene" uid="uid://settingswindowscene" path="res://ui/settings/settings_window.tscn" id="5_settings"]
+[ext_resource type="PackedScene" uid="uid://librarywindowscene" path="res://ui/library/library_window.tscn" id="6_library"]
+
+[node name="MainUI" type="CanvasLayer" unique_id=1293947862]
+script = ExtResource("1_script")
+
+[node name="SafeArea" type="MarginContainer" parent="." unique_id=862181437]
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+theme_override_constants/margin_left = 24
+theme_override_constants/margin_top = 24
+theme_override_constants/margin_right = 24
+theme_override_constants/margin_bottom = 24
+
+[node name="GameUIContainer" type="Control" parent="SafeArea" unique_id=822900571]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+mouse_filter = 2
+
+[node name="HUD" parent="SafeArea/GameUIContainer" unique_id=1498389322 instance=ExtResource("2_hud")]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+
+[node name="SequenceUI" parent="SafeArea/GameUIContainer" unique_id=99102141 instance=ExtResource("3_sequence")]
+layout_mode = 1
+
+[node name="SidePanel" parent="." instance=ExtResource("4_sidepanel")]
+unique_name_in_owner = true
+
+[node name="SettingsWindow" parent="." instance=ExtResource("5_settings")]
+unique_name_in_owner = true
+
+[node name="LibraryWindow" parent="." instance=ExtResource("6_library")]
+unique_name_in_owner = true
+visible = false

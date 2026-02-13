@@ -1,0 +1,313 @@
+[gd_scene format=3 uid="uid://tbyjroyygt7c"]
+
+[ext_resource type="Script" uid="uid://bo1gcb6fsyth4" path="res://ui/settings/settings_window.gd" id="1_script"]
+[ext_resource type="Theme" uid="uid://b6x5n4w0q2x3" path="res://ui/resources/main_theme.tres" id="2_theme"]
+
+[node name="SettingsWindow" type="Control"]
+layout_mode = 3
+anchors_preset = 11
+anchor_left = 1.0
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = 0.0
+offset_right = 340.0
+grow_horizontal = 0
+grow_vertical = 2
+theme = ExtResource("2_theme")
+script = ExtResource("1_script")
+
+[node name="ScrollContainer" type="ScrollContainer" parent="."]
+unique_name_in_owner = true
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+horizontal_scroll_mode = 0
+vertical_scroll_mode = 3
+
+[node name="Content" type="VBoxContainer" parent="ScrollContainer"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+theme_override_constants/separation = 24
+
+[node name="VolumeSection" type="VBoxContainer" parent="ScrollContainer/Content"]
+layout_mode = 2
+theme_override_constants/separation = 12
+
+[node name="Label" type="Label" parent="ScrollContainer/Content/VolumeSection"]
+layout_mode = 2
+text = "Volume"
+horizontal_alignment = 1
+
+[node name="GridContainer" type="GridContainer" parent="ScrollContainer/Content/VolumeSection"]
+layout_mode = 2
+theme_override_constants/h_separation = 16
+theme_override_constants/v_separation = 12
+columns = 2
+
+[node name="LabelMaster" type="Label" parent="ScrollContainer/Content/VolumeSection/GridContainer"]
+layout_mode = 2
+size_flags_horizontal = 3
+text = "Master"
+
+[node name="MasterVol" type="HSlider" parent="ScrollContainer/Content/VolumeSection/GridContainer"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(130, 0)
+layout_mode = 2
+size_flags_horizontal = 8
+max_value = 1.0
+step = 0.05
+value = 1.0
+
+[node name="LabelChord" type="Label" parent="ScrollContainer/Content/VolumeSection/GridContainer"]
+layout_mode = 2
+size_flags_horizontal = 3
+text = "Chord"
+
+[node name="ChordVol" type="HSlider" parent="ScrollContainer/Content/VolumeSection/GridContainer"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(130, 0)
+layout_mode = 2
+size_flags_horizontal = 8
+max_value = 1.0
+step = 0.05
+value = 1.0
+
+[node name="LabelMelody" type="Label" parent="ScrollContainer/Content/VolumeSection/GridContainer"]
+layout_mode = 2
+size_flags_horizontal = 3
+text = "Melody"
+
+[node name="MelodyVol" type="HSlider" parent="ScrollContainer/Content/VolumeSection/GridContainer"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(130, 0)
+layout_mode = 2
+size_flags_horizontal = 8
+max_value = 1.0
+step = 0.05
+value = 1.0
+
+[node name="LabelSFX" type="Label" parent="ScrollContainer/Content/VolumeSection/GridContainer"]
+layout_mode = 2
+size_flags_horizontal = 3
+text = "SFX"
+
+[node name="SFXVol" type="HSlider" parent="ScrollContainer/Content/VolumeSection/GridContainer"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(130, 0)
+layout_mode = 2
+size_flags_horizontal = 8
+max_value = 1.0
+step = 0.05
+value = 1.0
+
+[node name="HSeparator" type="HSeparator" parent="ScrollContainer/Content"]
+layout_mode = 2
+
+[node name="NotationSection" type="VBoxContainer" parent="ScrollContainer/Content"]
+layout_mode = 2
+theme_override_constants/separation = 12
+
+[node name="Label" type="Label" parent="ScrollContainer/Content/NotationSection"]
+layout_mode = 2
+text = "Notation"
+horizontal_alignment = 1
+
+[node name="GridContainer" type="GridContainer" parent="ScrollContainer/Content/NotationSection"]
+layout_mode = 2
+theme_override_constants/h_separation = 16
+theme_override_constants/v_separation = 12
+columns = 2
+
+[node name="LabelType" type="Label" parent="ScrollContainer/Content/NotationSection/GridContainer"]
+layout_mode = 2
+size_flags_horizontal = 3
+text = "Label Type"
+
+[node name="NotationMode" type="OptionButton" parent="ScrollContainer/Content/NotationSection/GridContainer"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(140, 0)
+layout_mode = 2
+size_flags_horizontal = 8
+alignment = 1
+item_count = 3
+selected = 0
+popup/item_0/text = "CDE"
+popup/item_0/id = 0
+popup/item_1/text = "도레미"
+popup/item_1/id = 1
+popup/item_2/text = "Degree (123)"
+popup/item_2/id = 2
+
+[node name="HSeparator2" type="HSeparator" parent="ScrollContainer/Content"]
+layout_mode = 2
+
+[node name="DisplaySection" type="VBoxContainer" parent="ScrollContainer/Content"]
+layout_mode = 2
+theme_override_constants/separation = 12
+
+[node name="Label" type="Label" parent="ScrollContainer/Content/DisplaySection"]
+layout_mode = 2
+text = "Display Options"
+horizontal_alignment = 1
+
+[node name="GridContainer" type="GridContainer" parent="ScrollContainer/Content/DisplaySection"]
+layout_mode = 2
+theme_override_constants/h_separation = 16
+theme_override_constants/v_separation = 12
+columns = 2
+
+[node name="ShowLabels" type="CheckBox" parent="ScrollContainer/Content/DisplaySection/GridContainer"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+text = "Labels"
+
+[node name="HighlightRoot" type="CheckBox" parent="ScrollContainer/Content/DisplaySection/GridContainer"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+text = "Root"
+
+[node name="HighlightChord" type="CheckBox" parent="ScrollContainer/Content/DisplaySection/GridContainer"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+text = "Chord"
+
+[node name="HighlightScale" type="CheckBox" parent="ScrollContainer/Content/DisplaySection/GridContainer"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+text = "Scale"
+
+[node name="HSeparator3" type="HSeparator" parent="ScrollContainer/Content"]
+layout_mode = 2
+
+[node name="LabelScale" type="Label" parent="ScrollContainer/Content"]
+layout_mode = 2
+text = "UI Scale"
+horizontal_alignment = 1
+
+[node name="ScaleRow" type="HBoxContainer" parent="ScrollContainer/Content"]
+layout_mode = 2
+alignment = 1
+
+[node name="UIScale" type="HSlider" parent="ScrollContainer/Content/ScaleRow"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(200, 0)
+layout_mode = 2
+size_flags_vertical = 4
+min_value = 0.5
+max_value = 1.2
+step = 0.05
+value = 1.0
+
+[node name="UIScaleLbl" type="Label" parent="ScrollContainer/Content/ScaleRow"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(40, 0)
+layout_mode = 2
+text = "1.00"
+horizontal_alignment = 1
+
+[node name="HSeparator4" type="HSeparator" parent="ScrollContainer/Content"]
+layout_mode = 2
+
+[node name="CameraSection" type="VBoxContainer" parent="ScrollContainer/Content"]
+layout_mode = 2
+theme_override_constants/separation = 12
+
+[node name="Label" type="Label" parent="ScrollContainer/Content/CameraSection"]
+layout_mode = 2
+text = "Camera"
+horizontal_alignment = 1
+
+[node name="GridContainer" type="GridContainer" parent="ScrollContainer/Content/CameraSection"]
+layout_mode = 2
+theme_override_constants/h_separation = 16
+theme_override_constants/v_separation = 12
+columns = 2
+
+[node name="LabelFocus" type="Label" parent="ScrollContainer/Content/CameraSection/GridContainer"]
+layout_mode = 2
+size_flags_horizontal = 3
+text = "String Focus"
+
+[node name="StringFocus" type="OptionButton" parent="ScrollContainer/Content/CameraSection/GridContainer"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(140, 0)
+layout_mode = 2
+size_flags_horizontal = 8
+alignment = 1
+item_count = 4
+selected = 0
+popup/item_0/text = "All Strings (6)"
+popup/item_0/id = 6
+popup/item_1/text = "Wide (+/- 2)"
+popup/item_1/id = 2
+popup/item_2/text = "Standard (+/- 1)"
+popup/item_2/id = 1
+popup/item_3/text = "Single String"
+popup/item_3/id = 0
+
+[node name="LabelRange" type="Label" parent="ScrollContainer/Content/CameraSection/GridContainer"]
+layout_mode = 2
+size_flags_horizontal = 3
+text = "Focus Range"
+
+[node name="FocusRangeRow" type="HBoxContainer" parent="ScrollContainer/Content/CameraSection/GridContainer"]
+layout_mode = 2
+size_flags_horizontal = 8
+theme_override_constants/separation = 8
+
+[node name="FocusRangeMinus" type="Button" parent="ScrollContainer/Content/CameraSection/GridContainer/FocusRangeRow"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(32, 0)
+layout_mode = 2
+text = "-"
+
+[node name="FocusRangeLbl" type="Label" parent="ScrollContainer/Content/CameraSection/GridContainer/FocusRangeRow"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(32, 0)
+layout_mode = 2
+text = "3"
+horizontal_alignment = 1
+
+[node name="FocusRangePlus" type="Button" parent="ScrollContainer/Content/CameraSection/GridContainer/FocusRangeRow"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(32, 0)
+layout_mode = 2
+text = "+"
+
+[node name="LabelDeadzone" type="Label" parent="ScrollContainer/Content/CameraSection/GridContainer"]
+layout_mode = 2
+size_flags_horizontal = 3
+text = "Deadzone"
+
+[node name="DeadzoneRow" type="HBoxContainer" parent="ScrollContainer/Content/CameraSection/GridContainer"]
+layout_mode = 2
+size_flags_horizontal = 8
+theme_override_constants/separation = 8
+
+[node name="DeadzoneMinus" type="Button" parent="ScrollContainer/Content/CameraSection/GridContainer/DeadzoneRow"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(32, 0)
+layout_mode = 2
+text = "-"
+
+[node name="DeadzoneLbl" type="Label" parent="ScrollContainer/Content/CameraSection/GridContainer/DeadzoneRow"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(32, 0)
+layout_mode = 2
+text = "4.0"
+horizontal_alignment = 1
+
+[node name="DeadzonePlus" type="Button" parent="ScrollContainer/Content/CameraSection/GridContainer/DeadzoneRow"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(32, 0)
+layout_mode = 2
+text = "+"

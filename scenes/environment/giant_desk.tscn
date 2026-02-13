@@ -1,0 +1,10 @@
+[gd_scene format=3 uid="uid://cs231he7e28ir"]
+
+[ext_resource type="Script" uid="uid://mrfel2cdt5i6" path="res://scenes/environment/giant_desk.gd" id="1_script"]
+[ext_resource type="PackedScene" uid="uid://ddmbpm5uftmon" path="res://assets/env_giant_desk.glb" id="2_a4deb"]
+
+[node name="GiantDesk" type="Node3D" unique_id=103852947]
+script = ExtResource("1_script")
+
+[node name="env_giant_desk" parent="." unique_id=1360569665 instance=ExtResource("2_a4deb")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -1, 0)
