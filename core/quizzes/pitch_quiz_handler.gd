@@ -32,7 +32,9 @@ func start_quiz() -> void:
 	if pitch_target_note_actual < 40: pitch_target_note_actual += 12
 	if pitch_target_note_actual > 80: pitch_target_note_actual -= 12
 	
-	# Transposition anchor
+	# Sync back to manager for playback
+	manager.pitch_target_class = pitch_target_class
+	manager.pitch_target_note_actual = pitch_target_note_actual
 	manager.interval_root_note = pitch_target_note_actual
 	
 	print("[PitchQuizHandler] Pitch Quiz: Target Class %d (%s), Note %d" % [

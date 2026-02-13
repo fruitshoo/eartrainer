@@ -26,6 +26,8 @@ func start_quiz() -> void:
 		root_note = manager.chord_fixed_root
 		if randf() > 0.5: root_note -= 12
 		
+	# Sync back to manager for playback
+	manager.chord_target_type = chord_target_type
 	manager.interval_root_note = root_note
 	
 	print("[ChordQuizHandler] Chord Quiz: %s on Root %d" % [chord_target_type, root_note])

@@ -17,29 +17,24 @@ enum IntervalMode {ASCENDING, DESCENDING, HARMONIC}
 # ============================================================
 var current_quiz_type: QuizType = QuizType.NONE
 
-# -- Note Quiz State --
+# -- State Sync (Used by handlers/playback) --
 var current_target_note: int = -1
-
-# -- Interval Quiz State --
 var interval_root_note: int = -1
 var interval_target_note: int = -1
 var interval_semitones: int = 0
-# Settings
-var active_modes: Array = [IntervalMode.ASCENDING] # Default
-var active_intervals: Array = [0, 2, 4, 5, 7, 9, 11, 12] # Default Major Scale intervals
+var current_interval_mode: int = 0 # 0=Asc, 1=Desc, 2=Harmonic
+var pitch_target_class: int = -1
+var pitch_target_note_actual: int = -1
+var chord_target_type: String = ""
+var _current_root_fret: int = -1
 
-# -- Absolute Pitch Quiz State --
-var pitch_target_class: int = -1 # 0-11
-var active_pitch_classes: Array = [0, 2, 4, 5, 7, 9, 11] # Default C Major
-var pitch_target_note_actual: int = -1 # Actual midi note played
-
-# -- Chord Quiz State --
-var chord_target_type: String = "" # "maj", "min7" etc
-var active_chord_types: Array = ["maj", "min"] # Default Tier 1
-var chord_root_mode: String = "fixed" # "fixed" (C), "random"
-var chord_fixed_root: int = 60 # C4 Middle C
-
-var _current_root_fret: int = -1 # Used to anchor reward visuals
+# -- Settings (Accessed by Handlers) --
+var active_modes: Array = [IntervalMode.ASCENDING]
+var active_intervals: Array = [0, 2, 4, 5, 7, 9, 11, 12]
+var active_pitch_classes: Array = [0, 2, 4, 5, 7, 9, 11]
+var active_chord_types: Array = ["maj", "min"]
+var chord_root_mode: String = "fixed"
+var chord_fixed_root: int = 60
 
 # -- Handler Strategy --
 var _handlers: Dictionary = {}

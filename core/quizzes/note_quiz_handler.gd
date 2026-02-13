@@ -14,6 +14,9 @@ func start_quiz() -> void:
 	var root_notes = [40, 45, 50, 55, 59, 64]
 	current_target_note = root_notes[random_string] + random_fret
 	
+	# Sync back to manager for playback
+	manager.current_target_note = current_target_note
+	
 	_play_note(current_target_note)
 	
 	manager.quiz_started.emit({
