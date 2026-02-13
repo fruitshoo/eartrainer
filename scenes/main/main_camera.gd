@@ -222,6 +222,33 @@ func _unhandled_input(event):
 			var move_vec = (right_dir * -event.relative.x + up_dir * event.relative.y) * pixel_to_unit
 			target_drag_offset += move_vec
 
+	# [New] Trackpad Magnify (Pinch to Zoom)
+	if event is InputEventMagnifyGesture:
+		# Magnify gesture factor: 1.0 is no change, > 1.0 is zoom in, < 1.0 is zoom out
+		# Map this to target_size decrement/increment
+		var zoom_delta = (event.factor - 1.0) * target_size * 2.0
+		target_size = clamp(target_size - zoom_delta, 3.0, 20.0)
+
+	# [New] Trackpad Pan / Orbit Gesture
+	if event is InputEventPanGesture:
+		if event.is_command_or_control_pressed():
+			# Orbit with Command + Two-finger Swipe
+			target_yaw -= event.delta.x * orbit_sensitivity * 0.05
+			target_pitch -= event.delta.y * orbit_sensitivity * 0.05
+			target_pitch = clamp(target_pitch, deg_to_rad(-85), deg_to_rad(-15))
+		else:
+			# Pan with Two-finger Swipe
+			var viewport_height = get_viewport().get_visible_rect().size.y
+			var fov_scale = current_zoom
+			# Pan gesture delta is already in a sort of normalized unit, apply sensitivity
+			var pan_unit = (20.0 / viewport_height) * drag_sensitivity * fov_scale * 5.0
+			
+			var right_dir = transform.basis.x
+			var up_dir = transform.basis.y
+			
+			var move_vec = (right_dir * -event.delta.x + up_dir * event.delta.y) * pan_unit
+			target_drag_offset += move_vec
+
 func reset_view():
 	# Reset Targets
 	var tween = create_tween().set_parallel(true).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
