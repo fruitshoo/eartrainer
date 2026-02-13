@@ -126,6 +126,7 @@ func _auto_hide_visuals():
 # ============================================================
 # UTILITIES
 # ============================================================
+func stop_quiz():
 	current_quiz_type = QuizType.NONE
 	_clear_markers()
 	
