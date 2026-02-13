@@ -1,4 +1,4 @@
-[gd_scene load_steps=2 format=3 uid="uid://bottomsheetscene"]
+[gd_scene load_steps=4 format=3]
 
 [ext_resource type="Script" path="res://ui/side_panel/side_panel.gd" id="1_script"]
 [ext_resource type="Theme" uid="uid://b6x5n4w0q2x3" path="res://ui/resources/main_theme.tres" id="2_theme"]
