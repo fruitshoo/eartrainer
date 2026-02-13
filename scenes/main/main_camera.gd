@@ -232,21 +232,23 @@ func _unhandled_input(event):
 	# [New] Trackpad Pan / Orbit Gesture
 	if event is InputEventPanGesture:
 		if event.is_command_or_control_pressed():
-			# Orbit with Command + Two-finger Swipe
-			target_yaw -= event.delta.x * orbit_sensitivity * 0.05
-			target_pitch -= event.delta.y * orbit_sensitivity * 0.05
+			# Orbit with Command + Two-finger Swipe (Inverted for Natural feel)
+			target_yaw += event.delta.x * orbit_sensitivity * 0.05
+			target_pitch += event.delta.y * orbit_sensitivity * 0.05
 			target_pitch = clamp(target_pitch, deg_to_rad(-85), deg_to_rad(-15))
 		else:
-			# Pan with Two-finger Swipe
+			# Pan with Two-finger Swipe (Inverted for Natural feel)
 			var viewport_height = get_viewport().get_visible_rect().size.y
 			var fov_scale = current_zoom
-			# Pan gesture delta is already in a sort of normalized unit, apply sensitivity
 			var pan_unit = (20.0 / viewport_height) * drag_sensitivity * fov_scale * 5.0
 			
 			var right_dir = transform.basis.x
 			var up_dir = transform.basis.y
 			
-			var move_vec = (right_dir * -event.delta.x + up_dir * event.delta.y) * pan_unit
+			# Swapped signs for natural feel: Fingers move UP -> Content moves UP (relative to camera) 
+			# or rather Fingers move UP -> Offset moves DOWN in screen space? 
+			# Let's try simple inversion of the previous logic.
+			var move_vec = (right_dir * event.delta.x + up_dir * -event.delta.y) * pan_unit
 			target_drag_offset += move_vec
 
 func reset_view():
