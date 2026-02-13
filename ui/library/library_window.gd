@@ -57,79 +57,33 @@ func set_open(do_open: bool) -> void:
 # VIRTUAL METHODS
 # ============================================================
 func _build_content() -> void:
-	# _content_container is provided by BaseSidePanel
-	theme = _main_theme
+	# 1. Capture References from Scene
+	var main_container = %MainContainer
+	presets_tab_btn = %PresetsTabBtn
+	songs_tab_btn = %SongsTabBtn
+	preset_list_container = %PresetListContainer
+	name_input = %NameInput
+	save_btn = %SaveBtn
 	
-	# Override basic spacing for this window if needed
-	_content_container.add_theme_constant_override("separation", 20)
+	# 2. Integrate Scene Layout into BaseSidePanel
+	# Move the pre-defined layout into the BaseSidePanel's content area
+	if main_container:
+		remove_child(main_container)
+		_content_container.add_child(main_container)
+		main_container.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		main_container.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	
-	# --- Mode Tabs (Progressions / Songs) ---
-	var tabs = HBoxContainer.new()
-	tabs.add_theme_constant_override("separation", 8)
-	_content_container.add_child(tabs)
-	
-	presets_tab_btn = _create_tab_button("Progressions", true)
+	# 3. Setup Connections
 	presets_tab_btn.toggled.connect(_on_mode_toggled.bind(LibraryTabMode.PRESETS))
-	tabs.add_child(presets_tab_btn)
-	
-	songs_tab_btn = _create_tab_button("Songs", false)
 	songs_tab_btn.toggled.connect(_on_mode_toggled.bind(LibraryTabMode.SONGS))
-	tabs.add_child(songs_tab_btn)
-	
-	# --- Scrollable List ---
-	# BaseSidePanel already has a scroll container around _content_container.
-	# But LibraryWindow wanted a specific scroll area for the list *inside* the layout?
-	# Original code had: Main VBox -> Tabs -> Scroll -> List -> Separator -> Save.
-	# BaseSidePanel structure is: Scroll -> _content_container.
-	# So everything in _content_container needs to fit or the whole thing scrolls.
-	# If we want the list to scroll independently while tabs stay fixed, BaseSidePanel might be too simple?
-	# actually for a side panel, usually the whole thing scrolling is fine.
-	# OR we can put the list in a VBox and let the whole panel scroll.
-	# However, if the list is long, we might want headers to stay sticky.
-	# Given the BaseSidePanel structure, the entire content scrolls.
-	# Let's adapt to that for now (Unified look is priority).
-	
-	# BaseSidePanel no longer provides ScrollContainer. We must add one for the list.
-	
-	var list_scroll = ScrollContainer.new()
-	list_scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	list_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
-	list_scroll.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_SHOW_NEVER # [Refinement] Hide scrollbar
-	_content_container.add_child(list_scroll)
-	
-	preset_list_container = VBoxContainer.new()
-	preset_list_container.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	preset_list_container.add_theme_constant_override("separation", 4)
-	list_scroll.add_child(preset_list_container)
-	
-	_content_container.add_child(HSeparator.new())
-	
-	# --- Save Input ---
-	var save_row = HBoxContainer.new()
-	save_row.add_theme_constant_override("separation", 8)
-	_content_container.add_child(save_row)
-	
-	name_input = LineEdit.new()
-	name_input.placeholder_text = "Enter name..."
-	name_input.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	save_row.add_child(name_input)
-	
-	save_btn = Button.new()
-	save_btn.text = "Save"
 	save_btn.pressed.connect(_on_save_pressed)
-	save_row.add_child(save_btn)
+	
+	# Theme setup (optional, scene might already have it)
+	theme = _main_theme
 	
 	# Initial Refresh
 	_refresh_list()
 
-func _create_tab_button(text: String, active: bool) -> Button:
-	var btn = Button.new()
-	btn.text = text
-	btn.toggle_mode = true
-	btn.button_pressed = active
-	btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	btn.focus_mode = Control.FOCUS_NONE
-	return btn
 
 # ============================================================
 # LOGIC
