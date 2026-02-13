@@ -57,29 +57,41 @@ func _ready() -> void:
 # VIRTUAL METHODS
 # ============================================================
 func _build_content() -> void:
+	GameLogger.info("[SidePanel] Building content...")
+	
 	# 1. Integrate Scene UI into BaseSidePanel
-	# BaseSidePanel provides _content_container (VBoxContainer).
-	# We reparent out scene's ScrollContainer to it.
 	if _scene_scroll:
-		_scene_scroll.get_parent().remove_child(_scene_scroll)
-		_content_container.add_child(_scene_scroll)
+		var old_parent = _scene_scroll.get_parent()
+		if old_parent:
+			old_parent.remove_child(_scene_scroll)
+			_content_container.add_child(_scene_scroll)
+	else:
+		GameLogger.error("[SidePanel] _scene_scroll is NULL! Check TSCN structure.")
 		
 	# 2. Setup Signal Connections for Scene Nodes
+	# We use clean assignments; if nodes are missing, log a single warning instead of many
+	if not et_replay_btn or not et_next_btn:
+		GameLogger.error("[SidePanel] Core buttons missing from scene!")
+		return
+		
 	et_replay_btn.pressed.connect(QuizManager.play_current_interval)
 	et_next_btn.pressed.connect(QuizManager.start_interval_quiz)
 	
 	_setup_stage_button(et_replay_btn, Color("#34495e"))
 	_setup_stage_button(et_next_btn, Color("#3498db"))
 	
-	_setup_mode_button(et_asc_mode, "↗", QuizManager.IntervalMode.ASCENDING, Color("#81ecec"), 0)
-	_setup_mode_button(et_desc_mode, "↘", QuizManager.IntervalMode.DESCENDING, Color("#fab1a0"), 1)
-	_setup_mode_button(et_harm_mode, "≡", QuizManager.IntervalMode.HARMONIC, Color("#ffeaa7"), 2)
+	if et_asc_mode: _setup_mode_button(et_asc_mode, "↗", QuizManager.IntervalMode.ASCENDING, Color("#81ecec"), 0)
+	if et_desc_mode: _setup_mode_button(et_desc_mode, "↘", QuizManager.IntervalMode.DESCENDING, Color("#fab1a0"), 1)
+	if et_harm_mode: _setup_mode_button(et_harm_mode, "≡", QuizManager.IntervalMode.HARMONIC, Color("#ffeaa7"), 2)
 	
-	et_easy_mode.toggled.connect(func(v): GameManager.show_target_visual = v)
-	et_easy_mode.button_pressed = GameManager.show_target_visual
+	if et_easy_mode:
+		et_easy_mode.toggled.connect(func(v): GameManager.show_target_visual = v)
+		et_easy_mode.button_pressed = GameManager.show_target_visual
 	
 	QuizManager.quiz_started.connect(_on_et_quiz_started)
 	QuizManager.quiz_answered.connect(_on_et_quiz_answered)
+	
+	GameLogger.info("[SidePanel] Content build finished.")
 
 # ============================================================
 # PUBLIC API WRAPPERS

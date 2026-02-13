@@ -44,22 +44,22 @@ layout_mode = 2
 size_flags_horizontal = 3
 theme_override_constants/separation = 0
 
-[node name="StageMargin" type="MarginContainer" parent="MainVBox"]
+[node name="StageMargin" type="MarginContainer" parent="ContentScroll/MainVBox"]
 layout_mode = 2
 theme_override_constants/margin_top = 16
 theme_override_constants/margin_bottom = 16
 
-[node name="StagePanel" type="PanelContainer" parent="MainVBox/StageMargin"]
+[node name="StagePanel" type="PanelContainer" parent="ContentScroll/MainVBox/StageMargin"]
 unique_name_in_owner = true
 custom_minimum_size = Vector2(0, 120)
 layout_mode = 2
 theme_override_styles/panel = SubResource("StyleBoxFlat_stage")
 
-[node name="StageVBox" type="VBoxContainer" parent="MainVBox/StageMargin/StagePanel"]
+[node name="StageVBox" type="VBoxContainer" parent="ContentScroll/MainVBox/StageMargin/StagePanel"]
 layout_mode = 2
 alignment = 1
 
-[node name="FeedbackLabel" type="Label" parent="MainVBox/StageMargin/StagePanel/StageVBox"]
+[node name="FeedbackLabel" type="Label" parent="ContentScroll/MainVBox/StageMargin/StagePanel/StageVBox"]
 unique_name_in_owner = true
 modulate = Color(0.2, 0.2, 0.2, 1)
 layout_mode = 2
@@ -67,40 +67,40 @@ theme_type_variation = &"HeaderLarge"
 text = "READY"
 horizontal_alignment = 1
 
-[node name="Spacer" type="Control" parent="MainVBox/StageMargin/StagePanel/StageVBox"]
+[node name="Spacer" type="Control" parent="ContentScroll/MainVBox/StageMargin/StagePanel/StageVBox"]
 custom_minimum_size = Vector2(0, 12)
 layout_mode = 2
 
-[node name="StageButtonsHBox" type="HBoxContainer" parent="MainVBox/StageMargin/StagePanel/StageVBox"]
+[node name="StageButtonsHBox" type="HBoxContainer" parent="ContentScroll/MainVBox/StageMargin/StagePanel/StageVBox"]
 layout_mode = 2
 theme_override_constants/separation = 24
 alignment = 1
 
-[node name="ReplayBtn" type="Button" parent="MainVBox/StageMargin/StagePanel/StageVBox/StageButtonsHBox"]
+[node name="ReplayBtn" type="Button" parent="ContentScroll/MainVBox/StageMargin/StagePanel/StageVBox/StageButtonsHBox"]
 unique_name_in_owner = true
 custom_minimum_size = Vector2(100, 45)
 layout_mode = 2
 focus_mode = 0
 text = "REPLAY"
 
-[node name="NextBtn" type="Button" parent="MainVBox/StageMargin/StagePanel/StageVBox/StageButtonsHBox"]
+[node name="NextBtn" type="Button" parent="ContentScroll/MainVBox/StageMargin/StagePanel/StageVBox/StageButtonsHBox"]
 unique_name_in_owner = true
 custom_minimum_size = Vector2(100, 45)
 layout_mode = 2
 focus_mode = 0
 text = "NEXT"
 
-[node name="ModesMargin" type="MarginContainer" parent="MainVBox"]
+[node name="ModesMargin" type="MarginContainer" parent="ContentScroll/MainVBox"]
 layout_mode = 2
 theme_override_constants/margin_bottom = 16
 
-[node name="ModesHBox" type="HBoxContainer" parent="MainVBox/ModesMargin"]
+[node name="ModesHBox" type="HBoxContainer" parent="ContentScroll/MainVBox/ModesMargin"]
 unique_name_in_owner = true
 layout_mode = 2
 theme_override_constants/separation = 0
 alignment = 1
 
-[node name="AscModeBtn" type="Button" parent="MainVBox/ModesMargin/ModesHBox"]
+[node name="AscModeBtn" type="Button" parent="ContentScroll/MainVBox/ModesMargin/ModesHBox"]
 unique_name_in_owner = true
 custom_minimum_size = Vector2(80, 40)
 layout_mode = 2
@@ -108,7 +108,7 @@ focus_mode = 0
 toggle_mode = true
 text = "↗"
 
-[node name="DescModeBtn" type="Button" parent="MainVBox/ModesMargin/ModesHBox"]
+[node name="DescModeBtn" type="Button" parent="ContentScroll/MainVBox/ModesMargin/ModesHBox"]
 unique_name_in_owner = true
 custom_minimum_size = Vector2(80, 40)
 layout_mode = 2
@@ -116,7 +116,7 @@ focus_mode = 0
 toggle_mode = true
 text = "↘"
 
-[node name="HarmModeBtn" type="Button" parent="MainVBox/ModesMargin/ModesHBox"]
+[node name="HarmModeBtn" type="Button" parent="ContentScroll/MainVBox/ModesMargin/ModesHBox"]
 unique_name_in_owner = true
 custom_minimum_size = Vector2(80, 40)
 layout_mode = 2
@@ -124,16 +124,16 @@ focus_mode = 0
 toggle_mode = true
 text = "≡"
 
-[node name="Separator" type="HSeparator" parent="MainVBox"]
+[node name="Separator" type="HSeparator" parent="ContentScroll/MainVBox"]
 modulate = Color(1, 1, 1, 0.2)
 layout_mode = 2
 
-[node name="GridMargin" type="MarginContainer" parent="MainVBox"]
+[node name="GridMargin" type="MarginContainer" parent="ContentScroll/MainVBox"]
 layout_mode = 2
 theme_override_constants/margin_top = 20
 theme_override_constants/margin_bottom = 20
 
-[node name="IntervalGrid" type="GridContainer" parent="MainVBox/GridMargin"]
+[node name="IntervalGrid" type="GridContainer" parent="ContentScroll/MainVBox/GridMargin"]
 unique_name_in_owner = true
 layout_mode = 2
 size_flags_horizontal = 3
@@ -141,15 +141,15 @@ theme_override_constants/h_separation = 12
 theme_override_constants/v_separation = 12
 columns = 3
 
-[node name="EasyMargin" type="MarginContainer" parent="MainVBox"]
+[node name="EasyMargin" type="MarginContainer" parent="ContentScroll/MainVBox"]
 layout_mode = 2
 theme_override_constants/margin_bottom = 16
 
-[node name="EasyHBox" type="HBoxContainer" parent="MainVBox/EasyMargin"]
+[node name="EasyHBox" type="HBoxContainer" parent="ContentScroll/MainVBox/EasyMargin"]
 layout_mode = 2
 alignment = 1
 
-[node name="EasyModeCheckbox" type="CheckBox" parent="MainVBox/EasyMargin/EasyHBox"]
+[node name="EasyModeCheckbox" type="CheckBox" parent="ContentScroll/MainVBox/EasyMargin/EasyHBox"]
 unique_name_in_owner = true
 layout_mode = 2
 focus_mode = 0
