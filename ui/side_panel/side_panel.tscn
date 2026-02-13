@@ -3,6 +3,16 @@
 [ext_resource type="Script" path="res://ui/side_panel/side_panel.gd" id="1_script"]
 [ext_resource type="Theme" uid="uid://b6x5n4w0q2x3" path="res://ui/resources/main_theme.tres" id="2_theme"]
 
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_stage"]
+bg_color = Color(1, 1, 1, 0.4)
+corner_radius_top_left = 20
+corner_radius_top_right = 20
+corner_radius_bottom_left = 20
+corner_radius_bottom_right = 20
+border_width_left = 1
+border_width_top = 1
+border_color = Color(1, 1, 1, 0.6)
+
 [node name="SidePanel" type="Control"]
 layout_mode = 3
 anchors_preset = 11
@@ -15,3 +25,132 @@ grow_horizontal = 0
 grow_vertical = 2
 theme = ExtResource("2_theme")
 script = ExtResource("1_script")
+
+[node name="ContentScroll" type="ScrollContainer" parent="."]
+unique_name_in_owner = true
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+size_flags_vertical = 3
+horizontal_scroll_mode = 0
+vertical_scroll_mode = 3
+
+[node name="MainVBox" type="VBoxContainer" parent="ContentScroll"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 0
+
+[node name="StageMargin" type="MarginContainer" parent="MainVBox"]
+layout_mode = 2
+theme_override_constants/margin_top = 16
+theme_override_constants/margin_bottom = 16
+
+[node name="StagePanel" type="PanelContainer" parent="MainVBox/StageMargin"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 120)
+layout_mode = 2
+theme_override_styles/panel = SubResource("StyleBoxFlat_stage")
+
+[node name="StageVBox" type="VBoxContainer" parent="MainVBox/StageMargin/StagePanel"]
+layout_mode = 2
+alignment = 1
+
+[node name="FeedbackLabel" type="Label" parent="MainVBox/StageMargin/StagePanel/StageVBox"]
+unique_name_in_owner = true
+modulate = Color(0.2, 0.2, 0.2, 1)
+layout_mode = 2
+theme_type_variation = &"HeaderLarge"
+text = "READY"
+horizontal_alignment = 1
+
+[node name="Spacer" type="Control" parent="MainVBox/StageMargin/StagePanel/StageVBox"]
+custom_minimum_size = Vector2(0, 12)
+layout_mode = 2
+
+[node name="StageButtonsHBox" type="HBoxContainer" parent="MainVBox/StageMargin/StagePanel/StageVBox"]
+layout_mode = 2
+theme_override_constants/separation = 24
+alignment = 1
+
+[node name="ReplayBtn" type="Button" parent="MainVBox/StageMargin/StagePanel/StageVBox/StageButtonsHBox"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(100, 45)
+layout_mode = 2
+focus_mode = 0
+text = "REPLAY"
+
+[node name="NextBtn" type="Button" parent="MainVBox/StageMargin/StagePanel/StageVBox/StageButtonsHBox"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(100, 45)
+layout_mode = 2
+focus_mode = 0
+text = "NEXT"
+
+[node name="ModesMargin" type="MarginContainer" parent="MainVBox"]
+layout_mode = 2
+theme_override_constants/margin_bottom = 16
+
+[node name="ModesHBox" type="HBoxContainer" parent="MainVBox/ModesMargin"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_constants/separation = 0
+alignment = 1
+
+[node name="AscModeBtn" type="Button" parent="MainVBox/ModesMargin/ModesHBox"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(80, 40)
+layout_mode = 2
+focus_mode = 0
+toggle_mode = true
+text = "↗"
+
+[node name="DescModeBtn" type="Button" parent="MainVBox/ModesMargin/ModesHBox"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(80, 40)
+layout_mode = 2
+focus_mode = 0
+toggle_mode = true
+text = "↘"
+
+[node name="HarmModeBtn" type="Button" parent="MainVBox/ModesMargin/ModesHBox"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(80, 40)
+layout_mode = 2
+focus_mode = 0
+toggle_mode = true
+text = "≡"
+
+[node name="Separator" type="HSeparator" parent="MainVBox"]
+modulate = Color(1, 1, 1, 0.2)
+layout_mode = 2
+
+[node name="GridMargin" type="MarginContainer" parent="MainVBox"]
+layout_mode = 2
+theme_override_constants/margin_top = 20
+theme_override_constants/margin_bottom = 20
+
+[node name="IntervalGrid" type="GridContainer" parent="MainVBox/GridMargin"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/h_separation = 12
+theme_override_constants/v_separation = 12
+columns = 3
+
+[node name="EasyMargin" type="MarginContainer" parent="MainVBox"]
+layout_mode = 2
+theme_override_constants/margin_bottom = 16
+
+[node name="EasyHBox" type="HBoxContainer" parent="MainVBox/EasyMargin"]
+layout_mode = 2
+alignment = 1
+
+[node name="EasyModeCheckbox" type="CheckBox" parent="MainVBox/EasyMargin/EasyHBox"]
+unique_name_in_owner = true
+layout_mode = 2
+focus_mode = 0
+text = "Show Visual Hints"

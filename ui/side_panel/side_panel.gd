@@ -12,24 +12,20 @@ var _main_theme: Theme = preload("res://ui/resources/main_theme.tres")
 # ============================================================
 # UI REFERENCES
 # ============================================================
-var content_container: Control
-var ear_trainer_content: ScrollContainer
+# UI References (Scene)
+@onready var et_feedback_label: Label = %FeedbackLabel
+@onready var et_replay_btn: Button = %ReplayBtn
+@onready var et_next_btn: Button = %NextBtn
+@onready var et_asc_mode: Button = %AscModeBtn
+@onready var et_desc_mode: Button = %DescModeBtn
+@onready var et_harm_mode: Button = %HarmModeBtn
+@onready var et_interval_grid: GridContainer = %IntervalGrid
+@onready var et_easy_mode: CheckBox = %EasyModeCheckbox
+@onready var _scene_scroll: ScrollContainer = %ContentScroll
 
-# Ear Trainer References
-var et_feedback_label: Label
-var et_asc_mode: Button
-var et_desc_mode: Button
-var et_harm_mode: Button
-var et_easy_mode: CheckBox
-var et_interval_grid: GridContainer
-var et_replay_btn: Button
-var et_next_btn: Button
-
-# ============================================================
-# STATE
-# ============================================================
-# Ear Trainer State
-var et_checkboxes: Dictionary = {}
+# State
+var is_active: bool = false # Is quiz currently running?
+var et_checkboxes: Dictionary = {} # semitones -> tile
 var pending_manage_interval: int = -1
 var pending_delete_song: String = ""
 
@@ -61,137 +57,26 @@ func _ready() -> void:
 # VIRTUAL METHODS
 # ============================================================
 func _build_content() -> void:
-	theme = _main_theme
-	
-	# _content_container is VBox from base.
-	# SidePanel originally used a 'MainVBox' then 'ContentContainer' (Control).
-	# Let's adapt.
-	
-	_content_container.add_theme_constant_override("separation", 0)
-	
-	# [Refactor] BaseSidePanel removed forced scroll. Add one here.
-	var scroll = ScrollContainer.new()
-	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
-	scroll.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_SHOW_NEVER # [Refinement] Hide scrollbar
-	_content_container.add_child(scroll)
-	
-	var vbox = VBoxContainer.new()
-	vbox.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	vbox.add_theme_constant_override("separation", 0)
-	scroll.add_child(vbox)
-	
-	# Hijack _content_container to point to the new vbox
-	# This avoids rewriting all the add_child calls below
-	_content_container = vbox
-	
-	# 1. The Stage (Feedback Panel)
-	var stage_margin = MarginContainer.new()
-	stage_margin.add_theme_constant_override("margin_top", 16)
-	stage_margin.add_theme_constant_override("margin_bottom", 16)
-	_content_container.add_child(stage_margin)
-	
-	var stage_panel = PanelContainer.new()
-	stage_panel.custom_minimum_size = Vector2(0, 120)
-	stage_margin.add_child(stage_panel)
-	
-	# Glassmorphism style for Stage
-	var stage_style = StyleBoxFlat.new()
-	stage_style.bg_color = Color(1, 1, 1, 0.4)
-	stage_style.corner_radius_top_left = 20
-	stage_style.corner_radius_top_right = 20
-	stage_style.corner_radius_bottom_left = 20
-	stage_style.corner_radius_bottom_right = 20
-	stage_style.border_width_left = 1
-	stage_style.border_width_top = 1
-	stage_style.border_color = Color(1, 1, 1, 0.6)
-	stage_panel.add_theme_stylebox_override("panel", stage_style)
-	
-	var stage_vbox = VBoxContainer.new()
-	stage_vbox.alignment = BoxContainer.ALIGNMENT_CENTER
-	stage_panel.add_child(stage_vbox)
-	
-	et_feedback_label = Label.new()
-	et_feedback_label.text = "READY"
-	et_feedback_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	et_feedback_label.theme_type_variation = "HeaderLarge"
-	et_feedback_label.modulate = Color("#333333")
-	stage_vbox.add_child(et_feedback_label)
-	
-	var stage_spacer = Control.new()
-	stage_spacer.custom_minimum_size = Vector2(0, 12)
-	stage_vbox.add_child(stage_spacer)
-	
-	var stage_btns_hbox = HBoxContainer.new()
-	stage_btns_hbox.alignment = BoxContainer.ALIGNMENT_CENTER
-	stage_btns_hbox.add_theme_constant_override("separation", 24)
-	stage_vbox.add_child(stage_btns_hbox)
-	
-	et_replay_btn = Button.new()
-	et_replay_btn.text = "REPLAY"
-	et_replay_btn.custom_minimum_size = Vector2(100, 45)
-	et_replay_btn.focus_mode = Control.FOCUS_NONE
+	# 1. Integrate Scene UI into BaseSidePanel
+	# BaseSidePanel provides _content_container (VBoxContainer).
+	# We reparent out scene's ScrollContainer to it.
+	if _scene_scroll:
+		_scene_scroll.get_parent().remove_child(_scene_scroll)
+		_content_container.add_child(_scene_scroll)
+		
+	# 2. Setup Signal Connections for Scene Nodes
 	et_replay_btn.pressed.connect(QuizManager.play_current_interval)
-	stage_btns_hbox.add_child(et_replay_btn)
-	_setup_stage_button(et_replay_btn, Color("#34495e"))
-	
-	et_next_btn = Button.new()
-	et_next_btn.text = "NEXT"
-	et_next_btn.custom_minimum_size = Vector2(100, 45)
-	et_next_btn.focus_mode = Control.FOCUS_NONE
 	et_next_btn.pressed.connect(QuizManager.start_interval_quiz)
-	stage_btns_hbox.add_child(et_next_btn)
+	
+	_setup_stage_button(et_replay_btn, Color("#34495e"))
 	_setup_stage_button(et_next_btn, Color("#3498db"))
 	
-	# 2. Segmented Mode Control
-	var modes_margin = MarginContainer.new()
-	modes_margin.add_theme_constant_override("margin_bottom", 16)
-	_content_container.add_child(modes_margin)
+	_setup_mode_button(et_asc_mode, "↗", QuizManager.IntervalMode.ASCENDING, Color("#81ecec"), 0)
+	_setup_mode_button(et_desc_mode, "↘", QuizManager.IntervalMode.DESCENDING, Color("#fab1a0"), 1)
+	_setup_mode_button(et_harm_mode, "≡", QuizManager.IntervalMode.HARMONIC, Color("#ffeaa7"), 2)
 	
-	var modes_hbox = HBoxContainer.new()
-	modes_hbox.alignment = BoxContainer.ALIGNMENT_CENTER
-	modes_hbox.add_theme_constant_override("separation", 0)
-	modes_margin.add_child(modes_hbox)
-	
-	et_asc_mode = _create_mode_button("↗", QuizManager.IntervalMode.ASCENDING, Color("#81ecec"), 0)
-	et_desc_mode = _create_mode_button("↘", QuizManager.IntervalMode.DESCENDING, Color("#fab1a0"), 1)
-	et_harm_mode = _create_mode_button("≡", QuizManager.IntervalMode.HARMONIC, Color("#ffeaa7"), 2)
-	
-	modes_hbox.add_child(et_asc_mode)
-	modes_hbox.add_child(et_desc_mode)
-	modes_hbox.add_child(et_harm_mode)
-	
-	var sep = HSeparator.new()
-	sep.modulate.a = 0.2
-	_content_container.add_child(sep)
-	
-	# 3. Interval Tiles Grid
-	# Current structure puts this in main vbox.
-	# We are inside a ScrollContainer from base, so we don't need another ScrollContainer.
-	# But original code had `grid_scroll` -> `grid_margin` -> `et_interval_grid`.
-	# Base has `_content_scroll`. So we just add the grid to `_content_container`.
-	
-	var grid_margin = MarginContainer.new()
-	grid_margin.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	grid_margin.add_theme_constant_override("margin_top", 20)
-	grid_margin.add_theme_constant_override("margin_bottom", 20)
-	_content_container.add_child(grid_margin)
-	
-	et_interval_grid = GridContainer.new()
-	et_interval_grid.columns = 3
-	et_interval_grid.add_theme_constant_override("h_separation", 12)
-	et_interval_grid.add_theme_constant_override("v_separation", 12)
-	grid_margin.add_child(et_interval_grid)
-	
-	# Extra Setting: Easy Mode
-	var easy_margin = MarginContainer.new()
-	easy_margin.add_theme_constant_override("margin_bottom", 16)
-	_content_container.add_child(easy_margin)
-	var easy_hbox = HBoxContainer.new()
-	easy_hbox.alignment = BoxContainer.ALIGNMENT_CENTER
-	easy_margin.add_child(easy_hbox)
-	et_easy_mode = _create_checkbox("Show Visual Hints", func(v): GameManager.show_target_visual = v, true)
-	easy_hbox.add_child(et_easy_mode)
+	et_easy_mode.toggled.connect(func(v): GameManager.show_target_visual = v)
+	et_easy_mode.button_pressed = GameManager.show_target_visual
 	
 	QuizManager.quiz_started.connect(_on_et_quiz_started)
 	QuizManager.quiz_answered.connect(_on_et_quiz_answered)
@@ -319,23 +204,18 @@ func _sync_et_state() -> void:
 		
 	# if et_easy_mode: et_easy_mode.set_pressed_no_signal(GameManager.show_target_visual)
 
-func _create_mode_button(text: String, mode_id: int, color: Color, pos_idx: int) -> Button:
-	var btn = Button.new()
+func _setup_mode_button(btn: Button, text: String, mode_id: int, color: Color, pos_idx: int) -> void:
 	btn.text = text
-	btn.toggle_mode = true
-	btn.focus_mode = Control.FOCUS_NONE
-	btn.custom_minimum_size = Vector2(80, 40)
-	btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	btn.button_pressed = (mode_id in QuizManager.active_modes)
 	
+	# Connect toggled signal
 	btn.toggled.connect(func(on):
 		_on_et_mode_toggled(on, mode_id)
 		_update_mode_button_style(btn, color, on, pos_idx)
 	)
 	
 	btn.add_theme_color_override("font_hover_color", Color.BLACK)
-	
 	_update_mode_button_style(btn, color, btn.button_pressed, pos_idx)
-	return btn
 
 func _update_mode_button_style(btn: Button, color: Color, is_active: bool, pos_idx: int) -> void:
 	var style = StyleBoxFlat.new()
@@ -413,26 +293,6 @@ func _animate_feedback_pop() -> void:
 	et_feedback_label.scale = Vector2(0.8, 0.8)
 	tw.tween_property(et_feedback_label, "scale", Vector2(1, 1), 0.4)
 
-func _create_checkbox(text: String, callback: Callable, pressed: bool = false) -> CheckBox:
-	var cb = CheckBox.new()
-	cb.text = text
-	cb.focus_mode = Control.FOCUS_NONE
-	cb.button_pressed = pressed
-	cb.toggled.connect(callback)
-	
-	var hover_style = StyleBoxFlat.new()
-	hover_style.bg_color = Color(0, 0, 0, 0.05)
-	hover_style.corner_radius_top_left = 6
-	hover_style.corner_radius_top_right = 6
-	hover_style.corner_radius_bottom_right = 6
-	hover_style.corner_radius_bottom_left = 6
-	hover_style.content_margin_left = 8
-	
-	cb.add_theme_stylebox_override("hover", hover_style)
-	cb.add_theme_stylebox_override("pressed", hover_style)
-	cb.add_theme_stylebox_override("focus", hover_style)
-	
-	return cb
 
 # Overlays logic kept as is but adapted parent calls if needed
 # ... (Overlay methods _show_example_manager_dialog etc. - COPY THESE)
@@ -633,5 +493,3 @@ func _get_riff_manager() -> Node:
 	var rm = get_tree().root.find_child("RiffManager", true, false)
 	if not rm and GameManager.has_node("RiffManager"): rm = GameManager.get_node("RiffManager")
 	return rm
-
-
