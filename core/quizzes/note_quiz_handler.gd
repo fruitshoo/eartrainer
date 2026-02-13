@@ -25,7 +25,8 @@ func start_quiz() -> void:
 	})
 	print("[NoteQuizHandler] Note Quiz Target: ", current_target_note)
 
-func check_answer(clicked_note: int) -> void:
+func check_answer(input: Variant) -> void:
+	var clicked_note: int = int(input)
 	if manager.current_quiz_type != manager.QuizType.NOTE_LOCATION: return
 	
 	var is_correct = (clicked_note == current_target_note)

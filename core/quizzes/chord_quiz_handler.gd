@@ -40,7 +40,8 @@ func start_quiz() -> void:
 		"target": chord_target_type
 	})
 
-func check_answer(start_type: String) -> void:
+func check_answer(input: Variant) -> void:
+	var start_type = str(input)
 	if manager._is_processing_correct_answer: return
 	
 	var is_correct = (start_type == chord_target_type)
