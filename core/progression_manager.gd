@@ -11,6 +11,7 @@ signal slot_updated(index: int, data: Dictionary)
 signal selection_cleared
 signal loop_range_changed(start: int, end: int) # [New] 루프 구간 변경 알림
 signal settings_updated(bar_count: int, chords_per_bar: int) # [New] 설정 변경 알림
+signal melody_updated(bar_idx: int) # [New] 멜로디 변경 알림
 
 # ============================================================
 # STATE VARIABLES
@@ -45,6 +46,10 @@ var loop_start_index: int = -1
 var loop_end_index: int = -1
 
 var slots: Array = []
+
+# [New] Melody Data: Key = Bar Index, Value = Dictionary { "beat_sub": NoteData }
+# beat: 0..3, sub: 0..1 (8th notes). Key format: "0_0", "0_1", ... "3_1"
+var melody_events: Dictionary = {}
 
 # ============================================================
 # LIFECYCLE
@@ -400,6 +405,45 @@ func _resize_slots() -> void:
 		clear_loop_range()
 
 # ============================================================
+# MELODY API
+# ============================================================
+
+## [New] 멜로디 노트 설정
+func set_melody_note(bar_idx: int, beat: int, sub: int, note_data: Dictionary) -> void:
+	if bar_idx < 0 or bar_idx >= bar_count: return
+	
+	if not melody_events.has(bar_idx):
+		melody_events[bar_idx] = {}
+		
+	var key = "%d_%d" % [beat, sub]
+	melody_events[bar_idx][key] = note_data
+	
+	melody_updated.emit(bar_idx)
+	save_session()
+
+## [New] 멜로디 노트 삭제
+func clear_melody_note(bar_idx: int, beat: int, sub: int) -> void:
+	if not melody_events.has(bar_idx): return
+	
+	var key = "%d_%d" % [beat, sub]
+	if melody_events[bar_idx].has(key):
+		melody_events[bar_idx].erase(key)
+		melody_updated.emit(bar_idx)
+		save_session()
+
+## [New] 특정 마디의 멜로디 데이터 반환
+func get_melody_events(bar_idx: int) -> Dictionary:
+	return melody_events.get(bar_idx, {})
+
+## [New] 멜로디 전체 초기화
+func clear_all_melody() -> void:
+	melody_events.clear()
+	# Emit updates for all bars
+	for i in range(bar_count):
+		melody_updated.emit(i)
+	save_session()
+
+# ============================================================
 # PERSISTENCE (Auto-save)
 # ============================================================
 const SAVE_PATH_SESSION = "user://last_session.json"
@@ -418,6 +462,7 @@ func save_session() -> void:
 
 		"bar_densities": bar_densities,
 		"slots": slots,
+		"melody_events": melody_events, # [New]
 		"loop_start": loop_start_index,
 		"loop_end": loop_end_index
 	}
@@ -483,6 +528,14 @@ func _deserialize_data(data: Dictionary) -> void:
 	# Loop Range 복원
 	loop_start_index = data.get("loop_start", -1)
 	loop_end_index = data.get("loop_end", -1)
+	
+	# [New] Melody Data 복원
+	melody_events.clear()
+	var saved_melody = data.get("melody_events", {})
+	if saved_melody is Dictionary:
+		for bar_idx_str in saved_melody.keys():
+			var bar_idx = int(bar_idx_str)
+			melody_events[bar_idx] = saved_melody[bar_idx_str]
 	
 	# UI 리프레시를 위해 시그널 방출
 	# [Fix] settings_updated triggers _rebuild_slots (deferred) which calls update_info on each button.

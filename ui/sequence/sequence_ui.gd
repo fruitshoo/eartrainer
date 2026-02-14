@@ -22,6 +22,16 @@ var slot_button_scene: PackedScene = preload("res://ui/sequence/slot_button.tscn
 # @onready var split_check_button: CheckButton = %SplitCheckButton
 @onready var split_bar_button: Button = %SplitBarButton # [New]
 
+# [New] Melody UI
+var melody_slot_scene: PackedScene = preload("res://ui/sequence/melody/melody_slot.tscn")
+# melody_container removed (Unified View)
+var selected_melody_slot: Dictionary = {} # {bar, beat, sub}
+
+# [New] Drag State
+var _is_dragging_melody: bool = false
+var _is_erasing_melody: bool = false
+var _drag_source_data: Dictionary = {}
+
 
 # ============================================================
 # LIFECYCLE
@@ -35,12 +45,14 @@ func _ready() -> void:
 	_sync_ui_from_manager()
 	_rebuild_slots()
 
+
 func _setup_signals() -> void:
 	ProgressionManager.slot_selected.connect(_highlight_selected)
 	ProgressionManager.slot_updated.connect(_update_slot_label)
 	ProgressionManager.selection_cleared.connect(_on_selection_cleared)
 	ProgressionManager.settings_updated.connect(_on_settings_updated)
 	ProgressionManager.loop_range_changed.connect(_on_loop_range_changed)
+	ProgressionManager.melody_updated.connect(_on_melody_updated)
 
 	GameManager.settings_changed.connect(_sync_ui_from_manager)
 	
@@ -56,11 +68,7 @@ func _setup_controls() -> void:
 	if clear_melody_button:
 		clear_melody_button.pressed.connect(_clear_melody)
 		clear_melody_button.focus_mode = Control.FOCUS_NONE
-		
-	var quantize_button = %QuantizeButton
-	if quantize_button:
-		quantize_button.pressed.connect(_on_quantize_pressed)
-		quantize_button.focus_mode = Control.FOCUS_NONE
+		clear_melody_button.tooltip_text = "Clear All Melody (Shift+Del)"
 
 	bar_count_spin_box.value_changed.connect(_on_bar_count_changed)
 	var line_edit = bar_count_spin_box.get_line_edit()
@@ -129,15 +137,16 @@ func _sync_ui_from_manager() -> void:
 	if playback_mode_button:
 		playback_mode_button.selected = ProgressionManager.playback_mode
 
+	_refresh_all_melody_slots()
 	
 	# [New] Dynamic Grid Logic
 	var total_bars = ProgressionManager.bar_count
 	
 	# 4마디 초과시 높이 확장 (2줄) - 트윈 애니메이션
-	# 1줄 높이: 90px, 2줄: 175px
+	# 1줄 높이: 110px (80+24+2 + small margin), 2줄: 230px
 	var scroll_container = %SequencerScroll
 	if scroll_container:
-		var target_height = 175.0 if total_bars > 4 else 90.0
+		var target_height = 230.0 if total_bars > 4 else 110.0
 		var current_height = scroll_container.custom_minimum_size.y
 		
 		# [Fix] Only animate when height actually changes (prevents flash during playback)
@@ -150,61 +159,109 @@ func _sync_ui_from_manager() -> void:
 			if slot_container:
 				slot_container.modulate.a = 0.0
 				height_tween.parallel().tween_property(slot_container, "modulate:a", 1.0, 0.25)
-		# else: height unchanged, do nothing (no fade effect)
 
 func _rebuild_slots() -> void:
-	# 1. Gather current buttons for pooling
-	var pool = _get_all_slot_buttons()
-	for btn in pool:
-		btn.get_parent().remove_child(btn)
-		
-	# 2. Clear rows
+	# 1. Cleanup
 	for child in slot_container.get_children():
 		child.queue_free()
 	
-	# 3. Reconstruct
+	# [New] Tighten spacing
+	slot_container.add_theme_constant_override("separation", 0)
+	
+	# 2. Reconstruct (Unified View: Chord Row + Melody Row interleaved)
 	var total_bars = ProgressionManager.bar_count
 	var slot_global_index = 0
-	var current_row: HBoxContainer = null
 	
-	for bar_i in range(total_bars):
-		if bar_i % 4 == 0:
-			current_row = HBoxContainer.new()
-			current_row.add_theme_constant_override("separation", 5)
-			current_row.alignment = BoxContainer.ALIGNMENT_CENTER
-			slot_container.add_child(current_row)
+	var current_system_row: HBoxContainer
+	
+	# Iterate through each bar
+	for i in range(total_bars):
+		if i % 4 == 0:
+			# New System Row (Group of 4 bars)
+			current_system_row = HBoxContainer.new()
+			current_system_row.add_theme_constant_override("separation", 10) # Gap between bars
+			current_system_row.alignment = BoxContainer.ALIGNMENT_CENTER
+			slot_container.add_child(current_system_row)
+			
+		var current_bar_idx = i
 		
-		var density = ProgressionManager.bar_densities[bar_i]
-		for i in range(density):
+		# --- Bar Container (Locks Chord & Melody vertically) ---
+		var bar_vbox = VBoxContainer.new()
+		bar_vbox.add_theme_constant_override("separation", 2) # [Optimized] Vertical gap
+		bar_vbox.custom_minimum_size.x = 164.0 # [Optimized] Base width for 2 chords + gap
+		current_system_row.add_child(bar_vbox)
+		
+		# --- Chord Layer ---
+		var chord_hbox = HBoxContainer.new()
+		chord_hbox.add_theme_constant_override("separation", 4)
+		chord_hbox.size_flags_vertical = Control.SIZE_EXPAND_FILL
+		bar_vbox.add_child(chord_hbox)
+		
+		var density = ProgressionManager.bar_densities[current_bar_idx]
+		for k in range(density):
 			var slot_idx = slot_global_index
 			slot_global_index += 1
 			
-			# Reuse from pool or instantiate
-			var btn: Control
-			if not pool.is_empty():
-				btn = pool.pop_back()
-			else:
-				btn = slot_button_scene.instantiate()
-				btn.focus_mode = Control.FOCUS_NONE
-				# Reconnect signals for new nodes only
-				_connect_slot_signals(btn)
+			var btn = slot_button_scene.instantiate()
+			btn.focus_mode = Control.FOCUS_NONE
+			btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL # Fill available bar width
+			_connect_slot_signals(btn)
+			chord_hbox.add_child(btn)
 			
-			current_row.add_child(btn)
-			
-			var beats = ProgressionManager.beats_per_bar if density == 1 else 2
-			var width = 140.0 if beats >= 3 else 65.0
-			btn.custom_minimum_size = Vector2(width, 80)
+			btn.custom_minimum_size.y = 80 # Keep fixed height
 			
 			if btn.has_method("setup"):
-				btn.setup(slot_idx, beats)
-				
+				btn.setup(slot_idx, ProgressionManager.beats_per_bar if density == 1 else 2)
+			
 			var data = ProgressionManager.get_slot(slot_idx)
 			if data and btn.has_method("update_info"):
 				btn.update_info(data)
-	
-	# 4. Clean up unused buttons
-	for leftover in pool:
-		leftover.queue_free()
+		
+		# --- Melody Layer ---
+		var melody_hbox = HBoxContainer.new()
+		melody_hbox.add_theme_constant_override("separation", 0) # [New] Zero gap for visual continuity
+		melody_hbox.alignment = BoxContainer.ALIGNMENT_CENTER
+		melody_hbox.size_flags_horizontal = Control.SIZE_EXPAND_FILL # [New] Ensure stable width
+		bar_vbox.add_child(melody_hbox)
+		
+		var m_beats = ProgressionManager.beats_per_bar
+		var m_subs = 2
+		var total_m_slots = m_beats * m_subs
+		var m_slot_width = 164.0 / total_m_slots
+		
+		for b in range(m_beats):
+			for s in range(m_subs):
+				var m_btn = melody_slot_scene.instantiate()
+				m_btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+				# [Fix] Force exact fixed width to prevent text from pushing layout
+				m_btn.custom_minimum_size = Vector2(m_slot_width, 24)
+				m_btn.clip_text = true
+				
+				melody_hbox.add_child(m_btn)
+				
+				if m_btn.has_method("setup"):
+					m_btn.setup(current_bar_idx, b, s)
+				
+				var key = "%d_%d" % [b, s]
+				var events = ProgressionManager.get_melody_events(current_bar_idx)
+				var data = events.get(key, {})
+				if m_btn.has_method("update_info"):
+					m_btn.update_info(data)
+				
+				if m_btn.has_signal("melody_slot_clicked"):
+					m_btn.melody_slot_clicked.connect(_on_melody_slot_clicked)
+				if m_btn.has_signal("melody_slot_right_clicked"):
+					m_btn.melody_slot_right_clicked.connect(_on_melody_slot_right_clicked)
+				if m_btn.has_signal("melody_slot_hovered"):
+					m_btn.melody_slot_hovered.connect(_on_melody_slot_hovered)
+				if m_btn.has_signal("melody_slot_drag_released"):
+					m_btn.melody_slot_drag_released.connect(_on_melody_slot_drag_released)
+		
+		# Spacer after group of 4
+		if (i + 1) % 4 == 0 and (i + 1) < total_bars:
+			var sep = Control.new()
+			sep.custom_minimum_size.y = 12 # [Optimized] Tighter vertical gap between systems
+			slot_container.add_child(sep)
 		
 	call_deferred("_update_loop_overlay")
 
@@ -221,6 +278,97 @@ func _connect_slot_signals(btn: Control) -> void:
 		var sequencer = get_tree().get_first_node_in_group("sequencer")
 		if sequencer:
 			call_deferred("_highlight_playing", sequencer.current_step)
+
+# Removed _on_mode_toggle
+# Removed _rebuild_melody_slots
+
+
+func _on_melody_slot_clicked(bar: int, beat: int, sub: int) -> void:
+	# [New] Mutual Exclusion: Selecting melody clears chord selection
+	ProgressionManager.selected_index = -1
+	
+	selected_melody_slot = {"bar": bar, "beat": beat, "sub": sub}
+	_highlight_melody_selected()
+	
+	# Start Drag
+	var events = ProgressionManager.get_melody_events(bar)
+	var key = "%d_%d" % [beat, sub]
+	var data = events.get(key, {})
+	
+	if not data.is_empty() and not data.get("is_sustain", false):
+		_is_dragging_melody = true
+		_drag_source_data = data.duplicate()
+	else:
+		_is_dragging_melody = false
+
+func _on_melody_slot_right_clicked(bar: int, beat: int, sub: int) -> void:
+	ProgressionManager.clear_melody_note(bar, beat, sub)
+	_is_erasing_melody = true
+
+func _on_melody_slot_hovered(bar: int, beat: int, sub: int) -> void:
+	if _is_erasing_melody:
+		ProgressionManager.clear_melody_note(bar, beat, sub)
+		return
+		
+	if not _is_dragging_melody: return
+	
+	# Extend Sustain
+	var current_note = _drag_source_data.get("root", -1)
+	if current_note != -1:
+		var sustain_data = _drag_source_data.duplicate()
+		sustain_data["is_sustain"] = true
+		ProgressionManager.set_melody_note(bar, beat, sub, sustain_data)
+		
+		# Immediately update selection to the end of drag? 
+		# Or keep it at the start. Let's keep it at start for now.
+		# But we need to refresh UI. ProgressionManager.set_melody_note emits melody_updated.
+		# _rebuild_slots is NOT called on melody_updated. We need a lighter way.
+
+func _on_melody_slot_drag_released() -> void:
+	_is_dragging_melody = false
+	_is_erasing_melody = false
+	_drag_source_data = {}
+
+func _highlight_melody_selected() -> void:
+	# Traverse unified container to find all MelodySlots
+	for system_row in slot_container.get_children():
+		if not system_row is HBoxContainer: continue
+		
+		for bar_vbox in system_row.get_children():
+			if not bar_vbox is VBoxContainer: continue
+			
+			# Melody Layer is the SECOND child (index 1)
+			if bar_vbox.get_child_count() > 1:
+				var melody_hbox = bar_vbox.get_child(1)
+				for m_btn in melody_hbox.get_children():
+					if m_btn.has_method("set_highlight"):
+						var is_sel = (m_btn.bar_index == selected_melody_slot.get("bar", -1) and 
+									  m_btn.beat_index == selected_melody_slot.get("beat", -1) and 
+									  m_btn.sub_index == selected_melody_slot.get("sub", -1))
+						m_btn.set_highlight(is_sel)
+
+
+func _advance_melody_selection() -> void:
+	var bar = selected_melody_slot["bar"]
+	var beat = selected_melody_slot["beat"]
+	var sub = selected_melody_slot["sub"]
+	
+	sub += 1
+	var subdivisions = 2 # 8th notes
+	if sub >= subdivisions:
+		sub = 0
+		beat += 1
+		if beat >= ProgressionManager.beats_per_bar:
+			beat = 0
+			bar += 1
+			if bar >= ProgressionManager.bar_count:
+				# End of sequence
+				selected_melody_slot = {}
+				_highlight_melody_selected()
+				return
+	
+	selected_melody_slot = {"bar": bar, "beat": beat, "sub": sub}
+	_highlight_melody_selected()
 
 func _on_settings_updated(_bar_count: int, _chords_per_bar: int) -> void:
 	_sync_ui_from_manager()
@@ -267,6 +415,11 @@ func _on_slot_clicked(index: int) -> void:
 	if index >= ProgressionManager.total_slots:
 		return
 	
+	# [New] Mutual Exclusion: Clear Melody Selection
+	if not selected_melody_slot.is_empty():
+		selected_melody_slot = {}
+		_highlight_melody_selected()
+	
 	# [New] Cmd+Click / Ctrl+Click: Select Slot for Input (Wait for Tile Click)
 	# Use is_key_pressed for immediate check, or check event modifiers if passed (but this is a signal callback)
 	if Input.is_key_pressed(KEY_CTRL) or Input.is_key_pressed(KEY_META):
@@ -302,6 +455,9 @@ func _on_slot_clicked(index: int) -> void:
 			if ProgressionManager.selected_index == index:
 				ProgressionManager.selected_index = -1
 			else:
+				# [New] Mutual Exclusion: Selecting chord clears melody selection
+				selected_melody_slot = {}
+				_highlight_melody_selected()
 				ProgressionManager.selected_index = index
 	
 	_update_split_button_state()
@@ -312,8 +468,12 @@ func _on_slot_beat_clicked(slot_idx: int, beat_idx: int) -> void:
 		_on_slot_clicked(slot_idx) # Delegate to slot click handler
 		return
 		
-	# [New] Seek Playhead (Normal Click)
+# [New] Seek Playhead (Normal Click)
 	%Sequencer.seek(slot_idx, beat_idx)
+	
+	# [New] If we just clicked a beat to seek, and we aren't holding modifiers,
+	# clear the chord selection to prevent "sticky" behavior while recording melody.
+	ProgressionManager.selected_index = -1
 
 func _on_slot_right_clicked(index: int) -> void:
 	if context_menu:
@@ -378,6 +538,26 @@ func _update_all_slots_visual_state() -> void:
 		if is_playing and btn.is_inside_tree():
 			_ensure_visible(btn)
 
+func _on_melody_updated(bar_idx: int) -> void:
+	# Find the Bar VBox for this index
+	var current_bar_count = 0
+	for system_row in slot_container.get_children():
+		if not system_row is HBoxContainer: continue
+		for bar_vbox in system_row.get_children():
+			if not bar_vbox is VBoxContainer: continue
+			
+			if current_bar_count == bar_idx:
+				# Target found. Second child is melody HBox
+				if bar_vbox.get_child_count() > 1:
+					var m_hbox = bar_vbox.get_child(1)
+					var events = ProgressionManager.get_melody_events(bar_idx)
+					for m_btn in m_hbox.get_children():
+						var key = "%d_%d" % [m_btn.beat_index, m_btn.sub_index]
+						var data = events.get(key, {})
+						m_btn.update_info(data)
+				return
+			current_bar_count += 1
+
 func _update_slot_label(index: int, data: Dictionary) -> void:
 	var buttons = _get_all_slot_buttons()
 	if index >= buttons.size():
@@ -390,11 +570,23 @@ func _update_slot_label(index: int, data: Dictionary) -> void:
 # [New] Helper to traverse nested rows
 func _get_all_slot_buttons() -> Array:
 	var buttons = []
-	for row in slot_container.get_children():
-		if row is HBoxContainer:
-			for btn in row.get_children():
-				buttons.append(btn)
+	for system_row in slot_container.get_children():
+		if not system_row is HBoxContainer: continue
+		
+		for bar_vbox in system_row.get_children():
+			if not bar_vbox is VBoxContainer: continue
+			
+			# Chord Layer is the FIRST child (index 0)
+			if bar_vbox.get_child_count() > 0:
+				var chord_hbox = bar_vbox.get_child(0)
+				for btn in chord_hbox.get_children():
+					if btn.has_signal("slot_pressed"):
+						buttons.append(btn)
 	return buttons
+
+func _refresh_all_melody_slots() -> void:
+	for i in range(ProgressionManager.bar_count):
+		_on_melody_updated(i)
 	
 func _ensure_visible(_control: Control) -> void:
 	# Basic visibility check logic
@@ -504,6 +696,23 @@ func _on_selection_cleared():
 # TILE CLICK HANDLER (INPUT WORKFLOW)
 # ============================================================
 func _on_tile_clicked(midi_note: int, string_index: int, _modifiers: Dictionary) -> void:
+	# [New] Unified View Input Routing
+	# If a Melody Slot is selected, input goes to Melody.
+	if not selected_melody_slot.is_empty():
+		var note_data = {
+			"root": midi_note, 
+			"string": string_index,
+			"duration": 0.5
+		}
+		
+		var bar = selected_melody_slot["bar"]
+		var beat = selected_melody_slot["beat"]
+		var sub = selected_melody_slot["sub"]
+		
+		ProgressionManager.set_melody_note(bar, beat, sub, note_data)
+		_advance_melody_selection()
+		return # [Exit] Don't process Chord Mode logic
+
 	# Check if we are in "Slot Editing Mode" (Sequence Slot Selected)
 	var selected_idx = ProgressionManager.selected_index
 	if selected_idx != -1:

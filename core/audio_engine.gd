@@ -99,13 +99,48 @@ func _setup_audio_buses() -> void:
 	_setup_clean_bus()
 	_setup_drive_bus()
 	
-	# 2. Input Buses (Sources with Volume)
-	_setup_routing_bus(BUS_CHORD)
-	_setup_routing_bus(BUS_MELODY)
+	# 2. Input Buses (Sources with Volume & Post-Processing)
+	_setup_chord_bus()
+	_setup_melody_bus()
 	_setup_routing_bus(BUS_SFX)
 	
 	# 3. Initial Routing
 	_update_bus_routing()
+
+func _setup_chord_bus() -> void:
+	if AudioServer.get_bus_index(BUS_CHORD) != -1:
+		return
+		
+	var idx = AudioServer.bus_count
+	AudioServer.add_bus(idx)
+	AudioServer.set_bus_name(idx, BUS_CHORD)
+	
+	# [New] Panning - Chord to Left
+	var panner = AudioEffectPanner.new()
+	panner.pan = -0.2
+	AudioServer.add_bus_effect(idx, panner)
+	
+	# [New] Sidechain Compressor - Dips Chord volume when Melody plays
+	var comp = AudioEffectCompressor.new()
+	comp.sidechain = BUS_MELODY
+	comp.threshold = -24.0 # Sensitive threshold
+	comp.ratio = 4.0
+	comp.attack_us = 10000.0 # 10ms
+	comp.release_ms = 150.0
+	AudioServer.add_bus_effect(idx, comp)
+
+func _setup_melody_bus() -> void:
+	if AudioServer.get_bus_index(BUS_MELODY) != -1:
+		return
+		
+	var idx = AudioServer.bus_count
+	AudioServer.add_bus(idx)
+	AudioServer.set_bus_name(idx, BUS_MELODY)
+	
+	# [New] Panning - Melody to Right
+	var panner = AudioEffectPanner.new()
+	panner.pan = 0.2
+	AudioServer.add_bus_effect(idx, panner)
 
 func _setup_routing_bus(bus_name: String) -> void:
 	if AudioServer.get_bus_index(bus_name) != -1:

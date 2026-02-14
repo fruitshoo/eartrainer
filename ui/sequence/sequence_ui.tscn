@@ -120,16 +120,8 @@ layout_mode = 2
 unique_name_in_owner = true
 custom_minimum_size = Vector2(30, 30)
 layout_mode = 2
-tooltip_text = "Reset Melody (Shift+Del)"
-text = "🗑"
-focus_mode = 0
-
-[node name="QuantizeButton" type="Button" parent="RootMargin/MainPanel/InnerMargin/MainVBox/ToolbarHBox" unique_id=771234567]
-unique_name_in_owner = true
-custom_minimum_size = Vector2(30, 30)
-layout_mode = 2
-tooltip_text = "Quantize Melody (Q)"
-text = "Q"
+tooltip_text = "Clear All Melody (Shift+Del)"
+text = "↺"
 focus_mode = 0
 
 

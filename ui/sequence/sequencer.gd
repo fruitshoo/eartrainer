@@ -40,7 +40,8 @@ const ACCENT_VOLUME_WEAK := 0.6 # Half-beats
 # PRIVATE
 # ============================================================
 var _beat_timer: Timer
-var _highlighted_tiles: Array = []
+var _highlighted_chord_tiles: Array = []
+var _active_melody_tile: Node = null
 
 # ============================================================
 # LIFECYCLE
@@ -185,7 +186,7 @@ func _pause_playback() -> void:
 # PLAYBACK LOGIC
 # ============================================================
 func _play_current_step(is_seek: bool = false) -> void:
-	_clear_all_highlights()
+	_clear_chord_highlights() # Don't clear melody here, it might sustain
 	
 	# 1. 게임 상태 업데이트
 	# 1. 게임 상태 업데이트
@@ -203,6 +204,9 @@ func _play_current_step(is_seek: bool = false) -> void:
 		_sub_beat = 0
 	
 	_emit_beat()
+	
+	# [New] Melody at start of step
+	_play_melody_note()
 	
 	# 3. 아르페지오 vs 블록 코드 재생
 	# 첫 박자면 아르페지오, 중간 박자면 쾅(Block Chord) 찍어서 컨텍스트 제공
@@ -299,6 +303,9 @@ func _on_beat_tick() -> void:
 		# A. Check for Chord Playback Triggers
 		_check_chord_playback_trigger()
 		
+		# [New] Melody Playback
+		_play_melody_note()
+		
 		# B. Emit beat signal (only on full beats)
 		if _sub_beat == 0:
 			_emit_beat()
@@ -378,7 +385,7 @@ func _play_chord_internal(data: Dictionary, requested_style: String) -> void:
 		if tile and is_instance_valid(tile):
 			AudioEngine.play_note(tile.midi_note, tile.string_index, "chord", accent_volume)
 			tile.apply_sequencer_highlight(null)
-			_highlighted_tiles.append(tile)
+			_highlighted_chord_tiles.append(tile)
 		
 		# Strum Delay applies only if style is STRUM
 		if actual_style == PLAYBACK_STYLE_STRUM:
@@ -404,16 +411,25 @@ func _visualize_slot_chord(data: Dictionary) -> void:
 		var tile = GameManager.find_tile(target_string, target_fret)
 		if tile and is_instance_valid(tile):
 			tile.apply_sequencer_highlight(null, 0.5) # 짧게 하이라이트
-			_highlighted_tiles.append(tile)
+			_highlighted_chord_tiles.append(tile)
 
 # ============================================================
 # HIGHLIGHT MANAGEMENT
 # ============================================================
 func _clear_all_highlights() -> void:
-	for tile in _highlighted_tiles:
+	_clear_chord_highlights()
+	_clear_melody_highlights()
+
+func _clear_chord_highlights() -> void:
+	for tile in _highlighted_chord_tiles:
 		if is_instance_valid(tile):
 			tile.clear_sequencer_highlight()
-	_highlighted_tiles.clear()
+	_highlighted_chord_tiles.clear()
+
+func _clear_melody_highlights() -> void:
+	if is_instance_valid(_active_melody_tile):
+		_active_melody_tile.clear_sequencer_highlight()
+	_active_melody_tile = null
 
 func _check_chord_playback_trigger() -> void:
 	var mode = ProgressionManager.playback_mode
@@ -470,4 +486,54 @@ func _apply_scale_override_logic(root: int, type: String) -> void:
 		# Diminished -> Locrian matches the diatonic chord of Minor/Major keys
 		target_mode = MusicTheory.ScaleMode.LOCRIAN
 	
+	
 	GameManager.set_scale_override(root % 12, target_mode)
+
+# [New] Melody Playback Logic
+func _play_melody_note() -> void:
+	if not is_playing: return
+	
+	var bar_idx = ProgressionManager.get_bar_index_for_slot(current_step)
+	if bar_idx == -1: return
+	
+	var events = ProgressionManager.get_melody_events(bar_idx)
+	if events.is_empty(): return
+	
+	# Calculate Beat in Bar
+	var start_slot = ProgressionManager.get_slot_index_for_bar(bar_idx)
+	var slot_offset = current_step - start_slot
+	
+	var density = ProgressionManager.bar_densities[bar_idx]
+	if density == 0: density = 1
+	var beats_per_slot = ProgressionManager.beats_per_bar / density
+	var beat_in_bar = current_beat + (slot_offset * beats_per_slot)
+	
+	var key = "%d_%d" % [beat_in_bar, _sub_beat]
+	var note_data = events.get(key, {})
+	
+	if not note_data.is_empty():
+		var root = note_data.get("root", 60)
+		var string_idx = note_data.get("string", 1)
+		var is_sustain = note_data.get("is_sustain", false)
+		
+		# Sustain Logic
+		if is_sustain:
+			# Just ensure highlight is still there
+			if not is_instance_valid(_active_melody_tile):
+				var tile = GameManager.find_tile(string_idx, MusicTheory.get_fret_position(root, string_idx))
+				if tile:
+					tile.apply_sequencer_highlight(null)
+					_active_melody_tile = tile
+		else:
+			# New Note Attack
+			_clear_melody_highlights()
+			
+			AudioEngine.play_note(root, string_idx, "melody", 1.0)
+			
+			var tile = GameManager.find_tile(string_idx, MusicTheory.get_fret_position(root, string_idx))
+			if tile:
+				tile.apply_sequencer_highlight(null)
+				_active_melody_tile = tile
+	else:
+		# Empty slot -> Clear previous melody highlight
+		_clear_melody_highlights()
