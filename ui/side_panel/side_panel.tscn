@@ -21,6 +21,7 @@ anchor_right = 1.0
 anchor_bottom = 1.0
 offset_left = 0.0
 offset_right = 340.0
+custom_minimum_size = Vector2(340, 0)
 grow_horizontal = 0
 grow_vertical = 2
 theme = ExtResource("2_theme")
@@ -90,56 +91,232 @@ layout_mode = 2
 focus_mode = 0
 text = "NEXT"
 
-[node name="ModesMargin" type="MarginContainer" parent="ContentScroll/MainVBox"]
+[node name="TabsMargin" type="MarginContainer" parent="ContentScroll/MainVBox"]
+unique_name_in_owner = true
 layout_mode = 2
 theme_override_constants/margin_bottom = 16
 
-[node name="ModesHBox" type="HBoxContainer" parent="ContentScroll/MainVBox/ModesMargin"]
+[node name="TabsHBox" type="HBoxContainer" parent="ContentScroll/MainVBox/TabsMargin"]
 unique_name_in_owner = true
 layout_mode = 2
 theme_override_constants/separation = 0
 alignment = 1
 
-[node name="AscModeBtn" type="Button" parent="ContentScroll/MainVBox/ModesMargin/ModesHBox"]
+[node name="TabIntervalBtn" type="Button" parent="ContentScroll/MainVBox/TabsMargin/TabsHBox"]
 unique_name_in_owner = true
-custom_minimum_size = Vector2(80, 40)
+custom_minimum_size = Vector2(0, 40)
 layout_mode = 2
+size_flags_horizontal = 3
+focus_mode = 0
+toggle_mode = true
+button_pressed = true
+text = "INT"
+
+[node name="TabChordBtn" type="Button" parent="ContentScroll/MainVBox/TabsMargin/TabsHBox"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 40)
+layout_mode = 2
+size_flags_horizontal = 3
+focus_mode = 0
+toggle_mode = true
+text = "CHD"
+
+[node name="TabScaleBtn" type="Button" parent="ContentScroll/MainVBox/TabsMargin/TabsHBox"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 40)
+layout_mode = 2
+size_flags_horizontal = 3
+focus_mode = 0
+toggle_mode = true
+text = "SCL"
+
+[node name="TabPitchBtn" type="Button" parent="ContentScroll/MainVBox/TabsMargin/TabsHBox"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 40)
+layout_mode = 2
+size_flags_horizontal = 3
+focus_mode = 0
+toggle_mode = true
+text = "PCH"
+
+[node name="IntervalContainer" type="VBoxContainer" parent="ContentScroll/MainVBox"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_constants/separation = 0
+
+[node name="ModesMargin" type="MarginContainer" parent="ContentScroll/MainVBox/IntervalContainer"]
+layout_mode = 2
+theme_override_constants/margin_bottom = 16
+
+[node name="ModesHBox" type="HBoxContainer" parent="ContentScroll/MainVBox/IntervalContainer/ModesMargin"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_constants/separation = 0
+alignment = 1
+
+[node name="AscModeBtn" type="Button" parent="ContentScroll/MainVBox/IntervalContainer/ModesMargin/ModesHBox"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 40)
+layout_mode = 2
+size_flags_horizontal = 3
 focus_mode = 0
 toggle_mode = true
 text = "↗"
 
-[node name="DescModeBtn" type="Button" parent="ContentScroll/MainVBox/ModesMargin/ModesHBox"]
+[node name="DescModeBtn" type="Button" parent="ContentScroll/MainVBox/IntervalContainer/ModesMargin/ModesHBox"]
 unique_name_in_owner = true
-custom_minimum_size = Vector2(80, 40)
+custom_minimum_size = Vector2(0, 40)
 layout_mode = 2
+size_flags_horizontal = 3
 focus_mode = 0
 toggle_mode = true
 text = "↘"
 
-[node name="HarmModeBtn" type="Button" parent="ContentScroll/MainVBox/ModesMargin/ModesHBox"]
+[node name="HarmModeBtn" type="Button" parent="ContentScroll/MainVBox/IntervalContainer/ModesMargin/ModesHBox"]
 unique_name_in_owner = true
-custom_minimum_size = Vector2(80, 40)
+custom_minimum_size = Vector2(0, 40)
 layout_mode = 2
+size_flags_horizontal = 3
 focus_mode = 0
 toggle_mode = true
 text = "≡"
 
-[node name="Separator" type="HSeparator" parent="ContentScroll/MainVBox"]
+[node name="Separator" type="HSeparator" parent="ContentScroll/MainVBox/IntervalContainer"]
 modulate = Color(1, 1, 1, 0.2)
 layout_mode = 2
 
-[node name="GridMargin" type="MarginContainer" parent="ContentScroll/MainVBox"]
+[node name="GridMargin" type="MarginContainer" parent="ContentScroll/MainVBox/IntervalContainer"]
 layout_mode = 2
 theme_override_constants/margin_top = 20
 theme_override_constants/margin_bottom = 20
 
-[node name="IntervalGrid" type="GridContainer" parent="ContentScroll/MainVBox/GridMargin"]
+[node name="IntervalGrid" type="GridContainer" parent="ContentScroll/MainVBox/IntervalContainer/GridMargin"]
 unique_name_in_owner = true
 layout_mode = 2
 size_flags_horizontal = 3
 theme_override_constants/h_separation = 12
 theme_override_constants/v_separation = 12
 columns = 3
+
+[node name="ChordContainer" type="VBoxContainer" parent="ContentScroll/MainVBox"]
+unique_name_in_owner = true
+visible = false
+layout_mode = 2
+theme_override_constants/separation = 16
+
+[node name="ChordSettingsVBox" type="VBoxContainer" parent="ContentScroll/MainVBox/ChordContainer"]
+layout_mode = 2
+theme_override_constants/separation = 20
+
+[node name="TypeLabel" type="Label" parent="ContentScroll/MainVBox/ChordContainer/ChordSettingsVBox"]
+layout_mode = 2
+text = "Chord Qualities"
+theme_type_variation = &"HeaderSmall"
+
+[node name="ChordTypeGrid" type="GridContainer" parent="ContentScroll/MainVBox/ChordContainer/ChordSettingsVBox"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_constants/h_separation = 12
+theme_override_constants/v_separation = 12
+columns = 3
+
+[node name="PlaybackLabel" type="Label" parent="ContentScroll/MainVBox/ChordContainer/ChordSettingsVBox"]
+layout_mode = 2
+text = "Playback Style"
+theme_type_variation = &"HeaderSmall"
+
+[node name="ChordDirHBox" type="HBoxContainer" parent="ContentScroll/MainVBox/ChordContainer/ChordSettingsVBox"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_constants/separation = 0
+alignment = 1
+
+[node name="ChordUpBtn" type="Button" parent="ContentScroll/MainVBox/ChordContainer/ChordSettingsVBox/ChordDirHBox"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 40)
+layout_mode = 2
+size_flags_horizontal = 3
+focus_mode = 0
+toggle_mode = true
+text = "↑"
+
+[node name="ChordDownBtn" type="Button" parent="ContentScroll/MainVBox/ChordContainer/ChordSettingsVBox/ChordDirHBox"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 40)
+layout_mode = 2
+size_flags_horizontal = 3
+focus_mode = 0
+toggle_mode = true
+text = "↓"
+
+[node name="ChordHarmBtn" type="Button" parent="ContentScroll/MainVBox/ChordContainer/ChordSettingsVBox/ChordDirHBox"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 40)
+layout_mode = 2
+size_flags_horizontal = 3
+focus_mode = 0
+toggle_mode = true
+text = "≡"
+
+[node name="InversionLabel" type="Label" parent="ContentScroll/MainVBox/ChordContainer/ChordSettingsVBox"]
+layout_mode = 2
+text = "Inversion"
+theme_type_variation = &"HeaderSmall"
+
+[node name="ChordInvHBox" type="HBoxContainer" parent="ContentScroll/MainVBox/ChordContainer/ChordSettingsVBox"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_constants/separation = 0
+alignment = 1
+
+[node name="ChordInvRootBtn" type="Button" parent="ContentScroll/MainVBox/ChordContainer/ChordSettingsVBox/ChordInvHBox"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 40)
+layout_mode = 2
+size_flags_horizontal = 3
+focus_mode = 0
+toggle_mode = true
+text = "Root"
+
+[node name="ChordInv1stBtn" type="Button" parent="ContentScroll/MainVBox/ChordContainer/ChordSettingsVBox/ChordInvHBox"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 40)
+layout_mode = 2
+size_flags_horizontal = 3
+focus_mode = 0
+toggle_mode = true
+text = "1st"
+
+[node name="ChordInv2ndBtn" type="Button" parent="ContentScroll/MainVBox/ChordContainer/ChordSettingsVBox/ChordInvHBox"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 40)
+layout_mode = 2
+size_flags_horizontal = 3
+focus_mode = 0
+toggle_mode = true
+text = "2nd"
+
+[node name="ScaleContainer" type="VBoxContainer" parent="ContentScroll/MainVBox"]
+unique_name_in_owner = true
+visible = false
+layout_mode = 2
+theme_override_constants/separation = 16
+
+[node name="ScalePlaceholder" type="Label" parent="ContentScroll/MainVBox/ScaleContainer"]
+layout_mode = 2
+text = "Scale Training Coming Soon..."
+horizontal_alignment = 1
+
+[node name="PitchContainer" type="VBoxContainer" parent="ContentScroll/MainVBox"]
+unique_name_in_owner = true
+visible = false
+layout_mode = 2
+theme_override_constants/separation = 16
+
+[node name="PitchPlaceholder" type="Label" parent="ContentScroll/MainVBox/PitchContainer"]
+layout_mode = 2
+text = "Perfect Pitch Coming Soon..."
+horizontal_alignment = 1
 
 [node name="EasyMargin" type="MarginContainer" parent="ContentScroll/MainVBox"]
 layout_mode = 2

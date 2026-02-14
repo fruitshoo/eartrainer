@@ -36,6 +36,10 @@ var active_chord_types: Array = ["maj", "min"]
 var chord_root_mode: String = "fixed"
 var chord_fixed_root: int = 60
 
+# [New] Chord Training Settings
+var chord_inversion_mode: int = 0 # 0=Root, 1=1st, 2=2nd, 3=Random
+var chord_playback_direction: int = 2 # 0=Up, 1=Down, 2=Harmonic, 3=Random
+
 # -- Handler Strategy --
 var _handlers: Dictionary = {}
 var _active_handler: BaseQuizHandler = null

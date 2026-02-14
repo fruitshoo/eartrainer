@@ -23,11 +23,32 @@ var _main_theme: Theme = preload("res://ui/resources/main_theme.tres")
 @onready var et_easy_mode: CheckBox = %EasyModeCheckbox
 @onready var _scene_scroll: ScrollContainer = %ContentScroll
 
+# [New] Tab System
+@onready var tab_interval_btn: Button = %TabIntervalBtn
+@onready var tab_chord_btn: Button = %TabChordBtn
+@onready var tab_scale_btn: Button = %TabScaleBtn
+@onready var tab_pitch_btn: Button = %TabPitchBtn
+
+@onready var interval_container: Control = %IntervalContainer
+@onready var chord_container: Control = %ChordContainer
+@onready var scale_container: Control = %ScaleContainer
+@onready var pitch_container: Control = %PitchContainer
+
+# [New] Chord Training UI
+@onready var chord_type_grid: GridContainer = %ChordTypeGrid
+@onready var chord_up_btn: Button = %ChordUpBtn
+@onready var chord_down_btn: Button = %ChordDownBtn
+@onready var chord_harm_btn: Button = %ChordHarmBtn
+@onready var chord_inv_root_btn: Button = %ChordInvRootBtn
+@onready var chord_inv_1st_btn: Button = %ChordInv1stBtn
+@onready var chord_inv_2nd_btn: Button = %ChordInv2ndBtn
+
 # State
 var is_active: bool = false # Is quiz currently running?
 var et_checkboxes: Dictionary = {} # semitones -> tile
 var pending_manage_interval: int = -1
 var pending_delete_song: String = ""
+var _active_tab_type: QuizManager.QuizType = QuizManager.QuizType.INTERVAL
 
 # Overlays (Managed through code)
 var example_manager_root: Control
@@ -51,7 +72,9 @@ func _ready() -> void:
 	
 	# 4. Inits
 	_populate_et_grid()
+	_populate_chord_grid()
 	_sync_et_state()
+	_sync_chord_state()
 
 # ============================================================
 # VIRTUAL METHODS
@@ -75,7 +98,15 @@ func _build_content() -> void:
 		return
 		
 	et_replay_btn.pressed.connect(QuizManager.play_current_interval)
-	et_next_btn.pressed.connect(QuizManager.start_interval_quiz)
+	et_next_btn.pressed.connect(_on_next_pressed)
+	
+	# [New] Tab Logic
+	tab_interval_btn.pressed.connect(func(): _set_active_tab(QuizManager.QuizType.INTERVAL))
+	tab_chord_btn.pressed.connect(func(): _set_active_tab(QuizManager.QuizType.CHORD_QUALITY))
+	tab_scale_btn.pressed.connect(func(): _set_active_tab(QuizManager.QuizType.NONE)) # Placeholder for Scale
+	tab_pitch_btn.pressed.connect(func(): _set_active_tab(QuizManager.QuizType.PITCH_CLASS))
+	
+	_update_tab_buttons_visuals()
 	
 	_setup_stage_button(et_replay_btn, Color("#34495e"))
 	_setup_stage_button(et_next_btn, Color("#3498db"))
@@ -83,6 +114,27 @@ func _build_content() -> void:
 	if et_asc_mode: _setup_mode_button(et_asc_mode, "↗", QuizManager.IntervalMode.ASCENDING, Color("#81ecec"), 0)
 	if et_desc_mode: _setup_mode_button(et_desc_mode, "↘", QuizManager.IntervalMode.DESCENDING, Color("#fab1a0"), 1)
 	if et_harm_mode: _setup_mode_button(et_harm_mode, "≡", QuizManager.IntervalMode.HARMONIC, Color("#ffeaa7"), 2)
+	
+	# [New] Chord Direction Buttons
+	_setup_chord_dir_button(chord_up_btn, "↑", 0, Color("#81ecec"), 0)
+	_setup_chord_dir_button(chord_down_btn, "↓", 1, Color("#fab1a0"), 1)
+	_setup_chord_dir_button(chord_harm_btn, "≡", 2, Color("#ffeaa7"), 2)
+	
+	# [New] Chord Inversion Buttons
+	_setup_chord_inv_button(chord_inv_root_btn, "Root", 0, Color("#74b9ff"), 0)
+	_setup_chord_inv_button(chord_inv_1st_btn, "1st", 1, Color("#a29bfe"), 1)
+	_setup_chord_inv_button(chord_inv_2nd_btn, "2nd", 2, Color("#81ecec"), 2)
+	
+	# [Fix] Ensure tab buttons fit the panel width
+	tab_interval_btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	tab_chord_btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	tab_scale_btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	tab_pitch_btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	
+	tab_interval_btn.custom_minimum_size.x = 0
+	tab_chord_btn.custom_minimum_size.x = 0
+	tab_scale_btn.custom_minimum_size.x = 0
+	tab_pitch_btn.custom_minimum_size.x = 0
 	
 	if et_easy_mode:
 		et_easy_mode.toggled.connect(func(v): GameManager.show_target_visual = v)
@@ -257,6 +309,74 @@ func _update_mode_button_style(btn: Button, color: Color, is_active: bool, pos_i
 	btn.add_theme_stylebox_override("hover", style)
 	btn.add_theme_stylebox_override("pressed", style)
 
+# [New] Chord Training Helpers
+func _populate_chord_grid() -> void:
+	if not chord_type_grid: return
+	for child in chord_type_grid.get_children(): child.queue_free()
+	
+	var data = ChordQuizData.CHORDS
+	var sorted_types = data.keys()
+	
+	for type in sorted_types:
+		var info = data[type]
+		var is_checked = type in QuizManager.active_chord_types
+		var tile = _create_chord_type_tile(type, info, is_checked)
+		chord_type_grid.add_child(tile)
+
+func _create_chord_type_tile(type: String, info: Dictionary, is_checked: bool) -> Button:
+	var btn = Button.new()
+	btn.text = info.name
+	btn.custom_minimum_size = Vector2(80, 80)
+	btn.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	btn.add_theme_font_size_override("font_size", 13) # Slightly smaller for long names
+	btn.focus_mode = Control.FOCUS_NONE
+	btn.toggle_mode = true
+	btn.button_pressed = is_checked
+	
+	_update_tile_style(btn, Color("#3498db"), is_checked)
+	
+	btn.toggled.connect(func(on):
+		if on:
+			if not type in QuizManager.active_chord_types: QuizManager.active_chord_types.append(type)
+		else:
+			QuizManager.active_chord_types.erase(type)
+		_update_tile_style(btn, Color("#3498db"), on)
+	)
+	return btn
+
+func _sync_chord_state() -> void:
+	var dir = QuizManager.chord_playback_direction
+	_update_chord_dir_style(chord_up_btn, Color("#81ecec"), dir == 0, 0)
+	_update_chord_dir_style(chord_down_btn, Color("#fab1a0"), dir == 1, 1)
+	_update_chord_dir_style(chord_harm_btn, Color("#ffeaa7"), dir == 2, 2)
+	
+	var inv = QuizManager.chord_inversion_mode
+	_update_chord_inv_style(chord_inv_root_btn, Color("#74b9ff"), inv == 0, 0)
+	_update_chord_inv_style(chord_inv_1st_btn, Color("#a29bfe"), inv == 1, 1)
+	_update_chord_inv_style(chord_inv_2nd_btn, Color("#81ecec"), inv == 2, 2)
+
+func _setup_chord_dir_button(btn: Button, text: String, mode_id: int, color: Color, pos: int) -> void:
+	btn.text = text
+	btn.pressed.connect(func():
+		QuizManager.chord_playback_direction = mode_id
+		_sync_chord_state()
+	)
+	_update_chord_dir_style(btn, color, QuizManager.chord_playback_direction == mode_id, pos)
+
+func _setup_chord_inv_button(btn: Button, text: String, mode_id: int, color: Color, pos: int) -> void:
+	btn.text = text
+	btn.pressed.connect(func():
+		QuizManager.chord_inversion_mode = mode_id
+		_sync_chord_state()
+	)
+	_update_chord_inv_style(btn, color, QuizManager.chord_inversion_mode == mode_id, pos)
+
+func _update_chord_dir_style(btn: Button, color: Color, is_active: bool, pos: int) -> void:
+	_update_mode_button_style(btn, color, is_active, pos)
+
+func _update_chord_inv_style(btn: Button, color: Color, is_active: bool, pos: int) -> void:
+	_update_mode_button_style(btn, color, is_active, pos)
+
 func _setup_stage_button(btn: Button, color: Color) -> void:
 	var normal = StyleBoxFlat.new()
 	normal.corner_radius_top_left = 20
@@ -304,6 +424,59 @@ func _animate_feedback_pop() -> void:
 	tw.set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_ELASTIC)
 	et_feedback_label.scale = Vector2(0.8, 0.8)
 	tw.tween_property(et_feedback_label, "scale", Vector2(1, 1), 0.4)
+
+
+# ============================================================
+# TAB SYSTEM LOGIC
+# ============================================================
+func _on_next_pressed() -> void:
+	match _active_tab_type:
+		QuizManager.QuizType.INTERVAL: 
+			QuizManager.start_interval_quiz()
+		QuizManager.QuizType.CHORD_QUALITY: 
+			QuizManager.start_chord_quiz()
+		QuizManager.QuizType.PITCH_CLASS: 
+			QuizManager.start_pitch_quiz()
+		_:
+			QuizManager.start_interval_quiz() # Fallback
+
+func _set_active_tab(type: QuizManager.QuizType) -> void:
+	if _active_tab_type == type: return
+	
+	# Stop active quiz when switching
+	QuizManager.stop_quiz()
+	
+	_active_tab_type = type
+	
+	# Visibility
+	interval_container.visible = (type == QuizManager.QuizType.INTERVAL)
+	chord_container.visible = (type == QuizManager.QuizType.CHORD_QUALITY)
+	scale_container.visible = (type == QuizManager.QuizType.NONE) # Scale placeholder
+	pitch_container.visible = (type == QuizManager.QuizType.PITCH_CLASS)
+	
+	_update_tab_buttons_visuals()
+
+func _update_tab_buttons_visuals() -> void:
+	_update_tab_btn_style(tab_interval_btn, _active_tab_type == QuizManager.QuizType.INTERVAL, 0)
+	_update_tab_btn_style(tab_chord_btn, _active_tab_type == QuizManager.QuizType.CHORD_QUALITY, 1)
+	_update_tab_btn_style(tab_scale_btn, _active_tab_type == QuizManager.QuizType.NONE, 2)
+	_update_tab_btn_style(tab_pitch_btn, _active_tab_type == QuizManager.QuizType.PITCH_CLASS, 3)
+
+func _update_tab_btn_style(btn: Button, is_active: bool, pos: int) -> void:
+	var style = StyleBoxFlat.new()
+	style.corner_radius_top_left = 10 if pos == 0 else 0
+	style.corner_radius_top_right = 10 if pos == 3 else 0
+	
+	if is_active:
+		style.bg_color = Color("#3498db")
+		btn.add_theme_color_override("font_color", Color.WHITE)
+	else:
+		style.bg_color = Color(0, 0, 0, 0.1)
+		btn.add_theme_color_override("font_color", Color(0, 0, 0, 0.4))
+		
+	btn.add_theme_stylebox_override("normal", style)
+	btn.add_theme_stylebox_override("hover", style)
+	btn.add_theme_stylebox_override("pressed", style)
 
 
 # Overlays logic kept as is but adapted parent calls if needed

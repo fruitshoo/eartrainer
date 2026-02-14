@@ -69,16 +69,46 @@ func check_answer(input: Variant) -> void:
 		manager.quiz_answered.emit({"correct": false})
 
 func _play_chord_structure(root: int, type: String):
-	var info = ChordQuizData.get_chord_info(type)
-	var intervals = info.get("intervals", [0, 4, 7])
+	var intervals = ChordQuizData.get_chord_intervals(type).duplicate()
+	if intervals.is_empty(): return
 	
+	# 1. Apply Inversion
+	var inversion = manager.chord_inversion_mode
+	if inversion == 3: inversion = randi() % 3 # Random (Root, 1st, 2nd)
+	
+	# Inversion shift: take the lowest notes and move them up an octave
+	for i in range(inversion):
+		if intervals.size() > 0:
+			var low_note = intervals.pop_front()
+			intervals.push_back(low_note + 12)
+	
+	intervals.sort() # Keep sorted for direction logic
+	
+	# 2. Determine Playback order and timing
+	var direction = manager.chord_playback_direction
+	if direction == 3: direction = randi() % 3 # Random (Up, Down, Harmonic)
+	
+	var playback_notes = []
+	for interval in intervals:
+		playback_notes.append(root + interval)
+		
+	var delay_step = 0.4 # Arpeggio speed
+	
+	match direction:
+		1: # Down
+			playback_notes.reverse()
+		2: # Harmonic (Strum)
+			delay_step = 0.05
+			
+	# 3. Schedule Playback
 	var my_id = manager._current_playback_id
-	
-	for i in range(intervals.size()):
-		var note = root + intervals[i]
-		var delay = i * 0.05 # 50ms fast strum
+	for i in range(playback_notes.size()):
+		var note = playback_notes[i]
+		var delay = i * delay_step
 		
 		manager.get_tree().create_timer(delay).timeout.connect(func():
 			if manager._current_playback_id != my_id: return
 			AudioEngine.play_note(note)
+			# Optional: Visual highlight on fretboard for the played note?
+			# EventBus.visual_note_on.emit(note, 0)
 		)
