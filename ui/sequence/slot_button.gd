@@ -87,18 +87,52 @@ func _update_ticks_visual() -> void:
 		elif _hover_beat_index != -1 and i <= _hover_beat_index:
 			tick.self_modulate = hover_color
 
+var _is_selected: bool = false
+var _is_dragging: bool = false
+var _drag_start_pos: Vector2 = Vector2.ZERO
+const DRAG_THRESHOLD: float = 4.0
+
 func _on_tick_gui_input(event: InputEvent, beat_idx: int) -> void:
-	if event is InputEventMouseButton and event.pressed:
+	if event is InputEventMouseButton:
 		if event.button_index == MOUSE_BUTTON_LEFT:
-			beat_clicked.emit(slot_index, beat_idx)
+			if event.pressed:
+				_is_dragging = false
+				_drag_start_pos = event.position
+			else:
+				# Mouse Up (Tap)
+				if not _is_dragging:
+					if _is_selected:
+						beat_clicked.emit(slot_index, beat_idx)
+					else:
+						# If not selected, clicking a beat selects the slot
+						slot_pressed.emit(slot_index)
+				_is_dragging = false
 			accept_event()
-		elif event.button_index == MOUSE_BUTTON_RIGHT:
+			
+		elif event.button_index == MOUSE_BUTTON_RIGHT and event.pressed:
 			right_clicked.emit(slot_index)
 			accept_event()
+			
+	elif event is InputEventMouseMotion:
+		if event.button_mask & MOUSE_BUTTON_MASK_LEFT:
+			if not _is_dragging:
+				if event.position.distance_to(_drag_start_pos) > DRAG_THRESHOLD:
+					_is_dragging = true
+			
+			if _is_dragging:
+				# Scrubbing logic: Emit beat_clicked immediately
+				beat_clicked.emit(slot_index, beat_idx)
+				# Also ensure we highlight this beat during drag
+				_on_tick_mouse_entered(beat_idx)
+				accept_event()
 
 func _on_tick_mouse_entered(beat_idx: int) -> void:
 	_hover_beat_index = beat_idx
 	_update_ticks_visual()
+	
+	# Support dragging across multiple ticks
+	if _is_dragging:
+		beat_clicked.emit(slot_index, beat_idx)
 
 func _on_tick_mouse_exited(_beat_idx: int) -> void:
 	_hover_beat_index = -1
@@ -168,17 +202,39 @@ func _update_slot_background(chord_root: int, chord_type: String) -> void:
 	pressed_style.border_width_bottom = 2 # Press effect
 	add_theme_stylebox_override("pressed", pressed_style)
 
-func set_highlight(state: String) -> void:
-	# state: "playing", "selected", "none"
-	match state:
-		"playing":
-			modulate = Color(0.8, 1.3, 1.3) # 시안/민트 (Glassmorphism)
-		"selected":
-			modulate = Color(1.5, 1.5, 1.0) # 노란색 (편집 대기)
-		"loop":
-			modulate = Color(1.0, 1.0, 1.0) # 흰색 (루프 구간 - 오버레이로 표시하므로 버튼은 평범하게)
-		_:
-			modulate = Color.WHITE
+# Updated state management
+var _is_playing: bool = false
+var _is_in_loop: bool = false
+
+func set_state(playing: bool, selected: bool, in_loop: bool) -> void:
+	_is_playing = playing
+	_is_selected = selected
+	_is_in_loop = in_loop
+	
+	_update_visual_state()
+
+func _update_visual_state() -> void:
+	# Priority 1: Playing (Always Blue/Cyan BG)
+	if _is_playing:
+		modulate = Color(0.8, 1.3, 1.3) # Cyan/Mint
+		
+		# If also Selected, maybe add a yellow border?
+		# Currently we just use modulate, so we can't easily add a border without StyleBox.
+		# For now, let's just keep Cyan. If selected, the "Gold Tick" from selection is visible?
+		# No, ticks are handled separately.
+		# Let's trust the "Cyan" background is distinctive enough.
+		
+	# Priority 2: Selected (Yellow/Gold)
+	elif _is_selected:
+		modulate = Color(1.5, 1.5, 1.0) # Gold/Yellow
+		
+	# Priority 3: Loop (White/Neutral)
+	elif _is_in_loop:
+		modulate = Color(1.0, 1.0, 1.0) # White
+		
+	# Priority 4: Normal
+	else:
+		modulate = Color.WHITE
 
 func _update_default_visual() -> void:
 	if label:

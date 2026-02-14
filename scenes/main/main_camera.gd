@@ -10,6 +10,7 @@ extends Camera3D
 @export_group("Sensitivity")
 @export var drag_sensitivity: float = 1.0
 @export var orbit_sensitivity: float = 0.5
+@export var keyboard_sensitivity: float = 20.0 # [New]
 
 # DOF Settings
 @export var dof_sharpness_range: float = 8.0
@@ -86,6 +87,9 @@ func _process(delta):
 	# 3. Update Pan/Drag (Smooth)
 	# -----------------------------------------------
 	drag_offset = drag_offset.lerp(target_drag_offset, delta * pan_speed)
+	
+	# [New] Keyboard Input Processing
+	_process_keyboard_input(delta)
 
 	# -----------------------------------------------
 	# 4. Update Pivot (Tracking Player)
@@ -258,3 +262,29 @@ func reset_view():
 	tween.tween_property(self, "target_size", 10.0, 0.5)
 	tween.tween_property(self, "target_yaw", deg_to_rad(135.0), 0.5)
 	tween.tween_property(self, "target_pitch", deg_to_rad(-30.0), 0.5)
+
+func _process_keyboard_input(delta: float) -> void:
+	# Skip if editing text (though usually handled by UI focus, explicit check handles edge cases)
+	# But basic Input.get_vector handles UI actions well.
+	
+	var input_dir = Input.get_vector("ui_left", "ui_right", "ui_up", "ui_down")
+	if input_dir == Vector2.ZERO: return
+	
+	# Calculate movement vector relative to camera orientation
+	var viewport_height = get_viewport().get_visible_rect().size.y
+	# Protect against zero division or invalid viewport
+	if viewport_height <= 0: viewport_height = 1080.0
+	
+	var fov_scale = current_zoom # Scale speed with zoom level
+	
+	# Base speed factor (Arbitrary visual feel adjustment)
+	var speed_factor = keyboard_sensitivity * fov_scale * delta
+	
+	var right_dir = transform.basis.x
+	var up_dir = transform.basis.y # Camera Local Y is "Up" on screen
+	
+	# Invert Y for natural feel (Up key moves camera Up -> Content moves Down)
+	# [Fix] User requested standard keyboard control (Up key moves Camera UP)
+	var move_vec = (right_dir * input_dir.x - up_dir * input_dir.y) * speed_factor
+	
+	target_drag_offset += move_vec

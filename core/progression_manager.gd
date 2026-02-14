@@ -183,11 +183,50 @@ func toggle_bar_split(bar_index: int) -> void:
 	if bar_index < 0 or bar_index >= bar_densities.size():
 		return
 	
-	var current = bar_densities[bar_index]
-	bar_densities[bar_index] = 2 if current == 1 else 1
+	# 1. Capture current data by Bar to prevent shifting
+	var bar_data_map = {}
+	var current_slot_read = 0
+	for i in range(bar_densities.size()):
+		var density = bar_densities[i]
+		var chords = []
+		for k in range(density):
+			var slot_idx = current_slot_read + k
+			if slot_idx < slots.size():
+				chords.append(slots[slot_idx])
+		bar_data_map[i] = chords
+		current_slot_read += density
+
+	# 2. Modify Density
+	var current_bar_density = bar_densities[bar_index]
+	bar_densities[bar_index] = 2 if current_bar_density == 1 else 1
 	
-	# 슬롯 데이터 재구성
-	_reconstruct_slots()
+	# 3. Resize and Reconstruct
+	_resize_slots()
+	
+	# Clear slots first to be safe
+	for i in range(slots.size()): slots[i] = null
+	
+	# Fill from map
+	var current_slot_write = 0
+	for i in range(bar_count):
+		var density = bar_densities[i]
+		var saved_chords = bar_data_map.get(i, [])
+		
+		# Logic:
+		# If we grew (1->2): saved has 1 chord. Put it in slot 1. Slot 2 is null.
+		# If we shrank (2->1): saved has 2 chords. Put 1st in slot 1. Drop 2nd.
+		# If unchanged: Copy as is.
+		
+		for k in range(density):
+			if k < saved_chords.size():
+				slots[current_slot_write + k] = saved_chords[k]
+			# else: leave null (newly created slot)
+			
+			# UI Update limit
+			slot_updated.emit(current_slot_write + k, slots[current_slot_write + k] if slots[current_slot_write + k] else {})
+			
+		current_slot_write += density
+
 	settings_updated.emit(bar_count, 1)
 	save_session()
 
@@ -223,6 +262,16 @@ func get_bar_index_for_slot(slot_index: int) -> int:
 			return i
 		current_slot += density
 	return -1
+
+## 마디 인덱스로부터 해당 마디의 첫 번째 슬롯 인덱스 반환
+func get_slot_index_for_bar(bar_index: int) -> int:
+	if bar_index < 0 or bar_index >= bar_densities.size():
+		return -1
+	
+	var current_slot = 0
+	for i in range(bar_index):
+		current_slot += bar_densities[i]
+	return current_slot
 
 ## 타일 클릭 시 현재 슬롯에 코드 데이터 저장
 func set_slot_from_tile(midi_note: int, string_index: int, is_shift: bool, is_alt: bool) -> void:

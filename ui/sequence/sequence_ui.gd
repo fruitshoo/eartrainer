@@ -242,8 +242,11 @@ func _on_split_bar_pressed() -> void:
 	if bar_idx >= 0:
 		ProgressionManager.toggle_bar_split(bar_idx)
 		
-	# 리빌드 후 선택 복원 시도? (인덱스가 바뀌므로 복잡, 일단 해제)
-	# ProgressionManager에서 이미 리셋됨
+		# [Fix] Restore selection to the modified bar's first slot
+		# This prevents highlight from jumping or disappearing.
+		var new_idx = ProgressionManager.get_slot_index_for_bar(bar_idx)
+		if new_idx >= 0:
+			ProgressionManager.selected_index = new_idx
 
 func _on_time_sig_pressed() -> void:
 	var current = ProgressionManager.beats_per_bar
@@ -331,29 +334,13 @@ func _update_loop_overlay() -> void:
 	loop_overlay_panel.update_overlay(buttons, start, end)
 
 
-func _highlight_selected(selected_idx: int) -> void:
-	var children = _get_all_slot_buttons()
-	for i in range(children.size()):
-		var btn = children[i]
+# State tracking for highlight optimization
+var _current_playing_step: int = -1
 
-		if not btn.has_method("set_highlight"): continue
-		
-		# 1. 루프 범위 확인
-		var loop_start = ProgressionManager.loop_start_index
-		var loop_end = ProgressionManager.loop_end_index
-		var is_in_loop = false
-		if loop_start != -1 and loop_end != -1:
-			if i >= loop_start and i <= loop_end:
-				is_in_loop = true
-		
-		if i == selected_idx:
-			btn.set_highlight("selected")
-		elif is_in_loop:
-			btn.set_highlight("loop") # [Fixed] 루프 구간은 별도 스타일(White) 적용
-		else:
-			btn.set_highlight("none")
+func _highlight_selected(selected_idx: int) -> void:
+	_update_all_slots_visual_state()
 	
-	# [New] Dynamic Scale Override on Slot Selection
+	# ... (Dynamic Scale Override logic remains)
 	if selected_idx >= 0:
 		var data = ProgressionManager.get_chord_data(selected_idx)
 		if not data.is_empty():
@@ -363,6 +350,34 @@ func _highlight_selected(selected_idx: int) -> void:
 	else:
 		GameManager.clear_scale_override()
 
+func _highlight_playing(playing_step: int) -> void:
+	_current_playing_step = playing_step
+	_update_all_slots_visual_state()
+
+func _update_all_slots_visual_state() -> void:
+	var children = _get_all_slot_buttons()
+	var loop_start = ProgressionManager.loop_start_index
+	var loop_end = ProgressionManager.loop_end_index
+	var selected_idx = ProgressionManager.selected_index
+	var is_loop_active = (loop_start != -1 and loop_end != -1)
+	
+	for i in range(children.size()):
+		var btn = children[i]
+		if not btn.has_method("set_state"): continue
+		
+		var is_playing = (i == _current_playing_step)
+		var is_selected = (i == selected_idx)
+		var is_in_loop = false
+		if is_loop_active:
+			if i >= loop_start and i <= loop_end:
+				is_in_loop = true
+		
+		btn.set_state(is_playing, is_selected, is_in_loop)
+		
+		# Auto-scroll logic (keep simple)
+		if is_playing and btn.is_inside_tree():
+			_ensure_visible(btn)
+
 func _update_slot_label(index: int, data: Dictionary) -> void:
 	var buttons = _get_all_slot_buttons()
 	if index >= buttons.size():
@@ -371,35 +386,6 @@ func _update_slot_label(index: int, data: Dictionary) -> void:
 	var btn = buttons[index]
 	if btn and btn.has_method("update_info"):
 		btn.update_info(data)
-
-# ============================================================
-# PLAYBACK VISUALS
-# ============================================================
-func _highlight_playing(playing_step: int) -> void:
-	var buttons = _get_all_slot_buttons()
-	for i in range(buttons.size()):
-		var btn = buttons[i]
-		if btn.has_method("set_highlight"):
-			# 1. 루프 범위 확인
-			var loop_start = ProgressionManager.loop_start_index
-			var loop_end = ProgressionManager.loop_end_index
-			var is_in_loop = false
-			if loop_start != -1 and loop_end != -1:
-				if i >= loop_start and i <= loop_end:
-					is_in_loop = true
-
-			if i == playing_step:
-				btn.set_highlight("playing")
-			elif i == ProgressionManager.selected_index:
-				btn.set_highlight("selected")
-			elif is_in_loop:
-				btn.set_highlight("loop")
-			else:
-				btn.set_highlight("none")
-			
-			# [New] Auto-scroll to playing row
-			if i == playing_step and btn.is_inside_tree():
-				_ensure_visible(btn)
 
 # [New] Helper to traverse nested rows
 func _get_all_slot_buttons() -> Array:
