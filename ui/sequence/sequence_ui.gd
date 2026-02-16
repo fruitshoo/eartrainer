@@ -31,6 +31,13 @@ var selected_melody_slot: Dictionary = {} # {bar, beat, sub}
 var _is_dragging_melody: bool = false
 var _is_erasing_melody: bool = false
 var _drag_source_data: Dictionary = {}
+
+# [New] Hold Gesture State
+var _hold_start_time: int = 0
+var _hold_timer: SceneTreeTimer = null
+var _is_hold_preview_active: bool = false
+var _last_pressed_note_data: Dictionary = {}
+
 var _last_tile_click_frame: int = -1
 
 
@@ -84,6 +91,7 @@ func _setup_signals() -> void:
 	
 	EventBus.tile_right_clicked.connect(_on_tile_right_clicked)
 	EventBus.tile_clicked.connect(_on_tile_clicked)
+	EventBus.tile_released.connect(_on_tile_released)
 
 func _setup_controls() -> void:
 	var clear_melody_button = %ClearMelodyButton
@@ -713,6 +721,15 @@ func _unhandled_input(event: InputEvent) -> void:
 			if event.ctrl_pressed or event.meta_pressed:
 				_undo_melody()
 				get_viewport().set_input_as_handled()
+		
+		# [New] WASD Navigation (Context Aware)
+		elif not selected_melody_slot.is_empty():
+			if event.keycode == KEY_D:
+				_advance_melody_selection()
+				get_viewport().set_input_as_handled()
+			elif event.keycode == KEY_A:
+				_regress_melody_selection()
+				get_viewport().set_input_as_handled()
 				
 	# [New] Click outside to exit melody input
 	if event is InputEventMouseButton and event.pressed:
@@ -791,14 +808,76 @@ func _on_tile_clicked(midi_note: int, string_index: int, _modifiers: Dictionary)
 			"duration": 0.5
 		}
 		
+		# [New] Hold Logic: Start tracking
+		_hold_start_time = Time.get_ticks_msec()
+		_last_pressed_note_data = note_data.duplicate()
+		_is_hold_preview_active = false
+		
+		# Start a timer for visual preview after 0.3s
+		if _hold_timer:
+			_hold_timer.timeout.disconnect(_on_hold_timeout)
+			
+		_hold_timer = get_tree().create_timer(0.3)
+		_hold_timer.timeout.connect(_on_hold_timeout)
+		
 		var bar = selected_melody_slot["bar"]
 		var beat = selected_melody_slot["beat"]
 		var sub = selected_melody_slot["sub"]
 		
 		ProgressionManager.set_melody_note(bar, beat, sub, note_data)
-		_advance_melody_selection()
+		# NOTE: We DON'T advance yet. We wait for release to see if it becomes a 4th note.
 		get_viewport().set_input_as_handled()
-		return # [Exit] Don't process Chord Mode logic
+
+func _on_hold_timeout() -> void:
+	if _hold_start_time == 0 or selected_melody_slot.is_empty(): return
+	
+	_is_hold_preview_active = true
+	
+	# Preview the next slice as a sustain
+	var bar = selected_melody_slot["bar"]
+	var beat = selected_melody_slot["beat"]
+	var sub = selected_melody_slot["sub"]
+	
+	# Calculate next slot
+	sub += 1
+	if sub >= 2:
+		sub = 0
+		beat += 1
+		if beat >= ProgressionManager.beats_per_bar:
+			beat = 0
+			bar += 1
+			if bar >= ProgressionManager.bar_count:
+				return # End of sequence
+				
+	var sustain_data = _last_pressed_note_data.duplicate()
+	sustain_data["is_sustain"] = true
+	ProgressionManager.set_melody_note(bar, beat, sub, sustain_data)
+	# GameLogger.info("[SequenceUI] Hold Preview Activated")
+
+func _on_tile_released(midi_note: int, string_index: int) -> void:
+	if _hold_start_time == 0: return
+	
+	var elapsed = Time.get_ticks_msec() - _hold_start_time
+	_hold_start_time = 0 # Reset
+	
+	if not selected_melody_slot.is_empty():
+		if elapsed >= 300:
+			# Long Press (4th Note / 2 slots)
+			# Advance twice
+			_advance_melody_selection()
+			_advance_melody_selection()
+			# GameLogger.info("[SequenceUI] 4th Note Input Confirmed (Hold)")
+		else:
+			# Short Press (8th Note / 1 slot)
+			# If preview was active, we might need to clear it? 
+			# Actually, if they release just before 0.3s it's fine.
+			# If they release AFTER 0.3s but it was still meant to be an 8th? 
+			# In DAW, it's usually deterministic based on duration.
+			_advance_melody_selection()
+			# GameLogger.info("[SequenceUI] 8th Note Input Confirmed (Click)")
+	
+	_last_pressed_note_data = {}
+	_is_hold_preview_active = false
 
 	# Check if we are in "Slot Editing Mode" (Sequence Slot Selected)
 	var selected_idx = ProgressionManager.selected_index
