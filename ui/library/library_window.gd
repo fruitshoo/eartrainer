@@ -1,7 +1,7 @@
 # library_window.gd
 # 전용 라이브러리 창 - 프리셋(진행) 및 곡(Song) 목록 관리
 class_name LibraryWindow
-extends Control
+extends BaseSidePanel
 
 # ============================================================
 # ENUMS
@@ -31,163 +31,59 @@ var name_input: LineEdit
 # ============================================================
 # CONSTANTS & STATE
 # ============================================================
-const PANEL_WIDTH := 340.0
-const TWEEN_DURATION := 0.3
-
 var current_mode: LibraryTabMode = LibraryTabMode.PRESETS
 var selected_item: String = ""
-var is_open: bool = false
-var _tween: Tween
 
 # ============================================================
 # LIFECYCLE
 # ============================================================
-func _ready() -> void:
-	_build_ui()
-	_update_position(false)
-	visible = false
-	_refresh_list()
+# _ready handled by BaseSidePanel -> _build_content
 
 func open() -> void:
-	visible = true
-	set_open(true)
+	# Force reset anchors/offsets to ensure correct right-side positioning
+	set_anchors_and_offsets_preset(Control.PRESET_RIGHT_WIDE)
+	_update_position(false) # Reset to closed state bounds first
+	
+	super.open()
 	_refresh_list()
 
 func close() -> void:
-	set_open(false)
+	super.close()
 
 func set_open(do_open: bool) -> void:
-	if is_open != do_open:
-		is_open = do_open
-		_animate_slide(do_open)
-		EventBus.settings_visibility_changed.emit(do_open)
-
-func _update_position(do_open: bool) -> void:
-	if do_open:
-		offset_left = - PANEL_WIDTH
-		offset_right = 0
-	else:
-		offset_left = 0
-		offset_right = PANEL_WIDTH
-
-func _animate_slide(do_open: bool) -> void:
-	if _tween: _tween.kill()
-	var target_l = - PANEL_WIDTH if do_open else 0.0
-	var target_r = 0.0 if do_open else PANEL_WIDTH
-	
-	if do_open: visible = true
-	
-	_tween = create_tween()
-	_tween.set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_CUBIC).set_parallel(true)
-	_tween.tween_property(self, "offset_left", target_l, TWEEN_DURATION)
-	_tween.tween_property(self, "offset_right", target_r, TWEEN_DURATION)
-	
-	if not do_open:
-		_tween.set_parallel(false)
-		_tween.tween_callback(func(): visible = false)
+	super.set_open(do_open)
 
 # ============================================================
-# UI BUILDER
+# VIRTUAL METHODS
 # ============================================================
-func _build_ui() -> void:
-	set_anchors_and_offsets_preset(Control.PRESET_RIGHT_WIDE)
-	mouse_filter = Control.MOUSE_FILTER_IGNORE
+func _build_content() -> void:
+	# 1. Capture References from Scene
+	var main_container = %MainContainer
+	presets_tab_btn = %PresetsTabBtn
+	songs_tab_btn = %SongsTabBtn
+	preset_list_container = %PresetListContainer
+	name_input = %NameInput
+	save_btn = %SaveBtn
+	
+	# 2. Integrate Scene Layout into BaseSidePanel
+	# Move the pre-defined layout into the BaseSidePanel's content area
+	if main_container:
+		remove_child(main_container)
+		_content_container.add_child(main_container)
+		main_container.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		main_container.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	
+	# 3. Setup Connections
+	presets_tab_btn.toggled.connect(_on_mode_toggled.bind(LibraryTabMode.PRESETS))
+	songs_tab_btn.toggled.connect(_on_mode_toggled.bind(LibraryTabMode.SONGS))
+	save_btn.pressed.connect(_on_save_pressed)
+	
+	# Theme setup (optional, scene might already have it)
 	theme = _main_theme
 	
-	var root_margin = MarginContainer.new()
-	root_margin.set_anchors_preset(Control.PRESET_FULL_RECT)
-	root_margin.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	root_margin.add_theme_constant_override("margin_top", 100)
-	root_margin.add_theme_constant_override("margin_bottom", 120)
-	root_margin.add_theme_constant_override("margin_right", 12) # [v1.3] Unified Float Gap
-	add_child(root_margin)
-	
-	var bg = PanelContainer.new()
-	bg.clip_contents = true # [v1.4] Enforce Floating Clip
-	root_margin.add_child(bg)
-	
-	# Light Theme Style (Sync with main_theme.tres)
-	var bg_style = StyleBoxFlat.new()
-	bg_style.bg_color = Color(0.98, 0.98, 1, 0.75)
-	bg_style.corner_radius_top_left = 24
-	bg_style.corner_radius_bottom_left = 24
-	bg_style.corner_radius_top_right = 24 # [v1.3] Unified
-	bg_style.corner_radius_bottom_right = 24
-	bg_style.border_width_left = 1
-	bg_style.border_width_top = 1
-	bg_style.border_width_bottom = 1
-	bg_style.border_width_right = 1 # [v1.3] Unified Border
-	bg_style.border_color = Color(1, 1, 1, 0.5)
-	bg_style.shadow_color = Color(0, 0, 0, 0.1)
-	bg_style.shadow_size = 8
-	bg.add_theme_stylebox_override("panel", bg_style)
-	
-	var main_vbox = VBoxContainer.new()
-	main_vbox.add_theme_constant_override("separation", 0)
-	bg.add_child(main_vbox)
-	
-	# --- Content Area ---
-	var content_margin = MarginContainer.new()
-	content_margin.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	content_margin.add_theme_constant_override("margin_left", 24) # [v1.3] Unified Padding
-	content_margin.add_theme_constant_override("margin_right", 24)
-	content_margin.add_theme_constant_override("margin_top", 12)
-	content_margin.add_theme_constant_override("margin_bottom", 12)
-	main_vbox.add_child(content_margin)
-	
-	var content_vbox = VBoxContainer.new()
-	content_vbox.add_theme_constant_override("separation", 20)
-	content_margin.add_child(content_vbox)
-	
-	# --- Mode Tabs (Progressions / Songs) ---
-	var tabs = HBoxContainer.new()
-	tabs.add_theme_constant_override("separation", 8)
-	content_vbox.add_child(tabs)
-	
-	presets_tab_btn = _create_tab_button("Progressions", true)
-	presets_tab_btn.toggled.connect(_on_mode_toggled.bind(LibraryTabMode.PRESETS))
-	tabs.add_child(presets_tab_btn)
-	
-	songs_tab_btn = _create_tab_button("Songs", false)
-	songs_tab_btn.toggled.connect(_on_mode_toggled.bind(LibraryTabMode.SONGS))
-	tabs.add_child(songs_tab_btn)
-	
-	# --- Scrollable List ---
-	var scroll = ScrollContainer.new()
-	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
-	content_vbox.add_child(scroll)
-	
-	preset_list_container = VBoxContainer.new()
-	preset_list_container.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	preset_list_container.add_theme_constant_override("separation", 4)
-	scroll.add_child(preset_list_container)
-	
-	content_vbox.add_child(HSeparator.new())
-	
-	# --- Save Input ---
-	var save_row = HBoxContainer.new()
-	save_row.add_theme_constant_override("separation", 8)
-	content_vbox.add_child(save_row)
-	
-	name_input = LineEdit.new()
-	name_input.placeholder_text = "Enter name..."
-	name_input.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	save_row.add_child(name_input)
-	
-	save_btn = Button.new()
-	save_btn.text = "Save"
-	save_btn.pressed.connect(_on_save_pressed)
-	save_row.add_child(save_btn)
+	# Initial Refresh
+	_refresh_list()
 
-func _create_tab_button(text: String, active: bool) -> Button:
-	var btn = Button.new()
-	btn.text = text
-	btn.toggle_mode = true
-	btn.button_pressed = active
-	btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	btn.focus_mode = Control.FOCUS_NONE
-	return btn
 
 # ============================================================
 # LOGIC

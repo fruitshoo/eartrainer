@@ -10,6 +10,7 @@ extends Camera3D
 @export_group("Sensitivity")
 @export var drag_sensitivity: float = 1.0
 @export var orbit_sensitivity: float = 0.5
+@export var keyboard_sensitivity: float = 20.0 # [New]
 
 # DOF Settings
 @export var dof_sharpness_range: float = 8.0
@@ -86,6 +87,9 @@ func _process(delta):
 	# 3. Update Pan/Drag (Smooth)
 	# -----------------------------------------------
 	drag_offset = drag_offset.lerp(target_drag_offset, delta * pan_speed)
+	
+	# [New] Keyboard Input Processing
+	_process_keyboard_input(delta)
 
 	# -----------------------------------------------
 	# 4. Update Pivot (Tracking Player)
@@ -222,6 +226,35 @@ func _unhandled_input(event):
 			var move_vec = (right_dir * -event.relative.x + up_dir * event.relative.y) * pixel_to_unit
 			target_drag_offset += move_vec
 
+	# [New] Trackpad Magnify (Pinch to Zoom)
+	if event is InputEventMagnifyGesture:
+		# Magnify gesture factor: 1.0 is no change, > 1.0 is zoom in, < 1.0 is zoom out
+		# Map this to target_size decrement/increment
+		var zoom_delta = (event.factor - 1.0) * target_size * 2.0
+		target_size = clamp(target_size - zoom_delta, 3.0, 20.0)
+
+	# [New] Trackpad Pan / Orbit Gesture
+	if event is InputEventPanGesture:
+		if event.is_command_or_control_pressed():
+			# Orbit with Command + Two-finger Swipe (Inverted for Natural feel)
+			target_yaw += event.delta.x * orbit_sensitivity * 0.05
+			target_pitch += event.delta.y * orbit_sensitivity * 0.05
+			target_pitch = clamp(target_pitch, deg_to_rad(-85), deg_to_rad(-15))
+		else:
+			# Pan with Two-finger Swipe (Inverted for Natural feel)
+			var viewport_height = get_viewport().get_visible_rect().size.y
+			var fov_scale = current_zoom
+			var pan_unit = (20.0 / viewport_height) * drag_sensitivity * fov_scale * 5.0
+			
+			var right_dir = transform.basis.x
+			var up_dir = transform.basis.y
+			
+			# Swapped signs for natural feel: Fingers move UP -> Content moves UP (relative to camera) 
+			# or rather Fingers move UP -> Offset moves DOWN in screen space? 
+			# Let's try simple inversion of the previous logic.
+			var move_vec = (right_dir * event.delta.x + up_dir * -event.delta.y) * pan_unit
+			target_drag_offset += move_vec
+
 func reset_view():
 	# Reset Targets
 	var tween = create_tween().set_parallel(true).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
@@ -229,3 +262,29 @@ func reset_view():
 	tween.tween_property(self, "target_size", 10.0, 0.5)
 	tween.tween_property(self, "target_yaw", deg_to_rad(135.0), 0.5)
 	tween.tween_property(self, "target_pitch", deg_to_rad(-30.0), 0.5)
+
+func _process_keyboard_input(delta: float) -> void:
+	# Skip if editing text (though usually handled by UI focus, explicit check handles edge cases)
+	# But basic Input.get_vector handles UI actions well.
+	
+	var input_dir = Input.get_vector("ui_left", "ui_right", "ui_up", "ui_down")
+	if input_dir == Vector2.ZERO: return
+	
+	# Calculate movement vector relative to camera orientation
+	var viewport_height = get_viewport().get_visible_rect().size.y
+	# Protect against zero division or invalid viewport
+	if viewport_height <= 0: viewport_height = 1080.0
+	
+	var fov_scale = current_zoom # Scale speed with zoom level
+	
+	# Base speed factor (Arbitrary visual feel adjustment)
+	var speed_factor = keyboard_sensitivity * fov_scale * delta
+	
+	var right_dir = transform.basis.x
+	var up_dir = transform.basis.y # Camera Local Y is "Up" on screen
+	
+	# Invert Y for natural feel (Up key moves camera Up -> Content moves Down)
+	# [Fix] User requested standard keyboard control (Up key moves Camera UP)
+	var move_vec = (right_dir * input_dir.x - up_dir * input_dir.y) * speed_factor
+	
+	target_drag_offset += move_vec

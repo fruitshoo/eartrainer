@@ -1,0 +1,15 @@
+[node name="TopBarPanel" type="PanelContainer" parent="." unique_id=984070373]
+unique_name_in_owner = true
+layout_mode = 1
+anchors_preset = 5
+anchor_left = 0.5
+anchor_right = 0.5
+offset_left = -291.0
+offset_right = 291.0
+offset_bottom = 56.0
+grow_horizontal = 2
+
+# Inside TopBar:
+[node name="KeyButton" type="Button" parent="TopBarPanel/MarginContainer/TopBar" unique_id=1418992411]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(220, 0)

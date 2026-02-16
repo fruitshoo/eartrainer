@@ -7,6 +7,7 @@ extends Node
 # ============================================================
 signal settings_changed
 signal player_moved
+signal ui_scale_changed(value: float)
 
 enum NotationMode {CDE, DOREMI, DEGREE}
 
@@ -127,6 +128,14 @@ var camera_deadzone: float = 4.0:
 	set(value):
 		camera_deadzone = clampf(value, 0.0, 10.0)
 		settings_changed.emit()
+
+var ui_scale: float = 1.0:
+	set(value):
+		var old_scale = ui_scale
+		ui_scale = clampf(value, 0.5, 1.2)
+		if old_scale != ui_scale:
+			ui_scale_changed.emit(ui_scale)
+			settings_changed.emit()
 
 var is_rhythm_mode_enabled: bool = false:
 	set(value):
@@ -299,6 +308,7 @@ func save_settings() -> void:
 		"is_rhythm_mode_enabled": is_rhythm_mode_enabled,
 		"default_preset_name": default_preset_name,
 		"current_theme_name": current_theme_name,
+		"ui_scale": ui_scale,
 		"volume_settings": _get_volume_settings() # [New]
 	}
 	
@@ -328,6 +338,7 @@ func load_settings() -> void:
 	
 	is_settings_loaded = true # [Fix]
 	settings_loaded.emit()
+	settings_changed.emit() # Ensure explicit update for listeners (HUD scale, etc.)
 
 func _deserialize_settings(data: Dictionary) -> void:
 	current_key = int(data.get("current_key", 0))
@@ -359,6 +370,7 @@ func _deserialize_settings(data: Dictionary) -> void:
 	
 	focus_range = int(data.get("focus_range", 3))
 	camera_deadzone = float(data.get("camera_deadzone", 4.0))
+	self.ui_scale = float(data.get("ui_scale", 1.0))
 	is_rhythm_mode_enabled = data.get("is_rhythm_mode_enabled", false)
 	default_preset_name = data.get("default_preset_name", "")
 	var loaded_theme = data.get("current_theme_name", "Default")

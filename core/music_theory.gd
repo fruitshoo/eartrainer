@@ -335,7 +335,21 @@ static func toggle_quality(current_type: String) -> String:
 # STATIC FUNCTIONS - 도수 레이블
 # ============================================================
 
-## 반음 간격으로 로마 숫자 도수 반환
+## 루트와 타입으로부터 디그리 (로마 숫자) 반환
+static func get_degree_numeral(chord_root: int, chord_type: String, key_root: int) -> String:
+	var interval := _get_interval(chord_root, key_root)
+	
+	# 로마 숫자 매핑
+	const NUMERALS = ["I", "♭II", "II", "♭III", "III", "IV", "♯IV", "V", "♭VI", "VI", "♭VII", "VII"]
+	var numeral: String = NUMERALS[interval]
+	
+	# 마이너/디미니시 코드는 소문자로
+	if chord_type.begins_with("m") or chord_type.begins_with("dim") or chord_type == "°":
+		numeral = numeral.to_lower()
+	
+	return numeral + chord_type
+
+## 반음 간격으로 로마 숫자 도수 반환 (스케일 모드 기반)
 static func get_degree_label(chord_root: int, key_root: int, mode: ScaleMode) -> String:
 	var interval := _get_interval(chord_root, key_root)
 	return DEGREE_LABELS[mode].get(interval, "?")

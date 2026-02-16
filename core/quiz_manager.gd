@@ -17,56 +17,55 @@ enum IntervalMode {ASCENDING, DESCENDING, HARMONIC}
 # ============================================================
 var current_quiz_type: QuizType = QuizType.NONE
 
-# -- Note Quiz State --
+# -- State Sync (Used by handlers/playback) --
 var current_target_note: int = -1
-
-# -- Interval Quiz State --
 var interval_root_note: int = -1
 var interval_target_note: int = -1
 var interval_semitones: int = 0
-# Settings
-var active_modes: Array = [IntervalMode.ASCENDING] # Default
-var active_intervals: Array = [0, 2, 4, 5, 7, 9, 11, 12] # Default Major Scale intervals
+var current_interval_mode: int = 0 # 0=Asc, 1=Desc, 2=Harmonic
+var pitch_target_class: int = -1
+var pitch_target_note_actual: int = -1
+var chord_target_type: String = ""
+var _current_root_fret: int = -1
 
-# -- Absolute Pitch Quiz State --
-var pitch_target_class: int = -1 # 0-11
-var active_pitch_classes: Array = [0, 2, 4, 5, 7, 9, 11] # Default C Major
-var pitch_target_note_actual: int = -1 # Actual midi note played
+# -- Settings (Accessed by Handlers) --
+var active_modes: Array = [IntervalMode.ASCENDING]
+var active_intervals: Array = [0, 2, 4, 5, 7, 9, 11, 12]
+var active_pitch_classes: Array = [0, 2, 4, 5, 7, 9, 11]
+var active_chord_types: Array = ["maj", "min"]
+var chord_root_mode: String = "fixed"
+var chord_fixed_root: int = 60
 
-# -- Chord Quiz State --
-var chord_target_type: String = "" # "maj", "min7" etc
-var active_chord_types: Array = ["maj", "min"] # Default Tier 1
-var chord_root_mode: String = "fixed" # "fixed" (C), "random"
-var chord_fixed_root: int = 60 # C4 Middle C
+# [New] Chord Training Settings
+var chord_inversion_mode: int = 0 # 0=Root, 1=1st, 2=2nd, 3=Random
+var chord_playback_direction: int = 2 # 0=Up, 1=Down, 2=Harmonic, 3=Random
 
-var one_octave_limit: bool = true
-# Current Question State
-var current_interval_mode: IntervalMode = IntervalMode.ASCENDING
-var _current_root_fret: int = -1 # Used to anchor reward visuals
+# -- Handler Strategy --
+var _handlers: Dictionary = {}
+var _active_handler: BaseQuizHandler = null
 
 # ============================================================
 # LIFECYCLE
 # ============================================================
 func _ready():
 	EventBus.tile_clicked.connect(_on_tile_clicked)
+	_init_handlers()
+
+func _init_handlers():
+	_handlers = {
+		QuizType.PITCH_CLASS: PitchQuizHandler.new(self),
+		QuizType.CHORD_QUALITY: ChordQuizHandler.new(self),
+		QuizType.INTERVAL: IntervalQuizHandler.new(self),
+		QuizType.NOTE_LOCATION: NoteQuizHandler.new(self)
+	}
 
 func _on_tile_clicked(note: int, string_idx: int, _modifiers: Dictionary):
-	# Always play sound (Free Play Feedback)
-	# Assuming AudioEngine is an Autoload or accessible singleton
 	if AudioEngine:
 		AudioEngine.play_note(note, string_idx)
 
-	# Dispatch based on active quiz type
-	if current_quiz_type == QuizType.NOTE_LOCATION:
-		check_note_answer(note)
-	elif current_quiz_type == QuizType.INTERVAL:
-		check_interval_answer_with_tile(note, string_idx)
-	elif current_quiz_type == QuizType.PITCH_CLASS:
-		check_pitch_answer(note, string_idx)
-	elif current_quiz_type == QuizType.CHORD_QUALITY:
-		# Chord quiz might use buttons primarily, but if clicking notes...
-		# Maybe clicking root? For now, ignore tile input for chords or make it "Play Note"
-		pass
+	# Dispatch to active handler
+	if _active_handler:
+		_active_handler.on_tile_clicked(note, string_idx)
 
 # ============================================================
 # CORE FUNCTIONS
@@ -75,11 +74,47 @@ func _on_tile_clicked(note: int, string_idx: int, _modifiers: Dictionary):
 # State for restoring visuals
 var _saved_visual_settings: Dictionary = {}
 
-func start_pitch_quiz():
+func _switch_to_handler(type: QuizType) -> BaseQuizHandler:
 	_stop_playback()
-	_clear_markers() # Clear previous question's visual
+	_clear_markers()
 	
-	# [New] Auto-Hide Visual Cheats
+	current_quiz_type = type
+	_active_handler = _handlers.get(type)
+	return _active_handler
+
+func start_pitch_quiz():
+	var h = _switch_to_handler(QuizType.PITCH_CLASS)
+	if h: h.start_quiz()
+
+func check_pitch_answer(clicked_note: int, string_idx: int):
+	if _active_handler and current_quiz_type == QuizType.PITCH_CLASS:
+		_active_handler.on_tile_clicked(clicked_note, string_idx)
+
+func start_chord_quiz():
+	var h = _switch_to_handler(QuizType.CHORD_QUALITY)
+	if h: h.start_quiz()
+
+func check_chord_answer(start_type: String):
+	if _active_handler and current_quiz_type == QuizType.CHORD_QUALITY:
+		_active_handler.check_answer(start_type)
+
+func start_note_quiz():
+	var h = _switch_to_handler(QuizType.NOTE_LOCATION)
+	if h: h.start_quiz()
+
+func check_note_answer(clicked_note: int):
+	if _active_handler and current_quiz_type == QuizType.NOTE_LOCATION:
+		_active_handler.check_answer(clicked_note)
+
+func start_interval_quiz():
+	var h = _switch_to_handler(QuizType.INTERVAL)
+	if h: h.start_quiz()
+
+func check_interval_answer_with_tile(note: int, string_idx: int):
+	if _active_handler and current_quiz_type == QuizType.INTERVAL:
+		_active_handler.on_tile_clicked(note, string_idx)
+
+func _auto_hide_visuals():
 	if _saved_visual_settings.is_empty():
 		_saved_visual_settings = {
 			"root": GameManager.highlight_root,
@@ -91,173 +126,10 @@ func start_pitch_quiz():
 		GameManager.highlight_chord = false
 		GameManager.highlight_scale = false
 		GameManager.settings_changed.emit() # Force update
-	
-	current_quiz_type = QuizType.PITCH_CLASS
-	
-	if active_pitch_classes.is_empty():
-		print("[QuizManager] No pitch classes selected!")
-		return
-		
-	# 1. Select Target Pitch Class
-	pitch_target_class = active_pitch_classes.pick_random()
-	
-	# 2. Select Octave (Range E2(40) to E5(76) approx)
-	# Safe range 45(A2) to 70(Bb4)
-	var octave = randi_range(3, 5)
-	pitch_target_note_actual = (octave * 12) + pitch_target_class
-	
-	# Ensure it's within guitar range (40 - 88 approx)
-	if pitch_target_note_actual < 40: pitch_target_note_actual += 12
-	if pitch_target_note_actual > 80: pitch_target_note_actual -= 12
-	
-	# Set root note for audio engine context (transposition anchor)
-	interval_root_note = pitch_target_note_actual
-	
-	print("[QuizManager] Pitch Quiz: Target Class %d (%s), Note %d" % [
-		pitch_target_class,
-		PitchQuizData.get_pitch_info(pitch_target_class).name,
-		pitch_target_note_actual
-	])
-	
-	# 3. Play Sound
-	_play_quiz_sound(QuizType.PITCH_CLASS)
-	
-	# Extract for signal
-	var info = {
-		"type": "pitch",
-		"target_class": pitch_target_class
-	}
-	quiz_started.emit(info)
-
-func check_pitch_answer(clicked_note: int, string_idx: int):
-	# Prevent multiple triggers
-	if _is_processing_correct_answer: return
-	
-	var clicked_class = clicked_note % 12
-	var is_correct = (clicked_class == pitch_target_class)
-	
-	var fret_idx = MusicTheory.get_fret_position(clicked_note, string_idx)
-	var tile = GameManager.find_tile(string_idx, fret_idx)
-	
-	if is_correct:
-		_is_processing_correct_answer = true
-		print("Correct Pitch!")
-		AudioEngine.play_sfx("correct")
-		
-		# Visual Feedback
-		if tile and tile.has_method("_show_rhythm_feedback"):
-			tile.call("_show_rhythm_feedback", {
-					"rating": "Yes! " + PitchQuizData.get_pitch_info(pitch_target_class).name,
-					"color": Color.MAGENTA
-				})
-				
-		# Play Reward (Riff for this pitch class)
-		# TODO: We need update RiffManager to fetch by (pitch, type='pitch')
-		var reward_duration = _play_reward_song(pitch_target_class, IntervalMode.ASCENDING) # Reusing func, will adapt
-		
-		quiz_answered.emit({"correct": true, "pitch_class": pitch_target_class})
-		
-		var wait_time = reward_duration + 1.0 if reward_duration > 0 else 1.0
-		var my_id = _current_playback_id
-		
-		await get_tree().create_timer(wait_time).timeout
-		
-		if _current_playback_id != my_id: return
-		if current_quiz_type != QuizType.PITCH_CLASS: return
-		
-		start_pitch_quiz()
-		
-	else:
-		print("Wrong Pitch.")
-		AudioEngine.play_sfx("wrong")
-		
-		if tile and tile.has_method("_show_rhythm_feedback"):
-			tile.call("_show_rhythm_feedback", {
-					"rating": PitchQuizData.get_pitch_info(clicked_class).name,
-					"color": Color.TOMATO
-				})
-		
-		quiz_answered.emit({"correct": false, "pitch_class": pitch_target_class})
 
 # ============================================================
-# CHORD QUIZ LOGIC
+# UTILITIES
 # ============================================================
-func start_chord_quiz():
-	_stop_playback()
-	
-	# Auto-Hide Visuals logic reuse?
-	# For chords, seeing the root might be okay if mode is Fixed Root.
-	# But generally "Blind" is better. Let's reuse the auto-hide.
-	if _saved_visual_settings.is_empty():
-		_saved_visual_settings = {
-			"root": GameManager.highlight_root,
-			"chord": GameManager.highlight_chord,
-			"scale": GameManager.highlight_scale
-		}
-		GameManager.highlight_root = false
-		GameManager.highlight_chord = false
-		GameManager.highlight_scale = false
-		GameManager.settings_changed.emit()
-
-	current_quiz_type = QuizType.CHORD_QUALITY
-	
-	if active_chord_types.is_empty():
-		print("[QuizManager] No chord types selected!")
-		return
-		
-	# 1. Select Target Chord Type
-	chord_target_type = active_chord_types.pick_random()
-	
-	# 2. Select Root
-	var root_note = 60
-	if chord_root_mode == "random":
-		root_note = randi_range(48, 64) # C3 - E4 range
-	else:
-		root_note = chord_fixed_root
-		# Maybe vary octave slightly? 
-		if randf() > 0.5: root_note -= 12
-		
-	interval_root_note = root_note # Use shared root var for playback context
-	
-	print("[QuizManager] Chord Quiz: %s on Root %d" % [chord_target_type, root_note])
-	
-	# 3. Play
-	_play_quiz_sound(QuizType.CHORD_QUALITY)
-	
-	quiz_started.emit({
-		"type": "chord",
-		"target": chord_target_type
-	})
-
-func check_chord_answer(start_type: String):
-	if _is_processing_correct_answer: return
-	
-	var is_correct = (start_type == chord_target_type)
-	
-	if is_correct:
-		_is_processing_correct_answer = true
-		print("Correct Chord!")
-		AudioEngine.play_sfx("correct")
-		
-		# Feedback? Text on screen?
-		
-		quiz_answered.emit({"correct": true, "chord_type": chord_target_type})
-		
-		var my_id = _current_playback_id
-		await get_tree().create_timer(1.2).timeout
-		
-		if _current_playback_id != my_id: return
-		if current_quiz_type != QuizType.CHORD_QUALITY: return
-		
-		start_chord_quiz()
-	else:
-		print("Wrong Chord.")
-		AudioEngine.play_sfx("wrong")
-		
-		# Replay
-		_play_quiz_sound(QuizType.CHORD_QUALITY)
-		quiz_answered.emit({"correct": false})
-
 func stop_quiz():
 	current_quiz_type = QuizType.NONE
 	_clear_markers()
@@ -272,186 +144,18 @@ func stop_quiz():
 		
 	print("[QuizManager] Quiz Stopped.")
 
-func start_note_quiz():
-	current_quiz_type = QuizType.NOTE_LOCATION
-	
-	# 6줄 12프렛 범위 내에서 랜덤한 MIDI 번호 추출
-	var random_string = randi() % 6
-	var random_fret = randi() % 13
-	
-	var root_notes = [40, 45, 50, 55, 59, 64]
-	current_target_note = root_notes[random_string] + random_fret
-	
-	AudioEngine.play_note(current_target_note)
-	quiz_started.emit({
-		"type": "note",
-		"target": current_target_note
-	})
-	print("[QuizManager] Note Quiz: ", current_target_note)
-
-func check_note_answer(clicked_note: int):
-	if current_quiz_type != QuizType.NOTE_LOCATION: return
-	
-	var is_correct = (clicked_note == current_target_note)
-	
-	if is_correct:
-		# AudioEngine.play_sfx("correct") # Todo
-		print("Correct!")
-		await get_tree().create_timer(1.0).timeout
-		start_note_quiz() # Auto Next
-	else:
-		# AudioEngine.play_sfx("wrong") # Todo
-		print("Wrong, try again.")
-		AudioEngine.play_note(current_target_note)
-		
-	quiz_answered.emit({"correct": is_correct})
+# start_note_quiz / check_note_answer removed, logic moved to NoteQuizHandler.gd
 
 
 # ============================================================
 # INTERVAL QUIZ LOGIC
 # ============================================================
 
-func start_interval_quiz():
-	_stop_playback()
-	_clear_markers() # Clear previous question's visual
-	_is_processing_correct_answer = false
-	
-	current_quiz_type = QuizType.INTERVAL
-	
-	if active_intervals.is_empty():
-		print("[QuizManager] No intervals selected!")
-		return
+# start_interval_quiz removed, logic moved to IntervalQuizHandler.gd
 
-	# 1. Select Interval (First, to know what we are looking for)
-	interval_semitones = active_intervals.pick_random()
-	
-	# 2. Determine Mode
-	if active_modes.is_empty():
-		current_interval_mode = IntervalMode.ASCENDING
-		print("[QuizManager] Active modes empty! Defaulting to ASCENDING.")
-	else:
-		current_interval_mode = active_modes.pick_random()
-		
-	print("[QuizManager] Active Modes: ", active_modes, " Selected: ", current_interval_mode)
-	
-	# 3. Find Valid Diatonic Question (Root + Target in Scale) near Player
-	# Retrieve Player Position
-	var center_fret = GameManager.player_fret
-	if center_fret < 0: center_fret = 0
-	
-	# Attempt to find a valid diatonic pair
-	var valid_found = false
-	var max_retries = 20
-	var final_string_idx = -1
-	var final_fret_idx = -1
-	
-	# Key Context
-	var key_root = GameManager.current_key
-	var key_mode = GameManager.current_mode
-	
-	for i in range(max_retries):
-		# A. Pick Root Candidates near player
-		var root_string = randi() % 4 + 1 # String 2-5
-		var root_fret = center_fret + (randi() % 3 - 1) # +/- 1 fret strict
-		root_fret = clampi(root_fret, 0, 12)
-		
-		var string_bases = [40, 45, 50, 55, 59, 64]
-		var candidate_root = string_bases[root_string] + root_fret
-		
-		# B. Calculate Target
-		var candidate_target = -1
-		if current_interval_mode == IntervalMode.DESCENDING:
-			candidate_target = candidate_root - interval_semitones
-		else:
-			# Harmonic or Ascending uses +semitones logic for base target calculation?
-			# Actually Harmonic is simultaneous, but conceptually target is usually higher unless specified.
-			# Let's keep consistent: Asc/Harmonic = Up, Desc = Down
-			candidate_target = candidate_root + interval_semitones
-			
-		# C. Bound Check (40-76)
-		if candidate_target < 40 or candidate_target > 76:
-			continue
-			
-		# D. Diatonic Check (Both Root and Target must be in Scale)
-		var root_in_scale = MusicTheory.is_in_scale(candidate_root, key_root, key_mode)
-		var target_in_scale = MusicTheory.is_in_scale(candidate_target, key_root, key_mode)
-		
-		if root_in_scale and target_in_scale:
-			interval_root_note = candidate_root
-			interval_target_note = candidate_target
-			final_string_idx = root_string
-			final_fret_idx = root_fret
-			_current_root_fret = final_fret_idx
-			valid_found = true
-			break
-			
-	if not valid_found:
-		# Fallback: Just pick a safe valid position even if chromatic
-		print("[QuizManager] Could not find diatonic pair, using chromatic fallback.")
-		_pick_fallback_question(center_fret)
-		# Fallback doesn't set string/fret explicitly, so we might need reverse lookup or update fallback
-		var pos = _find_valid_pos_for_note(interval_root_note)
-		if pos.valid:
-			final_string_idx = pos.string
-			final_fret_idx = pos.fret
-			_current_root_fret = final_fret_idx
+# _play_chord_structure removed, moved to ChordQuizHandler.gd
 
-	# [v0.4] Maintained Effect: Root stays lit (Marker Layer)
-	# User Request: "Do" should be maintained. "Wrong is not allowed" (Persist until new Q)
-	_highlight_tile(final_string_idx, final_fret_idx, Color.MAGENTA)
-	
-	# 4. Play
-	play_current_interval()
-	
-	quiz_started.emit({
-		"type": "interval",
-		"root": interval_root_note,
-		"target": interval_target_note,
-		"mode": current_interval_mode
-	})
-	print("[QuizManager] Interval Quiz: %d -> %d (%d semits)" % [interval_root_note, interval_target_note, interval_semitones])
-
-func _play_chord_structure(root: int, type: String):
-	var info = ChordQuizData.get_chord_info(type)
-	var intervals = info.get("intervals", [0, 4, 7])
-	
-	# Simple Arpeggio or Strum?
-	# Let's do a fast strum (simultaneous-ish)
-	
-	var my_id = _current_playback_id
-	
-	# Strum delay
-	for i in range(intervals.size()):
-		var note = root + intervals[i]
-		var delay = i * 0.05 # 50ms fast strum
-		
-		get_tree().create_timer(delay).timeout.connect(func():
-			if _current_playback_id != my_id: return
-			AudioEngine.play_note(note)
-			# Visuals? Maybe no visuals for blind test!
-			# EventBus.visual_note_on.emit(note, ...) 
-		)
-
-func _pick_fallback_question(center_fret: int):
-	# Pick a valid root/target near the player (center_fret)
-	var root_string = randi() % 6 # 0 to 5
-	
-	# Pick fret near center (player)
-	var min_fret = max(0, center_fret - 3)
-	var max_fret = min(19, center_fret + 3)
-	var root_fret = randi_range(min_fret, max_fret)
-	
-	var string_bases = [40, 45, 50, 55, 59, 64]
-	interval_root_note = string_bases[root_string] + root_fret
-	
-	if current_interval_mode == IntervalMode.DESCENDING:
-		interval_target_note = interval_root_note - interval_semitones
-	else:
-		interval_target_note = interval_root_note + interval_semitones
-		
-	# Simple clamp
-	if interval_target_note < 40: interval_target_note = 40; interval_root_note = 40 + interval_semitones
-	if interval_target_note > 84: interval_target_note = 84; interval_root_note = 84 - interval_semitones
+# _pick_fallback_question removed, logic moved to IntervalQuizHandler.gd
 
 var _active_markers: Array = [] # List of tiles with active markers
 
@@ -543,7 +247,8 @@ func _play_quiz_sound(type: QuizType):
 		return
 		
 	if type == QuizType.CHORD_QUALITY:
-		_play_chord_structure(interval_root_note, chord_target_type)
+		if _active_handler and _active_handler.has_method("_play_chord_structure"):
+			_active_handler.call("_play_chord_structure", interval_root_note, chord_target_type)
 		return
 
 	# Pulse the root visual again when playing? (Optional now that we blink)
@@ -571,90 +276,7 @@ func _play_quiz_sound(type: QuizType):
 
 # check_interval_answer removed - was unused legacy code
 
-func check_interval_answer_with_tile(clicked_note: int, string_idx: int):
-	# Prevent multiple triggers while reward is playing
-	if _is_processing_correct_answer:
-		return
-
-	# Calculate correctness
-	var is_correct = false
-	
-	if current_interval_mode == IntervalMode.ASCENDING:
-		is_correct = (clicked_note == interval_target_note)
-	elif current_interval_mode == IntervalMode.DESCENDING:
-		is_correct = (clicked_note == interval_target_note)
-	elif current_interval_mode == IntervalMode.HARMONIC:
-		is_correct = (abs(clicked_note - interval_root_note) == interval_semitones)
-		
-	# Find Tile for Visual Feedback
-	var fret_idx = MusicTheory.get_fret_position(clicked_note, string_idx)
-	var tile = GameManager.find_tile(string_idx, fret_idx)
-	
-	if is_correct:
-		_is_processing_correct_answer = true
-		print("Correct! Reward Time!")
-		
-		# SFX
-		AudioEngine.play_sfx("correct")
-		
-		# Feedback Visual: Perfect!
-		if tile and tile.has_method("_show_rhythm_feedback"):
-			tile.call("_show_rhythm_feedback", {
-				"rating": "Perfect!",
-				"color": Color.CYAN
-			})
-		
-		# Visual Feedback: Highlight both tiles (Root & Target)
-		# 1. Re-highlight Root (if we know it)
-		var root_pos = _find_valid_pos_for_note(interval_root_note, _current_root_fret)
-		if root_pos.valid:
-			_highlight_tile(root_pos.string, root_pos.fret, Color.MAGENTA)
-			
-		# 2. Highlight Target (Clicked Tile)
-		_highlight_tile(string_idx, fret_idx, Color.MAGENTA)
-		
-		var reward_duration = _play_reward_song(interval_semitones, current_interval_mode)
-		
-		quiz_answered.emit({"correct": true, "interval": interval_semitones})
-		
-		# _clear_markers() # Keep them lit during reward!
-		
-		# Dynamic delay: Wait for song + buffer
-		var my_id = _current_playback_id
-		var wait_time = reward_duration + 1.0 if reward_duration > 0 else 1.0
-		
-		await get_tree().create_timer(wait_time).timeout
-		
-		# Guard: If interrupted (New Question pressed), don't auto-start
-		if _current_playback_id != my_id:
-			return
-			
-		# Guard: If quiz type changed
-		if current_quiz_type != QuizType.INTERVAL:
-			return
-			
-		start_interval_quiz()
-	else:
-		print("Wrong.")
-		# SFX
-		AudioEngine.play_sfx("wrong")
-		
-		# Feedback Visual: Wrong
-		if tile and tile.has_method("_show_rhythm_feedback"):
-			tile.call("_show_rhythm_feedback", {
-				"rating": "Try Again",
-				"color": Color.RED
-			})
-			
-		# Give user time to hear "Wrong" and their note
-		# [User Request] Disable auto-replay on wrong answer. 
-		# Only play if Replay is pressed.
-		
-		# get_tree().create_timer(0.6).timeout.connect(func():
-		# 	if current_quiz_type == QuizType.INTERVAL: # Guard
-		# 		play_current_interval()
-		# )
-		quiz_answered.emit({"correct": false})
+# check_interval_answer_with_tile removed, moved to IntervalQuizHandler.gd
 
 # _show_feedback_text_for_note removed - was unimplemented
 

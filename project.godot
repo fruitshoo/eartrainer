@@ -23,6 +23,12 @@ ProgressionManager="*uid://cdeqxx32mc6sw"
 SettingsManager="*uid://dkv3s8una25s4"
 EventBus="*uid://ckhfi55lgvtft"
 ModalManager="*res://core/modal_manager.gd"
+GameLogger="*res://core/game_logger.gd"
+UserStatsManager="*res://core/user_stats_manager.gd"
+
+[debug]
+
+file_logging/enable_file_logging=true
 
 [display]
 

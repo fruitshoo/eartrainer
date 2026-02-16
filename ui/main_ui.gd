@@ -16,6 +16,32 @@ func _ready() -> void:
 	EventBus.request_toggle_settings.connect(_on_request_toggle_settings)
 	EventBus.request_toggle_library.connect(_on_request_toggle_library)
 	EventBus.request_show_side_panel_tab.connect(_on_side_panel_requested)
+	
+	GameManager.ui_scale_changed.connect(_on_ui_scale_changed)
+	get_tree().get_root().size_changed.connect(_update_ui_scale)
+	
+	call_deferred("_update_ui_scale")
+
+func _on_ui_scale_changed(_value: float) -> void:
+	_update_ui_scale()
+
+func _update_ui_scale() -> void:
+	var scale_val = GameManager.ui_scale
+	
+	if hud and hud.has_method("set_ui_scale"):
+		GameLogger.info("MainUI calling HUD set_ui_scale: %s" % scale_val)
+		hud.set_ui_scale(scale_val)
+		
+	if sequence_ui and sequence_ui.has_method("set_ui_scale"):
+		sequence_ui.set_ui_scale(scale_val)
+		
+	# Apply to Side Panels
+	if settings_window and settings_window.has_method("set_ui_scale"):
+		settings_window.set_ui_scale(scale_val)
+	if library_window and library_window.has_method("set_ui_scale"):
+		library_window.set_ui_scale(scale_val)
+	if side_panel and side_panel.has_method("set_ui_scale"):
+		side_panel.set_ui_scale(scale_val)
 
 func _on_request_toggle_settings() -> void:
 	if settings_window.is_open:
