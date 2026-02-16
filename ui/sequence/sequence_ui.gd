@@ -31,6 +31,7 @@ var selected_melody_slot: Dictionary = {} # {bar, beat, sub}
 var _is_dragging_melody: bool = false
 var _is_erasing_melody: bool = false
 var _drag_source_data: Dictionary = {}
+var _last_tile_click_frame: int = -1
 
 
 # ============================================================
@@ -38,12 +39,33 @@ var _drag_source_data: Dictionary = {}
 # ============================================================
 
 func _ready() -> void:
+	add_to_group("sequence_ui")
 	_setup_signals()
 	_setup_controls()
 	_setup_context_menu()
 	
 	_sync_ui_from_manager()
 	_rebuild_slots()
+
+func _process(_delta: float) -> void:
+	pass
+
+func _handle_void_click_deferred(captured_frame: int) -> void:
+	# Use the specific frame index captured when the event originated for the check.
+	if _last_tile_click_frame >= captured_frame:
+		return
+		
+	# Additional Safety: Check if we are hovering a Control (UI)
+	var hovered = get_viewport().gui_get_hovered_control()
+	if hovered:
+		GameLogger.info("[SequenceUI] Void click ignored - hovering UI: %s" % hovered.name)
+		return
+
+	# Otherwise, clear the selection and exit melody mode.
+	var mouse_pos = get_viewport().get_mouse_position()
+	GameLogger.info("[SequenceUI] Melody input exited via VOID click (Pos: %v, Frame: %d/%d)." % [mouse_pos, captured_frame, Engine.get_frames_drawn()])
+	selected_melody_slot = {}
+	_highlight_melody_selected()
 
 
 func _setup_signals() -> void:
@@ -342,8 +364,8 @@ func _highlight_melody_selected() -> void:
 				var melody_hbox = bar_vbox.get_child(1)
 				for m_btn in melody_hbox.get_children():
 					if m_btn.has_method("set_highlight"):
-						var is_sel = (m_btn.bar_index == selected_melody_slot.get("bar", -1) and 
-									  m_btn.beat_index == selected_melody_slot.get("beat", -1) and 
+						var is_sel = (m_btn.bar_index == selected_melody_slot.get("bar", -1) and
+									  m_btn.beat_index == selected_melody_slot.get("beat", -1) and
 									  m_btn.sub_index == selected_melody_slot.get("sub", -1))
 						m_btn.set_highlight(is_sel)
 
@@ -363,10 +385,33 @@ func _advance_melody_selection() -> void:
 			bar += 1
 			if bar >= ProgressionManager.bar_count:
 				# End of sequence
+				GameLogger.info("[SequenceUI] Melody mode exited - end of sequence reached.")
 				selected_melody_slot = {}
 				_highlight_melody_selected()
 				return
 	
+	selected_melody_slot = {"bar": bar, "beat": beat, "sub": sub}
+	_highlight_melody_selected()
+
+func _regress_melody_selection() -> void:
+	if selected_melody_slot.is_empty(): return
+	var bar = selected_melody_slot["bar"]
+	var beat = selected_melody_slot["beat"]
+	var sub = selected_melody_slot["sub"]
+	
+	sub -= 1
+	if sub < 0:
+		sub = 1 # Assuming 2 subdivisions
+		beat -= 1
+		if beat < 0:
+			beat = ProgressionManager.beats_per_bar - 1
+			bar -= 1
+			if bar < 0:
+				# Clamp to start
+				bar = 0
+				beat = 0
+				sub = 0
+				
 	selected_melody_slot = {"bar": bar, "beat": beat, "sub": sub}
 	_highlight_melody_selected()
 
@@ -390,11 +435,9 @@ func _on_split_bar_pressed() -> void:
 	if bar_idx >= 0:
 		ProgressionManager.toggle_bar_split(bar_idx)
 		
-		# [Fix] Restore selection to the modified bar's first slot
-		# This prevents highlight from jumping or disappearing.
-		var new_idx = ProgressionManager.get_slot_index_for_bar(bar_idx)
-		if new_idx >= 0:
-			ProgressionManager.selected_index = new_idx
+		# [Fix] Deselect after split/merge to prevent accidental chord changes
+		# when the user intends to play melody immediately after.
+		ProgressionManager.selected_index = -1
 
 func _on_time_sig_pressed() -> void:
 	var current = ProgressionManager.beats_per_bar
@@ -417,6 +460,7 @@ func _on_slot_clicked(index: int) -> void:
 	
 	# [New] Mutual Exclusion: Clear Melody Selection
 	if not selected_melody_slot.is_empty():
+		GameLogger.info("[SequenceUI] Melody mode exited - Chord Slot %d clicked." % index)
 		selected_melody_slot = {}
 		_highlight_melody_selected()
 	
@@ -539,6 +583,7 @@ func _update_all_slots_visual_state() -> void:
 			_ensure_visible(btn)
 
 func _on_melody_updated(bar_idx: int) -> void:
+	# GameLogger.info("[SequenceUI] _on_melody_updated called for bar %d" % bar_idx)
 	# Find the Bar VBox for this index
 	var current_bar_count = 0
 	for system_row in slot_container.get_children():
@@ -641,6 +686,13 @@ func _unhandled_input(event: InputEvent) -> void:
 			# Delegate to EventBus
 			EventBus.request_toggle_playback.emit()
 			get_viewport().set_input_as_handled()
+		elif event.keycode == KEY_ESCAPE:
+			# [New] ESC to exit melody input
+			if not selected_melody_slot.is_empty():
+				GameLogger.info("[SequenceUI] Melody mode exited - ESC key pressed.")
+				selected_melody_slot = {}
+				_highlight_melody_selected()
+				get_viewport().set_input_as_handled()
 		elif event.keycode == KEY_R:
 			EventBus.request_toggle_recording.emit()
 			get_viewport().set_input_as_handled()
@@ -661,6 +713,19 @@ func _unhandled_input(event: InputEvent) -> void:
 			if event.ctrl_pressed or event.meta_pressed:
 				_undo_melody()
 				get_viewport().set_input_as_handled()
+				
+	# [New] Click outside to exit melody input
+	if event is InputEventMouseButton and event.pressed:
+		# Only exit on LEFT click outside. Ignore Middle/Right clicks for navigation/undo.
+		if event.button_index == MOUSE_BUTTON_LEFT:
+			if not selected_melody_slot.is_empty():
+				# [Fix] Ignore if clicking on ANY UI Control (HUD, Panels, etc.)
+				# guis take priority, so if something is hovered, it's not a "void" click.
+				if get_viewport().gui_get_hovered_control():
+					return
+					
+				# Use a tiny timer instead of just call_deferred to be 100% sure physics picking finished.
+				get_tree().create_timer(0.02).timeout.connect(_handle_void_click_deferred.bind(Engine.get_frames_drawn()))
 
 # func _toggle_playback() ... Removed
 # func _toggle_record_macro() ... Removed
@@ -668,10 +733,29 @@ func _unhandled_input(event: InputEvent) -> void:
 # func _on_record_toggled() ... Removed
 
 func _clear_melody() -> void:
+	var btn = %ClearMelodyButton
+	if btn:
+		var tw = create_tween()
+		tw.tween_property(btn, "modulate", Color.RED, 0.1)
+		tw.tween_property(btn, "modulate", Color.WHITE, 0.1)
+		
+	GameLogger.info("[SequenceUI] _clear_melody() button pressed. Clearing all melody data.")
+	ProgressionManager.clear_all_melody()
+	
+	# Also clear the real-time recording manager just in case
 	var melody_manager = GameManager.get_node_or_null("MelodyManager")
 	if melody_manager and melody_manager.has_method("clear_melody"):
 		melody_manager.clear_melody()
-		# TODO: Visual feedback via UI toast?
+	
+	# Clear local selection state
+	if not selected_melody_slot.is_empty():
+		GameLogger.info("[SequenceUI] Selection cleared via Clear button.")
+		selected_melody_slot = {}
+		_highlight_melody_selected()
+	
+	# Force an immediate UI rebuild of melody buttons
+	for i in range(ProgressionManager.bar_count):
+		_on_melody_updated(i)
 
 func _undo_melody() -> void:
 	var melody_manager = GameManager.get_node_or_null("MelodyManager")
@@ -696,11 +780,13 @@ func _on_selection_cleared():
 # TILE CLICK HANDLER (INPUT WORKFLOW)
 # ============================================================
 func _on_tile_clicked(midi_note: int, string_index: int, _modifiers: Dictionary) -> void:
+	_last_tile_click_frame = Engine.get_frames_drawn()
+	GameLogger.info("[SequenceUI] _on_tile_clicked: note=%d, string=%d (Frame: %d)" % [midi_note, string_index, _last_tile_click_frame])
 	# [New] Unified View Input Routing
 	# If a Melody Slot is selected, input goes to Melody.
 	if not selected_melody_slot.is_empty():
 		var note_data = {
-			"root": midi_note, 
+			"root": midi_note,
 			"string": string_index,
 			"duration": 0.5
 		}
@@ -711,6 +797,7 @@ func _on_tile_clicked(midi_note: int, string_index: int, _modifiers: Dictionary)
 		
 		ProgressionManager.set_melody_note(bar, beat, sub, note_data)
 		_advance_melody_selection()
+		get_viewport().set_input_as_handled()
 		return # [Exit] Don't process Chord Mode logic
 
 	# Check if we are in "Slot Editing Mode" (Sequence Slot Selected)
@@ -728,6 +815,23 @@ func _on_tile_clicked(midi_note: int, string_index: int, _modifiers: Dictionary)
 # PIE MENU (RIGHT CLICK)
 # ============================================================
 func _on_tile_right_clicked(midi_note: int, string_index: int, world_pos: Vector3) -> void:
+	_last_tile_click_frame = Engine.get_frames_drawn()
+	# [New] Right-click to Undo in melody input mode
+	if not selected_melody_slot.is_empty():
+		var bar = selected_melody_slot["bar"]
+		var events = ProgressionManager.get_melody_events(bar)
+		var key = "%d_%d" % [selected_melody_slot["beat"], selected_melody_slot["sub"]]
+		
+		# If current slot is empty, move back first
+		if not events.has(key):
+			_regress_melody_selection()
+			bar = selected_melody_slot["bar"]
+			key = "%d_%d" % [selected_melody_slot["beat"], selected_melody_slot["sub"]]
+			
+		ProgressionManager.clear_melody_note(bar, selected_melody_slot["beat"], selected_melody_slot["sub"])
+		get_viewport().set_input_as_handled()
+		return
+
 	var selected_idx = ProgressionManager.selected_index
 	if selected_idx == -1:
 		return

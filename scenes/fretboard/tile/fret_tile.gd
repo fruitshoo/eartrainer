@@ -132,7 +132,13 @@ func _refresh_visuals() -> void:
 	# can_show logic
 	# [v0.4] Ensure labels show if Marker/Effect is active (e.g. Question Root),
 	# even if base tier is hidden for Anti-Cheat.
-	var can_show = is_in_focus and GameManager.show_note_labels and (visual_tier < 4 or _marker_active or _effect_active)
+	# [Fix] Keep labels visible if we are in Melody Input Mode (even if out of focus)
+	var is_melody_mode = false
+	var seq_ui = get_tree().get_first_node_in_group("sequence_ui")
+	if seq_ui and not seq_ui.selected_melody_slot.is_empty():
+		is_melody_mode = true
+		
+	var can_show = (is_in_focus or is_melody_mode) and GameManager.show_note_labels and (visual_tier < 4 or _marker_active or _effect_active)
 	
 	# 2. Update Label (3D)
 	if is_instance_valid(_label_3d):
@@ -376,6 +382,7 @@ func _on_input_event(_camera, event, _event_position, _normal, _shape_idx):
 					"shift": Input.is_key_pressed(KEY_SHIFT),
 					"alt": Input.is_key_pressed(KEY_ALT)
 				})
+				get_viewport().set_input_as_handled()
 			# Release is now handled by _input() to catch "release outside" events
 			
 		elif event.button_index == MOUSE_BUTTON_RIGHT and event.pressed:
@@ -383,3 +390,4 @@ func _on_input_event(_camera, event, _event_position, _normal, _shape_idx):
 			_animate_press() # Visual feedback
 			trigger_flash(Color.CYAN, 0.2, 1.5)
 			EventBus.tile_right_clicked.emit(midi_note, string_index, global_position)
+			get_viewport().set_input_as_handled()
