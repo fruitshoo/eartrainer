@@ -534,6 +534,23 @@ func _play_melody_note() -> void:
 			if tile:
 				tile.apply_sequencer_highlight(null)
 				_active_melody_tile = tile
+			
+			# [New] 16th Note Sub-Note: Schedule back half at midpoint
+			if note_data.has("sub_note"):
+				var sub = note_data["sub_note"]
+				var sub_root = sub.get("root", 60)
+				var sub_string = sub.get("string", 1)
+				var half_tick = (60.0 / GameManager.bpm) / 4.0 # Half of 8th note = 16th note
+				
+				get_tree().create_timer(half_tick).timeout.connect(func():
+					if not is_playing: return
+					_clear_melody_highlights()
+					AudioEngine.play_note(sub_root, sub_string, "melody", 1.0)
+					var sub_tile = GameManager.find_tile(sub_string, MusicTheory.get_fret_position(sub_root, sub_string))
+					if sub_tile:
+						sub_tile.apply_sequencer_highlight(null)
+						_active_melody_tile = sub_tile
+				)
 	else:
 		# Empty slot -> Clear previous melody highlight
 		_clear_melody_highlights()

@@ -80,10 +80,9 @@ func _setup_transport() -> void:
 		stop_button.pressed.connect(func(): EventBus.request_stop_playback.emit())
 		stop_button.focus_mode = Control.FOCUS_NONE
 		
+	# [Disabled] Real-time recording deactivated in favor of step input
 	if record_button:
-		record_button.icon = ICON_RECORD
-		record_button.toggled.connect(_on_record_toggled)
-		record_button.focus_mode = Control.FOCUS_NONE
+		record_button.visible = false
 
 	if metronome_button:
 		metronome_button.icon = ICON_METRONOME
@@ -244,14 +243,7 @@ func _animate_chord_change() -> void:
 	_chord_tween.finished.connect(func(): _is_animating = false)
 
 func _on_beat_pulsed() -> void:
-	if not key_button or not EventBus.is_sequencer_playing or _is_animating:
-		return
-	
-	var pulse_tween := create_tween()
-	pulse_tween.tween_property(key_button, "scale", Vector2(1.02, 1.02), 0.05) \
-		.set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT)
-	pulse_tween.tween_property(key_button, "scale", Vector2(1.0, 1.0), 0.1) \
-		.set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN)
+	return # [Disabled] Beat pulse animation on key button removed
 
 func _on_bar_changed(slot_index: int) -> void:
 	_current_sequencer_step = slot_index
@@ -346,4 +338,3 @@ func _update_pivot() -> void:
 		# Since it's anchored Top-Center with grow_horizontal=2, 
 		# pivot at center-top (width/2, 0) is ideal for scaling.
 		top_bar.pivot_offset = Vector2(top_bar.size.x / 2.0, 0)
-

@@ -8,9 +8,9 @@ const CHORDS = {
 	"min": {"name": "Minor", "intervals": [0, 3, 7], "tier": 1},
 	
 	# Tier 2: Basic 7ths
-	"maj7": {"name": "Major 7th", "intervals": [0, 4, 7, 11], "tier": 2},
-	"min7": {"name": "Minor 7th", "intervals": [0, 3, 7, 10], "tier": 2},
-	"dom7": {"name": "Dominant 7th", "intervals": [0, 4, 7, 10], "tier": 2},
+	"M7": {"name": "Major 7th", "intervals": [0, 4, 7, 11], "tier": 2},
+	"m7": {"name": "Minor 7th", "intervals": [0, 3, 7, 10], "tier": 2},
+	"7": {"name": "Dominant 7th", "intervals": [0, 4, 7, 10], "tier": 2},
 	
 	# Tier 3: Extensions / Altered
 	"m7b5": {"name": "Minor 7th Flat 5", "intervals": [0, 3, 6, 10], "tier": 3},

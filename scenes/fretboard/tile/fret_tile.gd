@@ -138,7 +138,17 @@ func _refresh_visuals() -> void:
 	if seq_ui and not seq_ui.selected_melody_slot.is_empty():
 		is_melody_mode = true
 		
-	var can_show = (is_in_focus or is_melody_mode) and GameManager.show_note_labels and (visual_tier < 4 or _marker_active or _effect_active)
+	# [Fix] Labels visibility: Show if in focus/melody mode AND (it's a valid tier/marker OR we are in a quiz/location mode)
+	var is_quiz_active = QuizManager.current_quiz_type != QuizManager.QuizType.NONE
+	
+	# [New] Quiz Visual Refinement: Only show if Diatonic (In-Scale)
+	var is_diatonic_visible = true
+	if is_quiz_active:
+		# If quiz is active, we ONLY show if it's in the current scale.
+		# This filters out non-diatonic notes even if they are in focus.
+		is_diatonic_visible = MusicTheory.is_in_scale(midi_note, GameManager.current_key, GameManager.current_mode)
+	
+	var can_show = is_diatonic_visible and (is_in_focus or is_melody_mode) and GameManager.show_note_labels and (visual_tier < 4 or _marker_active or _effect_active or is_quiz_active)
 	
 	# 2. Update Label (3D)
 	if is_instance_valid(_label_3d):
@@ -147,7 +157,10 @@ func _refresh_visuals() -> void:
 			_label_3d.visible = true
 			
 			# Dark Tones for high contrast against white/bright highlights
-			if midi_note % 12 == 0: # C (Root)
+			# [Fix] During Quiz, use neutral color for ALL notes to avoid confusion (User Request)
+			if is_quiz_active:
+				_label_3d.modulate = Color("#2C222C")
+			elif midi_note % 12 == 0: # C (Root) - Only in Practice Mode
 				_label_3d.modulate = Color(0.8, 0.5, 0.0) # Deep Gold/Orange
 			else:
 				_label_3d.modulate = Color("#2C222C") # Dark Graphite
@@ -380,7 +393,9 @@ func _on_input_event(_camera, event, _event_position, _normal, _shape_idx):
 					"position": global_position,
 					"fret_index": fret_index,
 					"shift": Input.is_key_pressed(KEY_SHIFT),
-					"alt": Input.is_key_pressed(KEY_ALT)
+					"alt": Input.is_key_pressed(KEY_ALT),
+					"ctrl": Input.is_key_pressed(KEY_CTRL),
+					"meta": Input.is_key_pressed(KEY_META)
 				})
 				get_viewport().set_input_as_handled()
 			# Release is now handled by _input() to catch "release outside" events

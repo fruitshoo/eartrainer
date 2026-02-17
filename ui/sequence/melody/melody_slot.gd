@@ -17,7 +17,7 @@ func setup(bar: int, beat: int, sub: int) -> void:
 	bar_index = bar
 	beat_index = beat
 	sub_index = sub
-	text = "" 
+	text = ""
 	
 	if not mouse_entered.is_connected(_on_mouse_entered):
 		mouse_entered.connect(_on_mouse_entered)
@@ -40,18 +40,32 @@ func _update_visuals() -> void:
 	
 	if _is_active:
 		var note_label = GameManager.get_note_label(_note_data.get("root", 60))
-		text = note_label.replace("#", "♯").replace("b", "♭")
+		var display_text = note_label.replace("#", "♯").replace("b", "♭")
 		
-		if _is_sustain:
-			text = "—" # Continuation marker
+		# [New] 16th note pair display
+		var has_sub = _note_data.has("sub_note")
+		var is_16th = _note_data.get("duration", 0.5) <= 0.25
+		
+		if has_sub:
+			var sub = _note_data["sub_note"]
+			var sub_label = GameManager.get_note_label(sub.get("root", 60))
+			sub_label = sub_label.replace("#", "♯").replace("b", "♭")
+			display_text = "%s|%s" % [display_text, sub_label]
+			style.bg_color = Color(0.3, 0.65, 0.5, 1.0) # Teal for 16th pair
+		elif is_16th and not _is_sustain:
+			# Single 16th note (front half only)
+			style.bg_color = Color(0.25, 0.55, 0.4, 0.9) # Dimmer teal
+		elif _is_sustain:
+			display_text = "—" # Continuation marker
 			style.bg_color = Color(0.2, 0.4, 0.2, 0.8) # Darker green
 			style.corner_radius_top_left = 0
 			style.corner_radius_bottom_left = 0
 		else:
-			style.bg_color = Color(0.3, 0.7, 0.3, 1.0) # Solid Green
-			
+			style.bg_color = Color(0.3, 0.7, 0.3, 1.0) # Solid Green (8th note)
+		
+		text = display_text
 		add_theme_color_override("font_color", Color.WHITE)
-		add_theme_font_size_override("font_size", 10)
+		add_theme_font_size_override("font_size", 10 if not has_sub else 8)
 		modulate = Color(1, 1, 1, 1) # Reset modulation
 	else:
 		text = ""
@@ -87,7 +101,7 @@ func _gui_input(event: InputEvent) -> void:
 func set_highlight(is_selected: bool) -> void:
 	if is_selected:
 		# Use a golden tint for selection
-		modulate = Color(1.5, 1.5, 1.1) 
+		modulate = Color(1.5, 1.5, 1.1)
 	else:
 		# Reset to normal visuals
 		modulate = Color(1, 1, 1, 1)

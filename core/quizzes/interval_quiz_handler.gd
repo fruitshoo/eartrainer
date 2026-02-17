@@ -6,6 +6,7 @@ var interval_root_note: int = -1
 var interval_target_note: int = -1
 var interval_semitones: int = 0
 var current_interval_mode: int = 0 # IntervalMode enum in manager
+var _last_semitones: int = -1 # [New #6] Prevent consecutive duplicates
 
 func start_quiz() -> void:
 	manager._stop_playback()
@@ -19,8 +20,13 @@ func start_quiz() -> void:
 		print("[IntervalQuizHandler] No intervals selected!")
 		return
 
-	# 1. Select Interval
-	interval_semitones = active_intervals.pick_random()
+	# 1. Select Interval (avoid repeating same one)
+	if active_intervals.size() > 1:
+		var filtered = active_intervals.filter(func(s): return s != _last_semitones)
+		interval_semitones = filtered.pick_random()
+	else:
+		interval_semitones = active_intervals.pick_random()
+	_last_semitones = interval_semitones
 	
 	# 2. Determine Mode
 	if manager.active_modes.is_empty():
@@ -41,12 +47,11 @@ func start_quiz() -> void:
 	var key_mode = GameManager.current_mode
 	
 	for i in range(max_retries):
-		var root_string = randi() % 4 + 1 # String 2-5
+		var root_string = randi() % 6 # [Fix #4] All strings 0-5
 		var root_fret = center_fret + (randi() % 3 - 1)
 		root_fret = clampi(root_fret, 0, 12)
 		
-		var string_bases = [40, 45, 50, 55, 59, 64]
-		var candidate_root = string_bases[root_string] + root_fret
+		var candidate_root = AudioEngine.OPEN_STRING_MIDI[root_string] + root_fret # [Fix #7]
 		
 		var candidate_target = -1
 		if current_interval_mode == 1: # DESCENDING
@@ -87,7 +92,7 @@ func start_quiz() -> void:
 	manager.current_interval_mode = current_interval_mode
 
 	# Highlight Root
-	manager._highlight_tile(final_string_idx, final_fret_idx, Color.MAGENTA)
+	manager._highlight_tile(final_string_idx, final_fret_idx, Color.WHITE)
 	
 	# Play
 	manager.play_current_interval()
@@ -108,7 +113,9 @@ func on_tile_clicked(clicked_note: int, string_idx: int) -> void:
 	elif current_interval_mode == 1: # DESCENDING
 		is_correct = (clicked_note == interval_target_note)
 	elif current_interval_mode == 2: # HARMONIC
-		is_correct = (abs(clicked_note - interval_root_note) == interval_semitones)
+		# [Fix #2] Use modulo 12 for octave-aware checking
+		var clicked_diff = abs(clicked_note - interval_root_note) % 12
+		is_correct = (clicked_diff == interval_semitones % 12) and clicked_note != interval_root_note
 		
 	var fret_idx = MusicTheory.get_fret_position(clicked_note, string_idx)
 	var tile = GameManager.find_tile(string_idx, fret_idx)
@@ -118,13 +125,13 @@ func on_tile_clicked(clicked_note: int, string_idx: int) -> void:
 		_play_sfx("correct")
 		
 		if tile and tile.has_method("_show_rhythm_feedback"):
-			tile.call("_show_rhythm_feedback", {"rating": "Perfect!", "color": Color.CYAN})
+			tile.call("_show_rhythm_feedback", {"rating": "Perfect!", "color": Color.WHITE})
 		
 		# Show both
 		var root_pos = manager._find_valid_pos_for_note(interval_root_note, manager._current_root_fret)
 		if root_pos.valid:
-			manager._highlight_tile(root_pos.string, root_pos.fret, Color.MAGENTA)
-		manager._highlight_tile(string_idx, fret_idx, Color.MAGENTA)
+			manager._highlight_tile(root_pos.string, root_pos.fret, Color.WHITE)
+		manager._highlight_tile(string_idx, fret_idx, Color.WHITE)
 		
 		var reward_duration = manager._play_reward_song(interval_semitones, current_interval_mode)
 		manager.quiz_answered.emit({"correct": true, "interval": interval_semitones})
@@ -147,20 +154,19 @@ func on_tile_clicked(clicked_note: int, string_idx: int) -> void:
 func _pick_fallback_question(center_fret: int) -> void:
 	var root_string = randi() % 6
 	var min_fret = max(0, center_fret - 3)
-	var max_fret = min(12, center_fret + 3) # Max fret is 12 in this game
+	var max_fret = min(12, center_fret + 3)
 	var root_fret = randi_range(min_fret, max_fret)
 	
-	var string_bases = [40, 45, 50, 55, 59, 64]
-	interval_root_note = string_bases[root_string] + root_fret
+	interval_root_note = AudioEngine.OPEN_STRING_MIDI[root_string] + root_fret # [Fix #7]
 	
 	if current_interval_mode == 1: # DESCENDING
 		interval_target_note = interval_root_note - interval_semitones
 	else:
 		interval_target_note = interval_root_note + interval_semitones
 		
-	if interval_target_note < 40: 
-		interval_target_note = 40; 
+	if interval_target_note < 40:
+		interval_target_note = 40;
 		interval_root_note = 40 + interval_semitones
-	if interval_target_note > 80: 
-		interval_target_note = 80; 
+	if interval_target_note > 80:
+		interval_target_note = 80;
 		interval_root_note = 80 - interval_semitones

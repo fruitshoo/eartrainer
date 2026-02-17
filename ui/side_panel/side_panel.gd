@@ -42,6 +42,9 @@ var _main_theme: Theme = preload("res://ui/resources/main_theme.tres")
 @onready var chord_inv_root_btn: Button = %ChordInvRootBtn
 @onready var chord_inv_1st_btn: Button = %ChordInv1stBtn
 @onready var chord_inv_2nd_btn: Button = %ChordInv2ndBtn
+var chord_location_toggle: CheckButton
+var chord_voicing_toggle_theory: Button
+var chord_voicing_toggle_form: Button
 
 # State
 var is_active: bool = false # Is quiz currently running?
@@ -125,6 +128,9 @@ func _build_content() -> void:
 	_setup_chord_inv_button(chord_inv_1st_btn, "1st", 1, Color("#a29bfe"), 1)
 	_setup_chord_inv_button(chord_inv_2nd_btn, "2nd", 2, Color("#81ecec"), 2)
 	
+	# [New] Voicing Mode Toggle
+	_setup_voicing_toggle()
+	
 	# [Fix] Ensure tab buttons fit the panel width
 	tab_interval_btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	tab_chord_btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -139,6 +145,8 @@ func _build_content() -> void:
 	if et_easy_mode:
 		et_easy_mode.toggled.connect(func(v): GameManager.show_target_visual = v)
 		et_easy_mode.button_pressed = GameManager.show_target_visual
+	
+	# [New] Chord Location Toggle - REMOVED (Merged into Hybrid Mode)
 	
 	QuizManager.quiz_started.connect(_on_et_quiz_started)
 	QuizManager.quiz_answered.connect(_on_et_quiz_answered)
@@ -309,26 +317,26 @@ func _update_mode_button_style(btn: Button, color: Color, is_active: bool, pos_i
 	btn.add_theme_stylebox_override("hover", style)
 	btn.add_theme_stylebox_override("pressed", style)
 
-# [New] Chord Training Helpers
+# [New] Degree-based Chord Training
 func _populate_chord_grid() -> void:
 	if not chord_type_grid: return
 	for child in chord_type_grid.get_children(): child.queue_free()
 	
-	var data = ChordQuizData.CHORDS
-	var sorted_types = data.keys()
-	
-	for type in sorted_types:
-		var info = data[type]
-		var is_checked = type in QuizManager.active_chord_types
-		var tile = _create_chord_type_tile(type, info, is_checked)
+	# Build 7 diatonic degree tiles
+	for degree_idx in range(7):
+		var chord_data = MusicTheory.get_chord_from_degree(GameManager.current_mode, degree_idx)
+		if chord_data.is_empty(): continue
+		
+		var roman = chord_data[2] # e.g. "I", "ii", "iii", etc.
+		var is_active = degree_idx in QuizManager.active_degrees
+		var tile = _create_degree_tile(degree_idx, roman, is_active)
 		chord_type_grid.add_child(tile)
 
-func _create_chord_type_tile(type: String, info: Dictionary, is_checked: bool) -> Button:
+func _create_degree_tile(degree_idx: int, label: String, is_checked: bool) -> Button:
 	var btn = Button.new()
-	btn.text = info.name
-	btn.custom_minimum_size = Vector2(80, 80)
-	btn.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	btn.add_theme_font_size_override("font_size", 13) # Slightly smaller for long names
+	btn.text = label
+	btn.custom_minimum_size = Vector2(50, 50)
+	btn.add_theme_font_size_override("font_size", 16)
 	btn.focus_mode = Control.FOCUS_NONE
 	btn.toggle_mode = true
 	btn.button_pressed = is_checked
@@ -337,45 +345,121 @@ func _create_chord_type_tile(type: String, info: Dictionary, is_checked: bool) -
 	
 	btn.toggled.connect(func(on):
 		if on:
-			if not type in QuizManager.active_chord_types: QuizManager.active_chord_types.append(type)
+			if not degree_idx in QuizManager.active_degrees: QuizManager.active_degrees.append(degree_idx)
 		else:
-			QuizManager.active_chord_types.erase(type)
-		_update_tile_style(btn, Color("#3498db"), on)
+			QuizManager.active_degrees.erase(degree_idx)
+			# Prevent empty selection
+			if QuizManager.active_degrees.is_empty():
+				QuizManager.active_degrees.append(degree_idx)
+				btn.set_pressed_no_signal(true)
+		_update_tile_style(btn, Color("#3498db"), btn.button_pressed)
+		QuizManager.save_chord_settings()
 	)
 	return btn
 
 func _sync_chord_state() -> void:
-	var dir = QuizManager.chord_playback_direction
-	_update_chord_dir_style(chord_up_btn, Color("#81ecec"), dir == 0, 0)
-	_update_chord_dir_style(chord_down_btn, Color("#fab1a0"), dir == 1, 1)
-	_update_chord_dir_style(chord_harm_btn, Color("#ffeaa7"), dir == 2, 2)
+	# [Fix #5] Direction uses active_directions array
+	var dir_list = QuizManager.active_directions
+	_update_chord_dir_style(chord_up_btn, Color("#81ecec"), 0 in dir_list, 0)
+	_update_chord_dir_style(chord_down_btn, Color("#fab1a0"), 1 in dir_list, 1)
+	_update_chord_dir_style(chord_harm_btn, Color("#ffeaa7"), 2 in dir_list, 2)
 	
-	var inv = QuizManager.chord_inversion_mode
-	_update_chord_inv_style(chord_inv_root_btn, Color("#74b9ff"), inv == 0, 0)
-	_update_chord_inv_style(chord_inv_1st_btn, Color("#a29bfe"), inv == 1, 1)
-	_update_chord_inv_style(chord_inv_2nd_btn, Color("#81ecec"), inv == 2, 2)
+	var inv_list = QuizManager.active_inversions
+	_update_chord_inv_style(chord_inv_root_btn, Color("#74b9ff"), 0 in inv_list, 0)
+	_update_chord_inv_style(chord_inv_1st_btn, Color("#a29bfe"), 1 in inv_list, 1)
+	_update_chord_inv_style(chord_inv_2nd_btn, Color("#81ecec"), 2 in inv_list, 2)
+	
+	_update_voicing_toggle_style()
 
 func _setup_chord_dir_button(btn: Button, text: String, mode_id: int, color: Color, pos: int) -> void:
 	btn.text = text
+	btn.toggle_mode = true # [Fix #5] Enable multi-select toggle
 	btn.pressed.connect(func():
-		QuizManager.chord_playback_direction = mode_id
+		var list = QuizManager.active_directions
+		if mode_id in list:
+			list.erase(mode_id)
+		else:
+			list.append(mode_id)
+		
+		# Prevent empty selection
+		if list.is_empty():
+			list.append(mode_id)
+		
 		_sync_chord_state()
+		QuizManager.save_chord_settings()
 	)
-	_update_chord_dir_style(btn, color, QuizManager.chord_playback_direction == mode_id, pos)
+	_update_chord_dir_style(btn, color, mode_id in QuizManager.active_directions, pos)
 
 func _setup_chord_inv_button(btn: Button, text: String, mode_id: int, color: Color, pos: int) -> void:
 	btn.text = text
+	btn.toggle_mode = true # Ensure it behaves as a toggle
 	btn.pressed.connect(func():
-		QuizManager.chord_inversion_mode = mode_id
+		var list = QuizManager.active_inversions
+		if mode_id in list:
+			list.erase(mode_id)
+		else:
+			list.append(mode_id)
+		
+		# Prevent empty selection (force toggle back on if it was the last one)
+		if list.is_empty():
+			list.append(mode_id)
+			
 		_sync_chord_state()
+		QuizManager.save_chord_settings()
 	)
-	_update_chord_inv_style(btn, color, QuizManager.chord_inversion_mode == mode_id, pos)
+	_update_chord_inv_style(btn, color, mode_id in QuizManager.active_inversions, pos)
 
 func _update_chord_dir_style(btn: Button, color: Color, is_active: bool, pos: int) -> void:
 	_update_mode_button_style(btn, color, is_active, pos)
 
 func _update_chord_inv_style(btn: Button, color: Color, is_active: bool, pos: int) -> void:
 	_update_mode_button_style(btn, color, is_active, pos)
+
+func _setup_voicing_toggle() -> void:
+	# Create a horizontal container for the toggle
+	var hbox = HBoxContainer.new()
+	hbox.alignment = BoxContainer.ALIGNMENT_CENTER
+	hbox.add_theme_constant_override("separation", 2)
+	
+	chord_voicing_toggle_theory = Button.new()
+	chord_voicing_toggle_theory.text = "이론"
+	chord_voicing_toggle_theory.custom_minimum_size = Vector2(60, 36)
+	chord_voicing_toggle_theory.add_theme_font_size_override("font_size", 13)
+	chord_voicing_toggle_theory.focus_mode = Control.FOCUS_NONE
+	
+	chord_voicing_toggle_form = Button.new()
+	chord_voicing_toggle_form.text = "기타폼"
+	chord_voicing_toggle_form.custom_minimum_size = Vector2(70, 36)
+	chord_voicing_toggle_form.add_theme_font_size_override("font_size", 13)
+	chord_voicing_toggle_form.focus_mode = Control.FOCUS_NONE
+	
+	hbox.add_child(chord_voicing_toggle_theory)
+	hbox.add_child(chord_voicing_toggle_form)
+	
+	# Insert into chord_container (after chord_type_grid's parent)
+	if chord_type_grid and chord_type_grid.get_parent():
+		var parent = chord_type_grid.get_parent()
+		var idx = chord_type_grid.get_index() + 1
+		parent.add_child(hbox)
+		parent.move_child(hbox, idx)
+	
+	chord_voicing_toggle_theory.pressed.connect(func():
+		QuizManager.chord_quiz_use_voicing = false
+		_update_voicing_toggle_style()
+		QuizManager.save_chord_settings()
+	)
+	chord_voicing_toggle_form.pressed.connect(func():
+		QuizManager.chord_quiz_use_voicing = true
+		_update_voicing_toggle_style()
+		QuizManager.save_chord_settings()
+	)
+	
+	_update_voicing_toggle_style()
+
+func _update_voicing_toggle_style() -> void:
+	var is_voicing = QuizManager.chord_quiz_use_voicing
+	_update_tile_style(chord_voicing_toggle_theory, Color("#74b9ff"), not is_voicing)
+	_update_tile_style(chord_voicing_toggle_form, Color("#fdcb6e"), is_voicing)
 
 func _setup_stage_button(btn: Button, color: Color) -> void:
 	var normal = StyleBoxFlat.new()
@@ -414,6 +498,9 @@ func _on_et_quiz_answered(result: Dictionary) -> void:
 		if result.correct:
 			et_feedback_label.text = "CORRECT!"
 			et_feedback_label.modulate = Color("#55efc4")
+		elif result.get("partial", false):
+			et_feedback_label.text = "%d / %d Found" % [result.found_count, result.total_count]
+			et_feedback_label.modulate = Color("#74b9ff") # Light Blue for progress
 		else:
 			et_feedback_label.text = "TRY AGAIN"
 			et_feedback_label.modulate = Color("#ff7675")
@@ -431,11 +518,12 @@ func _animate_feedback_pop() -> void:
 # ============================================================
 func _on_next_pressed() -> void:
 	match _active_tab_type:
-		QuizManager.QuizType.INTERVAL: 
+		QuizManager.QuizType.INTERVAL:
 			QuizManager.start_interval_quiz()
-		QuizManager.QuizType.CHORD_QUALITY: 
+		QuizManager.QuizType.CHORD_QUALITY:
+			# [Modified] Always start standard chord quiz (Hybrid Mode)
 			QuizManager.start_chord_quiz()
-		QuizManager.QuizType.PITCH_CLASS: 
+		QuizManager.QuizType.PITCH_CLASS:
 			QuizManager.start_pitch_quiz()
 		_:
 			QuizManager.start_interval_quiz() # Fallback

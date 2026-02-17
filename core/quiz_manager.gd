@@ -9,7 +9,7 @@ signal quiz_answered(result: Dictionary) # { "correct": bool, "answer": ..., "ta
 # ============================================================
 # ENUMS
 # ============================================================
-enum QuizType {NONE, NOTE_LOCATION, INTERVAL, PITCH_CLASS, CHORD_QUALITY}
+enum QuizType {NONE, NOTE_LOCATION, INTERVAL, PITCH_CLASS, CHORD_QUALITY, CHORD_LOCATION}
 enum IntervalMode {ASCENDING, DESCENDING, HARMONIC}
 
 # ============================================================
@@ -30,15 +30,17 @@ var _current_root_fret: int = -1
 
 # -- Settings (Accessed by Handlers) --
 var active_modes: Array = [IntervalMode.ASCENDING]
-var active_intervals: Array = [0, 2, 4, 5, 7, 9, 11, 12]
+var active_intervals: Array[int] = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]
 var active_pitch_classes: Array = [0, 2, 4, 5, 7, 9, 11]
 var active_chord_types: Array = ["maj", "min"]
 var chord_root_mode: String = "fixed"
 var chord_fixed_root: int = 60
 
 # [New] Chord Training Settings
-var chord_inversion_mode: int = 0 # 0=Root, 1=1st, 2=2nd, 3=Random
-var chord_playback_direction: int = 2 # 0=Up, 1=Down, 2=Harmonic, 3=Random
+var active_inversions: Array = [0] # 0=Root, 1=1st, 2=2nd
+var active_directions: Array = [2] # [Fix #5] 0=Up, 1=Down, 2=Harmonic
+var active_degrees: Array = [0, 1, 2, 3, 4, 5, 6] # [New] Diatonic degrees (I through vii°)
+var chord_quiz_use_voicing: bool = false # [New] false=Theory mode, true=Guitar Form mode
 
 # -- Handler Strategy --
 var _handlers: Dictionary = {}
@@ -49,12 +51,14 @@ var _active_handler: BaseQuizHandler = null
 # ============================================================
 func _ready():
 	EventBus.tile_clicked.connect(_on_tile_clicked)
+	load_chord_settings()
 	_init_handlers()
 
 func _init_handlers():
 	_handlers = {
 		QuizType.PITCH_CLASS: PitchQuizHandler.new(self),
 		QuizType.CHORD_QUALITY: ChordQuizHandler.new(self),
+		QuizType.CHORD_LOCATION: ChordQuizHandler.new(self),
 		QuizType.INTERVAL: IntervalQuizHandler.new(self),
 		QuizType.NOTE_LOCATION: NoteQuizHandler.new(self)
 	}
@@ -98,6 +102,10 @@ func check_chord_answer(start_type: String):
 	if _active_handler and current_quiz_type == QuizType.CHORD_QUALITY:
 		_active_handler.check_answer(start_type)
 
+func start_chord_location_quiz():
+	var h = _switch_to_handler(QuizType.CHORD_LOCATION)
+	if h: h.start_quiz()
+
 func start_note_quiz():
 	var h = _switch_to_handler(QuizType.NOTE_LOCATION)
 	if h: h.start_quiz()
@@ -124,7 +132,7 @@ func _auto_hide_visuals():
 		# Disable all
 		GameManager.highlight_root = false
 		GameManager.highlight_chord = false
-		GameManager.highlight_scale = false
+		# GameManager.highlight_scale = false # [Modified] Keep scale visible for context
 		GameManager.settings_changed.emit() # Force update
 
 # ============================================================
@@ -166,7 +174,7 @@ func _find_valid_pos_for_note(midi_note: int, preferred_fret: int = -1) -> Dicti
 		preferred_fret = GameManager.player_fret
 		
 	var candidates = []
-	var open_notes = [40, 45, 50, 55, 59, 64] # Index 0 to 5
+	var open_notes = AudioEngine.OPEN_STRING_MIDI # [Fix #7]
 	
 	for s_idx in range(6):
 		var fret = midi_note - open_notes[s_idx]
@@ -183,10 +191,29 @@ func _find_valid_pos_for_note(midi_note: int, preferred_fret: int = -1) -> Dicti
 	
 	return candidates[0]
 
-func _highlight_tile(string_idx: int, fret_idx: int, color: Color):
+# Find ALL valid positions for a note on the fretboard
+func _find_all_positions_for_note(midi_note: int) -> Array:
+	var results = []
+	var open_notes = AudioEngine.OPEN_STRING_MIDI # [Fix #7]
+	for s_idx in range(6):
+		var fret = midi_note - open_notes[s_idx]
+		if fret >= 0 and GameManager.find_tile(s_idx, fret):
+			results.append({"string": s_idx, "fret": fret})
+	return results
+
+func highlight_root_positions(midi_note: int):
+	print("[QuizManager] highlight_root_positions called for Note: %d" % midi_note)
+	_clear_markers()
+	var positions = _find_all_positions_for_note(midi_note)
+	print("[QuizManager] Found positions: ", positions)
+	var highlight_color = Color.WHITE # White (Bright, like playback)
+	for pos in positions:
+		_highlight_tile(pos.string, pos.fret, highlight_color, 2.0)
+
+func _highlight_tile(string_idx: int, fret_idx: int, color: Color, energy: float = 1.0):
 	var tile = GameManager.find_tile(string_idx, fret_idx)
 	if tile and tile.has_method("set_marker"):
-		tile.set_marker(color, 1.0) # Reduced energy from 2.0 to 1.0 for Magenta compat
+		tile.set_marker(color, energy)
 		if not tile in _active_markers:
 			_active_markers.append(tile)
 		
@@ -198,6 +225,10 @@ func _clear_markers():
 		if is_instance_valid(tile) and tile.has_method("clear_marker"):
 			tile.clear_marker()
 	_active_markers.clear()
+
+func highlight_found_tone(string_idx: int, fret_idx: int):
+	var highlight_color = Color.SPRING_GREEN # Bright Green for Found
+	_highlight_tile(string_idx, fret_idx, highlight_color, 2.0)
 
 func play_current_interval():
 	# Replay the current interval/note
@@ -246,7 +277,7 @@ func _play_quiz_sound(type: QuizType):
 		_play_note_with_blink(pitch_target_note_actual)
 		return
 		
-	if type == QuizType.CHORD_QUALITY:
+	if type == QuizType.CHORD_QUALITY or type == QuizType.CHORD_LOCATION:
 		if _active_handler and _active_handler.has_method("_play_chord_structure"):
 			_active_handler.call("_play_chord_structure", interval_root_note, chord_target_type)
 		return
@@ -528,3 +559,27 @@ func _play_builtin_motif(relative_notes: Array) -> float:
 		delay += step
 		
 	return delay + (step * 0.8)
+# ============================================================
+# SETTINGS PERSISTENCE
+# ============================================================
+const SETTINGS_PATH = "user://chord_quiz_settings.cfg"
+
+func save_chord_settings():
+	var config = ConfigFile.new()
+	config.set_value("chord_quiz", "active_degrees", active_degrees)
+	config.set_value("chord_quiz", "active_directions", active_directions)
+	config.set_value("chord_quiz", "active_inversions", active_inversions)
+	config.set_value("chord_quiz", "use_voicing", chord_quiz_use_voicing)
+	config.save(SETTINGS_PATH)
+	# GameLogger.info("[QuizManager] Chord settings saved.")
+
+func load_chord_settings():
+	var config = ConfigFile.new()
+	var err = config.load(SETTINGS_PATH)
+	if err != OK: return
+	
+	active_degrees = config.get_value("chord_quiz", "active_degrees", active_degrees)
+	active_directions = config.get_value("chord_quiz", "active_directions", active_directions)
+	active_inversions = config.get_value("chord_quiz", "active_inversions", active_inversions)
+	chord_quiz_use_voicing = config.get_value("chord_quiz", "use_voicing", chord_quiz_use_voicing)
+	# GameLogger.info("[QuizManager] Chord settings loaded.")

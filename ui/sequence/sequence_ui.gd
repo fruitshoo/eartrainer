@@ -32,11 +32,8 @@ var _is_dragging_melody: bool = false
 var _is_erasing_melody: bool = false
 var _drag_source_data: Dictionary = {}
 
-# [New] Hold Gesture State
-var _hold_start_time: int = 0
-var _hold_timer: SceneTreeTimer = null
-var _is_hold_preview_active: bool = false
-var _last_pressed_note_data: Dictionary = {}
+# [New] 16th Note State
+var _awaiting_sub_note: bool = false
 
 var _last_tile_click_frame: int = -1
 
@@ -71,6 +68,7 @@ func _handle_void_click_deferred(captured_frame: int) -> void:
 	# Otherwise, clear the selection and exit melody mode.
 	var mouse_pos = get_viewport().get_mouse_position()
 	GameLogger.info("[SequenceUI] Melody input exited via VOID click (Pos: %v, Frame: %d/%d)." % [mouse_pos, captured_frame, Engine.get_frames_drawn()])
+	_awaiting_sub_note = false
 	selected_melody_slot = {}
 	_highlight_melody_selected()
 
@@ -394,6 +392,7 @@ func _advance_melody_selection() -> void:
 			if bar >= ProgressionManager.bar_count:
 				# End of sequence
 				GameLogger.info("[SequenceUI] Melody mode exited - end of sequence reached.")
+				_awaiting_sub_note = false
 				selected_melody_slot = {}
 				_highlight_melody_selected()
 				return
@@ -469,6 +468,7 @@ func _on_slot_clicked(index: int) -> void:
 	# [New] Mutual Exclusion: Clear Melody Selection
 	if not selected_melody_slot.is_empty():
 		GameLogger.info("[SequenceUI] Melody mode exited - Chord Slot %d clicked." % index)
+		_awaiting_sub_note = false
 		selected_melody_slot = {}
 		_highlight_melody_selected()
 	
@@ -508,6 +508,7 @@ func _on_slot_clicked(index: int) -> void:
 				ProgressionManager.selected_index = -1
 			else:
 				# [New] Mutual Exclusion: Selecting chord clears melody selection
+				_awaiting_sub_note = false
 				selected_melody_slot = {}
 				_highlight_melody_selected()
 				ProgressionManager.selected_index = index
@@ -698,12 +699,14 @@ func _unhandled_input(event: InputEvent) -> void:
 			# [New] ESC to exit melody input
 			if not selected_melody_slot.is_empty():
 				GameLogger.info("[SequenceUI] Melody mode exited - ESC key pressed.")
+				_awaiting_sub_note = false
 				selected_melody_slot = {}
 				_highlight_melody_selected()
 				get_viewport().set_input_as_handled()
-		elif event.keycode == KEY_R:
-			EventBus.request_toggle_recording.emit()
-			get_viewport().set_input_as_handled()
+		# [Disabled] Real-time recording deactivated in favor of step input
+		#elif event.keycode == KEY_R:
+		#	EventBus.request_toggle_recording.emit()
+		#	get_viewport().set_input_as_handled()
 		elif event.keycode == KEY_BACKSPACE or event.keycode == KEY_DELETE:
 			# Only if not editing text (simple check: focus mode)
 			# But for now let's be safe and require modifiers or explicit focus check
@@ -725,9 +728,14 @@ func _unhandled_input(event: InputEvent) -> void:
 		# [New] WASD Navigation (Context Aware)
 		elif not selected_melody_slot.is_empty():
 			if event.keycode == KEY_D:
+				# [16th] D-key also skips awaiting sub_note
+				if _awaiting_sub_note:
+					_awaiting_sub_note = false
 				_advance_melody_selection()
 				get_viewport().set_input_as_handled()
 			elif event.keycode == KEY_A:
+				if _awaiting_sub_note:
+					_awaiting_sub_note = false
 				_regress_melody_selection()
 				get_viewport().set_input_as_handled()
 				
@@ -767,6 +775,7 @@ func _clear_melody() -> void:
 	# Clear local selection state
 	if not selected_melody_slot.is_empty():
 		GameLogger.info("[SequenceUI] Selection cleared via Clear button.")
+		_awaiting_sub_note = false
 		selected_melody_slot = {}
 		_highlight_melody_selected()
 	
@@ -802,91 +811,91 @@ func _on_tile_clicked(midi_note: int, string_index: int, _modifiers: Dictionary)
 	# [New] Unified View Input Routing
 	# If a Melody Slot is selected, input goes to Melody.
 	if not selected_melody_slot.is_empty():
+		var is_shift = _modifiers.get("shift", false)
+		
+		# --- Case: Awaiting sub_note (back half of 16th note pair) ---
+		if _awaiting_sub_note:
+			var sub_data = {"root": midi_note, "string": string_index, "duration": 0.25}
+			var bar = selected_melody_slot["bar"]
+			var beat = selected_melody_slot["beat"]
+			var sub = selected_melody_slot["sub"]
+			
+			# Attach sub_note to existing front-half note
+			var events = ProgressionManager.get_melody_events(bar)
+			var key = "%d_%d" % [beat, sub]
+			var existing = events.get(key, {})
+			if not existing.is_empty():
+				existing["sub_note"] = sub_data
+				ProgressionManager.set_melody_note(bar, beat, sub, existing)
+			
+			_awaiting_sub_note = false
+			_advance_melody_selection()
+			get_viewport().set_input_as_handled()
+			return
+		
+		# --- Case: Shift+Click = 16th note (front half) ---
+		if is_shift:
+			var note_data = {
+				"root": midi_note,
+				"string": string_index,
+				"duration": 0.25 # 16th note
+			}
+			var bar = selected_melody_slot["bar"]
+			var beat = selected_melody_slot["beat"]
+			var sub = selected_melody_slot["sub"]
+			
+			ProgressionManager.set_melody_note(bar, beat, sub, note_data)
+			_awaiting_sub_note = true
+			get_viewport().set_input_as_handled()
+			return
+		
+		# --- Case: Ctrl/Cmd+Click = Quarter note (2 slots) ---
+		var is_ctrl = _modifiers.get("ctrl", false) or _modifiers.get("meta", false)
+		if is_ctrl:
+			var note_data = {
+				"root": midi_note,
+				"string": string_index,
+				"duration": 1.0 # Quarter note
+			}
+			var bar = selected_melody_slot["bar"]
+			var beat = selected_melody_slot["beat"]
+			var sub = selected_melody_slot["sub"]
+			
+			ProgressionManager.set_melody_note(bar, beat, sub, note_data)
+			
+			# Advance to next slot and fill with sustain
+			_advance_melody_selection()
+			if not selected_melody_slot.is_empty():
+				var sustain_data = note_data.duplicate()
+				sustain_data["is_sustain"] = true
+				var s_bar = selected_melody_slot["bar"]
+				var s_beat = selected_melody_slot["beat"]
+				var s_sub = selected_melody_slot["sub"]
+				ProgressionManager.set_melody_note(s_bar, s_beat, s_sub, sustain_data)
+				_advance_melody_selection() # Move past sustain
+			
+			get_viewport().set_input_as_handled()
+			return
+		
+		# --- Case: Normal Click = 8th note (default) ---
 		var note_data = {
 			"root": midi_note,
 			"string": string_index,
 			"duration": 0.5
 		}
-		
-		# [New] Hold Logic: Start tracking
-		_hold_start_time = Time.get_ticks_msec()
-		_last_pressed_note_data = note_data.duplicate()
-		_is_hold_preview_active = false
-		
-		# Start a timer for visual preview after 0.3s
-		if _hold_timer:
-			_hold_timer.timeout.disconnect(_on_hold_timeout)
-			
-		_hold_timer = get_tree().create_timer(0.3)
-		_hold_timer.timeout.connect(_on_hold_timeout)
-		
 		var bar = selected_melody_slot["bar"]
 		var beat = selected_melody_slot["beat"]
 		var sub = selected_melody_slot["sub"]
 		
 		ProgressionManager.set_melody_note(bar, beat, sub, note_data)
-		# NOTE: We DON'T advance yet. We wait for release to see if it becomes a 4th note.
+		_advance_melody_selection()
 		get_viewport().set_input_as_handled()
 
-func _on_hold_timeout() -> void:
-	if _hold_start_time == 0 or selected_melody_slot.is_empty(): return
-	
-	_is_hold_preview_active = true
-	
-	# Preview the next slice as a sustain
-	var bar = selected_melody_slot["bar"]
-	var beat = selected_melody_slot["beat"]
-	var sub = selected_melody_slot["sub"]
-	
-	# Calculate next slot
-	sub += 1
-	if sub >= 2:
-		sub = 0
-		beat += 1
-		if beat >= ProgressionManager.beats_per_bar:
-			beat = 0
-			bar += 1
-			if bar >= ProgressionManager.bar_count:
-				return # End of sequence
-				
-	var sustain_data = _last_pressed_note_data.duplicate()
-	sustain_data["is_sustain"] = true
-	ProgressionManager.set_melody_note(bar, beat, sub, sustain_data)
-	# GameLogger.info("[SequenceUI] Hold Preview Activated")
-
 func _on_tile_released(midi_note: int, string_index: int) -> void:
-	if _hold_start_time == 0: return
-	
-	var elapsed = Time.get_ticks_msec() - _hold_start_time
-	_hold_start_time = 0 # Reset
-	
-	if not selected_melody_slot.is_empty():
-		if elapsed >= 300:
-			# Long Press (4th Note / 2 slots)
-			# Advance twice
-			_advance_melody_selection()
-			_advance_melody_selection()
-			# GameLogger.info("[SequenceUI] 4th Note Input Confirmed (Hold)")
-		else:
-			# Short Press (8th Note / 1 slot)
-			# If preview was active, we might need to clear it? 
-			# Actually, if they release just before 0.3s it's fine.
-			# If they release AFTER 0.3s but it was still meant to be an 8th? 
-			# In DAW, it's usually deterministic based on duration.
-			_advance_melody_selection()
-			# GameLogger.info("[SequenceUI] 8th Note Input Confirmed (Click)")
-	
-	_last_pressed_note_data = {}
-	_is_hold_preview_active = false
-
 	# Check if we are in "Slot Editing Mode" (Sequence Slot Selected)
 	var selected_idx = ProgressionManager.selected_index
 	if selected_idx != -1:
-		# If a slot is selected, clicking a tile opens the Pie Menu for that slot
-		# centered on the mouse position (or tile position? Mouse is easier)
 		var screen_pos = get_viewport().get_mouse_position()
-		
-		# Open Pie Menu with the clicked note as Root
 		_open_pie_menu_impl(midi_note, string_index, screen_pos, selected_idx)
 
 
@@ -897,6 +906,10 @@ func _on_tile_right_clicked(midi_note: int, string_index: int, world_pos: Vector
 	_last_tile_click_frame = Engine.get_frames_drawn()
 	# [New] Right-click to Undo in melody input mode
 	if not selected_melody_slot.is_empty():
+		# [16th] Cancel awaiting sub_note state on right-click
+		if _awaiting_sub_note:
+			_awaiting_sub_note = false
+		
 		var bar = selected_melody_slot["bar"]
 		var events = ProgressionManager.get_melody_events(bar)
 		var key = "%d_%d" % [selected_melody_slot["beat"], selected_melody_slot["sub"]]
@@ -906,8 +919,15 @@ func _on_tile_right_clicked(midi_note: int, string_index: int, world_pos: Vector
 			_regress_melody_selection()
 			bar = selected_melody_slot["bar"]
 			key = "%d_%d" % [selected_melody_slot["beat"], selected_melody_slot["sub"]]
-			
-		ProgressionManager.clear_melody_note(bar, selected_melody_slot["beat"], selected_melody_slot["sub"])
+		
+		# [16th] If note has sub_note, remove sub_note first (back half)
+		var existing = events.get(key, {})
+		if existing.has("sub_note"):
+			existing.erase("sub_note")
+			existing["duration"] = 0.5 # Restore to 8th note
+			ProgressionManager.set_melody_note(bar, selected_melody_slot["beat"], selected_melody_slot["sub"], existing)
+		else:
+			ProgressionManager.clear_melody_note(bar, selected_melody_slot["beat"], selected_melody_slot["sub"])
 		get_viewport().set_input_as_handled()
 		return
 

@@ -95,8 +95,8 @@ static func _get_scale_intervals(mode: ScaleMode) -> Array:
 	return SCALE_DATA[mode]["intervals"]
 
 const CHORD_INTERVALS := {
-	"M": [0, 4, 7],
-	"m": [0, 3, 7],
+	"maj": [0, 4, 7],
+	"min": [0, 3, 7],
 	"M7": [0, 4, 7, 11],
 	"7": [0, 4, 7, 10],
 	"m7": [0, 3, 7, 10],
@@ -370,8 +370,26 @@ static func get_voicing_key(string_index: int) -> String:
 		2: return "4th_string"
 		_: return "6th_string" # Default fallback
 
-## 키보드 입력 → 코드 데이터 반환 (game_manager용)
-## 키보드 입력 → 코드 데이터 반환 (game_manager용)
+## 다이어토닉 도수(1~7) 기반 코드 데이터 반환
+static func get_chord_from_degree(mode: ScaleMode, degree_idx: int) -> Array:
+	var chord_mode = mode
+	var parent_mode = SCALE_DATA[mode].get("parent_mode")
+	if parent_mode != null:
+		chord_mode = parent_mode
+		
+	var intervals = SCALE_DATA[chord_mode]["intervals"]
+	if degree_idx < 0 or degree_idx >= intervals.size():
+		return []
+		
+	var interval = intervals[degree_idx]
+	var type = get_diatonic_type(interval, 0, chord_mode)
+	
+	# Generate Roman Numeral
+	var roman = DEGREE_LABELS.get(chord_mode, DEGREE_LABELS[ScaleMode.MAJOR]).get(interval, "?")
+	
+	return [interval, type, roman]
+
+## 키보드 입력 → 코드 데이터 반환 (GameManager용)
 static func get_chord_from_keycode(mode: ScaleMode, keycode: int) -> Array:
 	var degree_idx = -1
 	match keycode:
@@ -384,23 +402,7 @@ static func get_chord_from_keycode(mode: ScaleMode, keycode: int) -> Array:
 		KEY_7: degree_idx = 6
 	
 	if degree_idx == -1: return []
-	
-	# Determine Chord Mode (Parent vs Self)
-	var chord_mode = mode
-	var parent_mode = SCALE_DATA[mode].get("parent_mode")
-	if parent_mode != null:
-		chord_mode = parent_mode
-		
-	var intervals = SCALE_DATA[chord_mode]["intervals"]
-	if degree_idx >= intervals.size(): return []
-	
-	var interval = intervals[degree_idx]
-	var type = get_diatonic_type(interval, 0, chord_mode) # Pass 0 as root to simulate relative check
-	
-	# Generate Roman Numeral (Simplified for now)
-	var roman = DEGREE_LABELS.get(chord_mode, DEGREE_LABELS[ScaleMode.MAJOR]).get(interval, "?")
-	
-	return [interval, type, roman]
+	return get_chord_from_degree(mode, degree_idx)
 
 # ============================================================
 # PRIVATE HELPER

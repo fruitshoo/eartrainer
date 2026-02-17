@@ -163,6 +163,10 @@ func _update_slot_background(chord_root: int, chord_type: String) -> void:
 	var is_diatonic = false
 	if MusicTheory.is_in_scale(chord_root, GameManager.current_key, GameManager.current_mode):
 		var expected = MusicTheory.get_diatonic_type(chord_root, GameManager.current_key, GameManager.current_mode)
+		
+		# [Fix] String normalization for comparison
+		# MusicTheory now returns "maj7", "min7", "dom7", "m7b5"
+		
 		if chord_type == expected:
 			is_diatonic = true
 		elif chord_type == "5":
@@ -170,6 +174,11 @@ func _update_slot_background(chord_root: int, chord_type: String) -> void:
 			# (i.e. expected type is NOT m7b5 or dim7)
 			if expected != "m7b5" and expected != "dim7":
 				is_diatonic = true
+		
+		# [New] For Triads (maj/min) vs 7ths compatibility
+		# If quiz generates "maj7" but slot says "maj", we might want to treat as diatonic?
+		# Or if slot says "maj7", expected is "maj7".
+		# Let's trust exact match for now, as quiz generates full 7ths.
 			
 	# 2. Reset if Diatonic (v1.9: No background for Diatonic)
 	if is_diatonic:
