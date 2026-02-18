@@ -3,14 +3,19 @@ extends Node
 # ============================================================
 # SIGNALS
 # ============================================================
+# ============================================================
+# SIGNALS
+# ============================================================
 signal quiz_started(data: Dictionary) # { "type": "note"|"interval", ... }
 signal quiz_answered(result: Dictionary) # { "correct": bool, "answer": ..., "target": ... }
+signal quiz_step_completed(data: Dictionary) # [New] For multi-step quizzes
 
 # ============================================================
 # ENUMS
 # ============================================================
-enum QuizType {NONE, NOTE_LOCATION, INTERVAL, PITCH_CLASS, CHORD_QUALITY, CHORD_LOCATION}
+enum QuizType {NONE, NOTE_LOCATION, INTERVAL, PITCH_CLASS, CHORD_QUALITY, CHORD_LOCATION, CHORD_PROGRESSION}
 enum IntervalMode {ASCENDING, DESCENDING, HARMONIC}
+enum StringConstraint {ALL, SAME_STRING, CROSS_STRING}
 
 # ============================================================
 # STATE
@@ -31,6 +36,9 @@ var _current_root_fret: int = -1
 # -- Settings (Accessed by Handlers) --
 var active_modes: Array = [IntervalMode.ASCENDING]
 var active_intervals: Array[int] = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]
+var interval_diatonic_mode: bool = false # [New] Only in-key intervals
+var interval_string_constraint: int = 0 # [New] 0=All, 1=Same, 2=Cross
+var interval_harmonic_context: bool = false # [New] Play tonic chord before quiz
 var active_pitch_classes: Array = [0, 2, 4, 5, 7, 9, 11]
 var active_chord_types: Array = ["maj", "min"]
 var chord_root_mode: String = "fixed"
@@ -40,6 +48,7 @@ var chord_fixed_root: int = 60
 var active_inversions: Array = [0] # 0=Root, 1=1st, 2=2nd
 var active_directions: Array = [2] # [Fix #5] 0=Up, 1=Down, 2=Harmonic
 var active_degrees: Array = [0, 1, 2, 3, 4, 5, 6] # [New] Diatonic degrees (I through vii°)
+var active_progression_degrees: Array = [0, 3, 4, 5] # [New] I, IV, V, vi selected by default
 var chord_quiz_use_voicing: bool = false # [New] false=Theory mode, true=Guitar Form mode
 
 # -- Handler Strategy --
@@ -52,6 +61,7 @@ var _active_handler: BaseQuizHandler = null
 func _ready():
 	EventBus.tile_clicked.connect(_on_tile_clicked)
 	load_chord_settings()
+	load_interval_settings()
 	_init_handlers()
 
 func _init_handlers():
@@ -59,6 +69,7 @@ func _init_handlers():
 		QuizType.PITCH_CLASS: PitchQuizHandler.new(self),
 		QuizType.CHORD_QUALITY: ChordQuizHandler.new(self),
 		QuizType.CHORD_LOCATION: ChordQuizHandler.new(self),
+		QuizType.CHORD_PROGRESSION: ProgressionQuizHandler.new(self), # [New]
 		QuizType.INTERVAL: IntervalQuizHandler.new(self),
 		QuizType.NOTE_LOCATION: NoteQuizHandler.new(self)
 	}
@@ -89,10 +100,19 @@ func _switch_to_handler(type: QuizType) -> BaseQuizHandler:
 func start_pitch_quiz():
 	var h = _switch_to_handler(QuizType.PITCH_CLASS)
 	if h: h.start_quiz()
+	
+func start_progression_quiz(): # [New]
+	var h = _switch_to_handler(QuizType.CHORD_PROGRESSION)
+	if h: h.start_quiz()
 
 func check_pitch_answer(clicked_note: int, string_idx: int):
 	if _active_handler and current_quiz_type == QuizType.PITCH_CLASS:
 		_active_handler.on_tile_clicked(clicked_note, string_idx)
+		
+func check_degree_progression_answer(degree_idx: int): # [New]
+	if _active_handler and current_quiz_type == QuizType.CHORD_PROGRESSION:
+		if _active_handler.has_method("on_degree_clicked"):
+			_active_handler.on_degree_clicked(degree_idx)
 
 func start_chord_quiz():
 	var h = _switch_to_handler(QuizType.CHORD_QUALITY)
@@ -230,10 +250,13 @@ func highlight_found_tone(string_idx: int, fret_idx: int):
 	var highlight_color = Color.SPRING_GREEN # Bright Green for Found
 	_highlight_tile(string_idx, fret_idx, highlight_color, 2.0)
 
-func play_current_interval():
-	# Replay the current interval/note
-	_stop_playback() # Stop any ringing first
-	_play_quiz_sound(current_quiz_type)
+func replay_current_quiz():
+	if _active_handler:
+		_active_handler.replay()
+	else:
+		# Fallback for old system or if no handler active
+		_stop_playback()
+		_play_quiz_sound(current_quiz_type)
 
 func _play_note_with_blink(note: int, duration: float = 0.3, force_visual: bool = true):
 	# Play Audio
@@ -271,39 +294,16 @@ func _play_note_with_blink(note: int, duration: float = 0.3, force_visual: bool 
 	)
 
 func _play_quiz_sound(type: QuizType):
+	if _active_handler:
+		_active_handler.replay()
+		return
+		
+	# Legacy fallback if no handler (should be moved eventually)
 	var my_id = _current_playback_id
-	
 	if type == QuizType.PITCH_CLASS:
 		_play_note_with_blink(pitch_target_note_actual)
 		return
-		
-	if type == QuizType.CHORD_QUALITY or type == QuizType.CHORD_LOCATION:
-		if _active_handler and _active_handler.has_method("_play_chord_structure"):
-			_active_handler.call("_play_chord_structure", interval_root_note, chord_target_type)
-		return
-
-	# Pulse the root visual again when playing? (Optional now that we blink)
-	# for tile in _active_markers: ... (Removed to avoid clutter, blinking is enough)
-	
-	# Note: Root is always forced (force_visual=true). Target is conditional (force_visual=false).
-	
-	if current_interval_mode == IntervalMode.HARMONIC:
-		_play_note_with_blink(interval_root_note, 1.0, true)
-		_play_note_with_blink(interval_target_note, 1.0, false)
-	elif current_interval_mode == IntervalMode.DESCENDING:
-		_play_note_with_blink(interval_root_note, 0.6, true)
-		
-		get_tree().create_timer(0.6).timeout.connect(func():
-			if _current_playback_id != my_id: return
-			_play_note_with_blink(interval_target_note, 1.0, false)
-		)
-	else: # ASCENDING
-		_play_note_with_blink(interval_root_note, 0.6, true)
-		
-		get_tree().create_timer(0.6).timeout.connect(func():
-			if _current_playback_id != my_id: return
-			_play_note_with_blink(interval_target_note, 1.0, false)
-		)
+	# ... (Rest of legacy pulse/blink logic could be removed if all handlers override replay)
 
 # check_interval_answer removed - was unused legacy code
 
@@ -583,3 +583,25 @@ func load_chord_settings():
 	active_inversions = config.get_value("chord_quiz", "active_inversions", active_inversions)
 	chord_quiz_use_voicing = config.get_value("chord_quiz", "use_voicing", chord_quiz_use_voicing)
 	# GameLogger.info("[QuizManager] Chord settings loaded.")
+
+const SETTINGS_PATH_INTERVAL = "user://interval_quiz_settings.cfg"
+
+func save_interval_settings():
+	var config = ConfigFile.new()
+	config.set_value("interval_quiz", "active_intervals", active_intervals)
+	config.set_value("interval_quiz", "active_modes", active_modes)
+	config.set_value("interval_quiz", "diatonic_mode", interval_diatonic_mode)
+	config.set_value("interval_quiz", "string_constraint", interval_string_constraint)
+	config.set_value("interval_quiz", "harmonic_context", interval_harmonic_context)
+	config.save(SETTINGS_PATH_INTERVAL)
+
+func load_interval_settings():
+	var config = ConfigFile.new()
+	var err = config.load(SETTINGS_PATH_INTERVAL)
+	if err != OK: return
+	
+	active_intervals = config.get_value("interval_quiz", "active_intervals", active_intervals)
+	active_modes = config.get_value("interval_quiz", "active_modes", active_modes)
+	interval_diatonic_mode = config.get_value("interval_quiz", "diatonic_mode", interval_diatonic_mode)
+	interval_string_constraint = config.get_value("interval_quiz", "string_constraint", interval_string_constraint)
+	interval_harmonic_context = config.get_value("interval_quiz", "harmonic_context", interval_harmonic_context)

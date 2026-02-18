@@ -21,6 +21,9 @@ func on_tile_clicked(_clicked_note: int, _string_idx: int) -> void:
 func stop_playback() -> void:
 	pass
 
+func replay() -> void:
+	pass
+
 func get_state() -> Dictionary:
 	return {}
 

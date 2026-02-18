@@ -34,12 +34,21 @@ func start_quiz() -> void:
 	else:
 		current_interval_mode = manager.active_modes.pick_random()
 		
-	# 3. Find Valid Position (Near Player)
-	var center_fret = GameManager.player_fret
-	if center_fret < 0: center_fret = 0
+	# 3. Harmonic Context (Play Tonic Chord first if enabled)
+	if manager.interval_harmonic_context:
+		_play_context()
+		await manager.get_tree().create_timer(1.0).timeout
+	
+	# 4. Find Valid Position (Near Player)
+	# 4. Find Valid Position (Near Player)
+	# [Fix] Don't use player_fret as anchor, as it causes "drifting" up the neck on ascending intervals.
+	# Instead, pick a random anchor in lower/mid neck (e.g. fret 2-8)
+	var center_fret = randi_range(2, 5)
+	# Note: root_fret adds (randi() % 5 - 2) -> -2 to +2. 
+	# So random center 2-5 means roots could be 0 to 7. Safe range.
 	
 	var valid_found = false
-	var max_retries = 20
+	var max_retries = 50 # Increased retries for stricter constraints
 	var final_string_idx = -1
 	var final_fret_idx = -1
 	
@@ -47,11 +56,24 @@ func start_quiz() -> void:
 	var key_mode = GameManager.current_mode
 	
 	for i in range(max_retries):
-		var root_string = randi() % 6 # [Fix #4] All strings 0-5
-		var root_fret = center_fret + (randi() % 3 - 1)
+		# [String Constraint Logic]
+		# 0=All, 1=Same, 2=Cross
+		var constraint = manager.interval_string_constraint
+		
+		var root_string = randi() % 6
+		
+		# [Fret Logic]
+		# Try to stay near center fret, but explore slightly wider
+		var root_fret = center_fret + (randi() % 5 - 2)
 		root_fret = clampi(root_fret, 0, 12)
 		
-		var candidate_root = AudioEngine.OPEN_STRING_MIDI[root_string] + root_fret # [Fix #7]
+		var candidate_root = AudioEngine.OPEN_STRING_MIDI[root_string] + root_fret
+		
+		# [Diatonic Validation - Step 1]
+		# If Diatonic Mode is ON, Root MUST be in scale
+		if manager.interval_diatonic_mode:
+			if not MusicTheory.is_in_scale(candidate_root, key_root, key_mode):
+				continue
 		
 		var candidate_target = -1
 		if current_interval_mode == 1: # DESCENDING
@@ -59,20 +81,27 @@ func start_quiz() -> void:
 		else:
 			candidate_target = candidate_root + interval_semitones
 			
-		if candidate_target < 40 or candidate_target > 76:
+		if candidate_target < 40 or candidate_target > 88: # Range check
 			continue
 			
-		var root_in_scale = MusicTheory.is_in_scale(candidate_root, key_root, key_mode)
-		var target_in_scale = MusicTheory.is_in_scale(candidate_target, key_root, key_mode)
+		# [Diatonic Validation - Step 2]
+		# If Diatonic Mode is ON, Target MUST ALSO be in scale
+		if manager.interval_diatonic_mode:
+			if not MusicTheory.is_in_scale(candidate_target, key_root, key_mode):
+				continue
 		
-		if root_in_scale and target_in_scale:
-			interval_root_note = candidate_root
-			interval_target_note = candidate_target
-			final_string_idx = root_string
-			final_fret_idx = root_fret
-			manager._current_root_fret = final_fret_idx
-			valid_found = true
-			break
+		var target_pos = _find_target_pos_with_constraint(candidate_target, root_string, root_fret, constraint)
+		if not target_pos.valid:
+			continue
+			
+		interval_root_note = candidate_root
+		interval_target_note = candidate_target
+		final_string_idx = root_string
+		final_fret_idx = root_fret
+		manager._current_root_fret = final_fret_idx
+		
+		valid_found = true
+		break
 			
 	if not valid_found:
 		print("[IntervalQuizHandler] Using chromatic fallback.")
@@ -95,7 +124,7 @@ func start_quiz() -> void:
 	manager._highlight_tile(final_string_idx, final_fret_idx, Color.WHITE)
 	
 	# Play
-	manager.play_current_interval()
+	replay()
 	
 	manager.quiz_started.emit({
 		"type": "interval",
@@ -157,16 +186,110 @@ func _pick_fallback_question(center_fret: int) -> void:
 	var max_fret = min(12, center_fret + 3)
 	var root_fret = randi_range(min_fret, max_fret)
 	
-	interval_root_note = AudioEngine.OPEN_STRING_MIDI[root_string] + root_fret # [Fix #7]
+	interval_root_note = AudioEngine.OPEN_STRING_MIDI[root_string] + root_fret
 	
 	if current_interval_mode == 1: # DESCENDING
 		interval_target_note = interval_root_note - interval_semitones
 	else:
 		interval_target_note = interval_root_note + interval_semitones
 		
+	# [Fix] Ensure target is also playable within 12 frets on SOME string
+	var target_playable = false
+	for s in range(6):
+		var f = interval_target_note - AudioEngine.OPEN_STRING_MIDI[s]
+		if f >= 0 and f <= 12:
+			target_playable = true
+			break
+			
+	if not target_playable:
+		# Try inverting direction if possible
+		if current_interval_mode == 0: # Was Ascending, try Descending
+			interval_target_note = interval_root_note - interval_semitones
+			current_interval_mode = 1
+		else: # Was Descending, try Ascending
+			interval_target_note = interval_root_note + interval_semitones
+			current_interval_mode = 0
+			
+	# Safety clamps (MIDI range)
 	if interval_target_note < 40:
 		interval_target_note = 40;
 		interval_root_note = 40 + interval_semitones
-	if interval_target_note > 80:
-		interval_target_note = 80;
-		interval_root_note = 80 - interval_semitones
+	if interval_target_note > 76: # High E 12th fret is 76
+		interval_target_note = 76;
+		interval_root_note = 76 - interval_semitones
+
+func _play_context() -> void:
+	# Plays the tonic chord (Triad) of the current key
+	var root = GameManager.current_key
+	# Center around C3 (48) or C4 (60)
+	var bass = 48 + root
+	if bass > 59: bass -= 12
+	
+	var chord_intervals = [0, 4, 7] # Major
+	if GameManager.current_mode == MusicTheory.ScaleMode.MINOR:
+		chord_intervals = [0, 3, 7] # Minor
+		
+	var notes = []
+	for i in chord_intervals:
+		notes.append(bass + i)
+		
+	# Quick strum
+	for i in range(notes.size()):
+		AudioEngine.play_note(notes[i], -1) # -1 string for generic playback
+		await manager.get_tree().create_timer(0.05).timeout
+
+func _find_target_pos_with_constraint(target_note: int, root_str: int, root_fret: int, constraint: int) -> Dictionary:
+	# 0=All, 1=Same, 2=Cross
+	var MAX_FRET = 12 # [Fix] Strict 12 fret limit
+	
+	if constraint == 0:
+		# Even for "All", we should ensure there IS a position <= 12
+		for s in range(6):
+			var f = target_note - AudioEngine.OPEN_STRING_MIDI[s]
+			if f >= 0 and f <= MAX_FRET:
+				return {"valid": true, "string": s, "fret": f} # Return specific valid one?
+		return {"valid": false}
+	
+	if constraint == 1: # SAME STRING
+		# Check if target note exists on root_str within reasonable fret range
+		var f = target_note - AudioEngine.OPEN_STRING_MIDI[root_str]
+		if f >= 0 and f <= MAX_FRET: # Playable range
+			# Also avoid extreme stretches
+			return {"valid": true, "string": root_str, "fret": f}
+		return {"valid": false}
+		
+	if constraint == 2: # CROSS STRING (Adjacent string)
+		# Look for target on string +/- 1
+		for s in [root_str - 1, root_str + 1]:
+			if s >= 0 and s < 6:
+				var f = target_note - AudioEngine.OPEN_STRING_MIDI[s]
+				if f >= 0 and f <= MAX_FRET:
+					# Check stretch. Cross string usually implies close frets.
+					if abs(f - root_fret) <= 6:
+						return {"valid": true, "string": s, "fret": f}
+		return {"valid": false}
+		
+	return {"valid": true}
+
+func replay() -> void:
+	manager._stop_playback()
+	var my_id = manager._current_playback_id
+	var root = manager.interval_root_note
+	var target = manager.interval_target_note
+	var mode = manager.current_interval_mode
+	
+	if mode == manager.IntervalMode.HARMONIC:
+		manager._play_note_with_blink(root, 1.0, true)
+		manager._play_note_with_blink(target, 1.0, false)
+	elif mode == manager.IntervalMode.DESCENDING:
+		manager._play_note_with_blink(root, 0.6, true)
+		manager.get_tree().create_timer(0.6).timeout.connect(func():
+			if manager._current_playback_id != my_id: return
+			manager._play_note_with_blink(target, 1.0, false)
+		)
+	else: # ASCENDING
+		manager._play_note_with_blink(root, 0.6, true)
+		manager.get_tree().create_timer(0.6).timeout.connect(func():
+			if manager._current_playback_id != my_id: return
+			manager._play_note_with_blink(target, 1.0, false)
+		)

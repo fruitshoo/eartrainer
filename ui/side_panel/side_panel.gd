@@ -22,17 +22,23 @@ var _main_theme: Theme = preload("res://ui/resources/main_theme.tres")
 @onready var et_interval_grid: GridContainer = %IntervalGrid
 @onready var et_easy_mode: CheckBox = %EasyModeCheckbox
 @onready var _scene_scroll: ScrollContainer = %ContentScroll
+@onready var main_vbox: VBoxContainer = %MainVBox
+@onready var tabs_hbox: HBoxContainer = %TabsHBox
 
 # [New] Tab System
 @onready var tab_interval_btn: Button = %TabIntervalBtn
 @onready var tab_chord_btn: Button = %TabChordBtn
+var tab_prog_btn: Button # [New] Dynamically created in _ready
 @onready var tab_scale_btn: Button = %TabScaleBtn
 @onready var tab_pitch_btn: Button = %TabPitchBtn
 
-@onready var interval_container: Control = %IntervalContainer
-@onready var chord_container: Control = %ChordContainer
-@onready var scale_container: Control = %ScaleContainer
-@onready var pitch_container: Control = %PitchContainer
+@onready var interval_container: VBoxContainer = %IntervalContainer
+@onready var chord_container: VBoxContainer = %ChordContainer
+@onready var scale_container: VBoxContainer = %ScaleContainer
+@onready var pitch_container: VBoxContainer = %PitchContainer
+# [New] Progression Container
+var progression_container: VBoxContainer = null
+var progression_slots_container: HBoxContainer = null
 
 # [New] Chord Training UI
 @onready var chord_type_grid: GridContainer = %ChordTypeGrid
@@ -52,6 +58,7 @@ var et_checkboxes: Dictionary = {} # semitones -> tile
 var pending_manage_interval: int = -1
 var pending_delete_song: String = ""
 var _active_tab_type: QuizManager.QuizType = QuizManager.QuizType.INTERVAL
+var _prog_degree_btns: Array[Button] = [] # [New] Track filter buttons
 
 # Overlays (Managed through code)
 var example_manager_root: Control
@@ -70,20 +77,30 @@ func _ready() -> void:
 	# We need to do extra setup after UI is built
 	super._ready()
 	
-	# 3. EventBus
+	# EventBus connections
 	EventBus.request_collapse_side_panel.connect(close)
 	
-	# 4. Inits
+	# Inits
 	_populate_et_grid()
 	_populate_chord_grid()
 	_sync_et_state()
 	_sync_chord_state()
+	
+	# [New] Setup progression tab UI dynamically
+	_setup_progression_tab_ui()
+	
+	# Initial State - Set UI but DON'T auto-start quiz on launch
+	_set_active_tab(QuizManager.QuizType.INTERVAL, false)
 
 # ============================================================
 # VIRTUAL METHODS
 # ============================================================
 func _build_content() -> void:
 	GameLogger.info("[SidePanel] Building content...")
+	
+	# [Fix] Initialize dynamic tab buttons BEFORE they are used in connections below
+	if not tab_prog_btn:
+		tab_prog_btn = Button.new()
 	
 	# 1. Integrate Scene UI into BaseSidePanel
 	if _scene_scroll:
@@ -100,12 +117,13 @@ func _build_content() -> void:
 		GameLogger.error("[SidePanel] Core buttons missing from scene!")
 		return
 		
-	et_replay_btn.pressed.connect(QuizManager.play_current_interval)
+	et_replay_btn.pressed.connect(QuizManager.replay_current_quiz)
 	et_next_btn.pressed.connect(_on_next_pressed)
 	
 	# [New] Tab Logic
 	tab_interval_btn.pressed.connect(func(): _set_active_tab(QuizManager.QuizType.INTERVAL))
 	tab_chord_btn.pressed.connect(func(): _set_active_tab(QuizManager.QuizType.CHORD_QUALITY))
+	tab_prog_btn.pressed.connect(func(): _set_active_tab(QuizManager.QuizType.CHORD_PROGRESSION)) # [New]
 	tab_scale_btn.pressed.connect(func(): _set_active_tab(QuizManager.QuizType.NONE)) # Placeholder for Scale
 	tab_pitch_btn.pressed.connect(func(): _set_active_tab(QuizManager.QuizType.PITCH_CLASS))
 	
@@ -134,24 +152,59 @@ func _build_content() -> void:
 	# [Fix] Ensure tab buttons fit the panel width
 	tab_interval_btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	tab_chord_btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	tab_prog_btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL # [New]
 	tab_scale_btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	tab_pitch_btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	
 	tab_interval_btn.custom_minimum_size.x = 0
 	tab_chord_btn.custom_minimum_size.x = 0
+	tab_prog_btn.custom_minimum_size.x = 0 # [New]
 	tab_scale_btn.custom_minimum_size.x = 0
 	tab_pitch_btn.custom_minimum_size.x = 0
 	
-	if et_easy_mode:
-		et_easy_mode.toggled.connect(func(v): GameManager.show_target_visual = v)
-		et_easy_mode.button_pressed = GameManager.show_target_visual
-	
-	# [New] Chord Location Toggle - REMOVED (Merged into Hybrid Mode)
+	# [New] Listen for quiz steps
+	if not QuizManager.quiz_step_completed.is_connected(_on_et_quiz_step):
+		QuizManager.quiz_step_completed.connect(_on_et_quiz_step)
 	
 	QuizManager.quiz_started.connect(_on_et_quiz_started)
 	QuizManager.quiz_answered.connect(_on_et_quiz_answered)
 	
 	GameLogger.info("[SidePanel] Content build finished.")
+
+func _on_et_quiz_step(data: Dictionary) -> void:
+	if not progression_slots_container: return
+	
+	# data: {step, total, correct, degree}
+	var slots = progression_slots_container.get_children()
+	var idx = data.step - 1 # 0-based
+	
+	if data.correct:
+		if idx >= 0 and idx < slots.size():
+			var slot = slots[idx] as PanelContainer
+			var lbl = slot.get_child(0) as Label
+			lbl.text = _get_degree_text(data.degree)
+			lbl.modulate = Color("#55efc4")
+			
+			_animate_slot_pop(slot)
+			_update_progression_slots_active(data.step)
+			
+	else:
+		# Wrong feedback - shake the current target slot
+		var target_idx = data.step # The index the user WAS trying to fill
+		if target_idx >= 0 and target_idx < slots.size():
+			_animate_slot_shake(slots[target_idx])
+		
+		if et_feedback_label:
+			et_feedback_label.text = "TRY AGAIN"
+			et_feedback_label.modulate = Color("#ff7675")
+			_animate_feedback_pop()
+			et_feedback_label.modulate = Color("#ff7675")
+
+func _get_degree_text(degree: int) -> String:
+	var texts = ["I", "ii", "iii", "IV", "V", "vi", "vii°"]
+	if degree >= 0 and degree < texts.size():
+		return texts[degree]
+	return "?"
 
 # ============================================================
 # PUBLIC API WRAPPERS
@@ -195,6 +248,93 @@ func _populate_et_grid() -> void:
 		var tile = _create_interval_tile(semitones, info, is_checked)
 		et_interval_grid.add_child(tile)
 		et_checkboxes[semitones] = tile
+
+	# [New] Interval Options UI
+	_setup_interval_options_ui()
+
+func _setup_interval_options_ui() -> void:
+	# [Fix] Options should be in the main VBox (interval_container), NOT inside the GridMargin (which overlaps children)
+	# 1. Cleanup: Remove from wrong parent if it exists (old buggy version)
+	var wrong_parent = et_interval_grid.get_parent()
+	if wrong_parent and wrong_parent.has_node("IntervalOptions"):
+		wrong_parent.get_node("IntervalOptions").queue_free()
+		
+	# 2. Cleanup: Remove existing valid container to rebuild (simpler than update)
+	if interval_container.has_node("IntervalOptionsPad"):
+		interval_container.get_node("IntervalOptionsPad").queue_free()
+	
+	# 3. Create new structure: Pad (Margin) -> Options (VBox)
+	var options_container = VBoxContainer.new()
+	options_container.name = "IntervalOptions"
+	options_container.add_theme_constant_override("separation", 8)
+	
+	var pad = MarginContainer.new()
+	pad.name = "IntervalOptionsPad"
+	pad.add_theme_constant_override("margin_left", 10)
+	pad.add_theme_constant_override("margin_right", 10)
+	pad.add_theme_constant_override("margin_bottom", 10)
+	pad.add_child(options_container)
+	
+	interval_container.add_child(pad)
+	# [New] Move to TOP of list
+	interval_container.move_child(pad, 0)
+	
+	# 4. Populate Options
+	
+	# Row 1: Toggles (Diatonic + Context)
+	var toggles_hbox = HBoxContainer.new()
+	toggles_hbox.add_theme_constant_override("separation", 16)
+	
+	# Diatonic Mode Toggle
+	var diatonic_check = CheckBox.new()
+	diatonic_check.text = "Diatonic"
+	diatonic_check.tooltip_text = "Only generate intervals that naturally occur within the current key's scale."
+	diatonic_check.button_pressed = QuizManager.interval_diatonic_mode
+	diatonic_check.focus_mode = Control.FOCUS_NONE
+	diatonic_check.toggled.connect(func(on):
+		QuizManager.interval_diatonic_mode = on
+		QuizManager.save_interval_settings()
+	)
+	toggles_hbox.add_child(diatonic_check)
+	
+	# Harmonic Context Toggle
+	var context_check = CheckBox.new()
+	context_check.text = "Context"
+	context_check.tooltip_text = "Play the tonic chord (I) before the quiz starts."
+	context_check.button_pressed = QuizManager.interval_harmonic_context
+	context_check.focus_mode = Control.FOCUS_NONE
+	context_check.toggled.connect(func(on):
+		QuizManager.interval_harmonic_context = on
+		QuizManager.save_interval_settings()
+	)
+	toggles_hbox.add_child(context_check)
+	
+	options_container.add_child(toggles_hbox)
+	
+	# Row 2: String Constraint Dropdown
+	var string_hbox = HBoxContainer.new()
+	var string_label = Label.new()
+	string_label.text = "Strings:"
+	string_hbox.add_child(string_label)
+	
+	var string_opt = OptionButton.new()
+	string_opt.tooltip_text = "Restrict where notes can appear:\n- All: Any string\n- Same: Both notes on same string (Distance)\n- Cross: Adjacent strings (Shapes)"
+	string_opt.focus_mode = Control.FOCUS_NONE
+	string_opt.add_item("All Strings", 0)
+	string_opt.add_item("Same String", 1)
+	string_opt.add_item("Cross String", 2)
+	string_opt.selected = QuizManager.interval_string_constraint
+	string_opt.item_selected.connect(func(idx):
+		QuizManager.interval_string_constraint = idx
+		QuizManager.save_interval_settings()
+	)
+	string_hbox.add_child(string_opt)
+	options_container.add_child(string_hbox)
+	
+	# Separator
+	var sep = HSeparator.new()
+	sep.modulate = Color(1, 1, 1, 0.3)
+	options_container.add_child(sep)
 
 func _create_interval_tile(semitones: int, info: Dictionary, is_checked: bool) -> Button:
 	var btn = Button.new()
@@ -487,11 +627,51 @@ func _setup_stage_button(btn: Button, color: Color) -> void:
 	btn.add_theme_color_override("font_hover_color", Color.WHITE)
 	btn.add_theme_color_override("font_pressed_color", Color.WHITE)
 
-func _on_et_quiz_started(_data: Dictionary) -> void:
+func _on_et_quiz_started(data: Dictionary) -> void:
 	if et_feedback_label:
 		et_feedback_label.text = "LISTEN..."
 		et_feedback_label.modulate = Color.WHITE
 		_animate_feedback_pop()
+		
+	if data.get("type") == "progression":
+		if not progression_slots_container: return
+		# Setup slots
+		for child in progression_slots_container.get_children(): child.queue_free()
+		
+		# [Fix] Box-style slots
+		for i in range(data.length):
+			var slot_panel = PanelContainer.new()
+			var style = StyleBoxFlat.new()
+			style.bg_color = Color(1, 1, 1, 0.1)
+			style.border_width_left = 2
+			style.border_width_top = 2
+			style.border_width_right = 2
+			style.border_width_bottom = 2
+			style.border_color = Color(1, 1, 1, 0.2)
+			style.corner_radius_top_left = 6
+			style.corner_radius_top_right = 6
+			style.corner_radius_bottom_left = 6
+			style.corner_radius_bottom_right = 6
+			style.content_margin_left = 12
+			style.content_margin_right = 12
+			style.content_margin_top = 6
+			style.content_margin_bottom = 6
+			slot_panel.add_theme_stylebox_override("panel", style)
+			
+			var lbl = Label.new()
+			lbl.text = "?"
+			lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+			lbl.add_theme_font_size_override("font_size", 20)
+			lbl.modulate = Color(1, 1, 1, 0.5)
+			slot_panel.add_child(lbl)
+			
+			progression_slots_container.add_child(slot_panel)
+			
+			# Add a 'ghost' index for current step tracking
+			slot_panel.set_meta("slot_index", i)
+			
+		# Highlight first slot
+		_update_progression_slots_active(0)
 
 func _on_et_quiz_answered(result: Dictionary) -> void:
 	if et_feedback_label:
@@ -521,39 +701,188 @@ func _on_next_pressed() -> void:
 		QuizManager.QuizType.INTERVAL:
 			QuizManager.start_interval_quiz()
 		QuizManager.QuizType.CHORD_QUALITY:
-			# [Modified] Always start standard chord quiz (Hybrid Mode)
 			QuizManager.start_chord_quiz()
+		QuizManager.QuizType.CHORD_PROGRESSION:
+			QuizManager.start_progression_quiz()
 		QuizManager.QuizType.PITCH_CLASS:
 			QuizManager.start_pitch_quiz()
 		_:
 			QuizManager.start_interval_quiz() # Fallback
 
-func _set_active_tab(type: QuizManager.QuizType) -> void:
-	if _active_tab_type == type: return
+
+func _setup_progression_tab_ui() -> void:
+	# 1. Add Tab Button
+	# [Fix] tab_prog_btn is now initialized in _build_content correctly
+	tab_prog_btn.text = "PROG"
+	tab_prog_btn.toggle_mode = true
+	tab_prog_btn.focus_mode = Control.FOCUS_NONE
+	tab_prog_btn.custom_minimum_size.y = 40
+	tabs_hbox.add_child(tab_prog_btn)
+	tabs_hbox.move_child(tab_prog_btn, 2) # Insert after Chord
 	
-	# Stop active quiz when switching
-	QuizManager.stop_quiz()
+	# 2. Create Container
+	progression_container = VBoxContainer.new()
+	progression_container.name = "ProgressionContainer"
+	progression_container.visible = false
+	progression_container.add_theme_constant_override("separation", 16)
+	main_vbox.add_child(progression_container)
+	main_vbox.move_child(progression_container, chord_container.get_index() + 1)
 	
-	_active_tab_type = type
+	# 3. Slots Visualizer
+	var slots_frame = PanelContainer.new()
+	var style = StyleBoxFlat.new()
+	style.bg_color = Color(0, 0, 0, 0.2)
+	style.corner_radius_top_left = 8
+	style.corner_radius_top_right = 8
+	style.corner_radius_bottom_left = 8
+	style.corner_radius_bottom_right = 8
+	style.content_margin_top = 10
+	style.content_margin_bottom = 10
+	slots_frame.add_theme_stylebox_override("panel", style)
 	
-	# Visibility
-	interval_container.visible = (type == QuizManager.QuizType.INTERVAL)
-	chord_container.visible = (type == QuizManager.QuizType.CHORD_QUALITY)
-	scale_container.visible = (type == QuizManager.QuizType.NONE) # Scale placeholder
-	pitch_container.visible = (type == QuizManager.QuizType.PITCH_CLASS)
+	progression_slots_container = HBoxContainer.new()
+	progression_slots_container.alignment = BoxContainer.ALIGNMENT_CENTER
+	progression_slots_container.add_theme_constant_override("separation", 10)
+	slots_frame.add_child(progression_slots_container)
 	
-	_update_tab_buttons_visuals()
+	progression_container.add_child(slots_frame)
+	
+	# 4. Input Buttons (I through vii) - NOW FILTERS
+	var input_grid = GridContainer.new()
+	input_grid.columns = 4
+	input_grid.add_theme_constant_override("h_separation", 8)
+	input_grid.add_theme_constant_override("v_separation", 8)
+	
+	var degrees = ["I", "ii", "iii", "IV", "V", "vi", "vii°"]
+	_prog_degree_btns.clear()
+	
+	for i in range(degrees.size()):
+		var btn = Button.new()
+		btn.text = degrees[i]
+		btn.custom_minimum_size = Vector2(0, 45)
+		btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		btn.focus_mode = Control.FOCUS_NONE
+		btn.toggle_mode = true # [New] Toggle behavior for filters
+		
+		# Initialize toggle state from manager
+		btn.button_pressed = i in QuizManager.active_progression_degrees
+		
+		btn.pressed.connect(func():
+			_on_degree_filter_toggled(i, btn.button_pressed)
+		)
+		input_grid.add_child(btn)
+		_prog_degree_btns.append(btn)
+		
+	progression_container.add_child(input_grid)
+	_update_degree_filter_visuals()
+
+func _on_degree_filter_toggled(degree_idx: int, is_pressed: bool) -> void:
+	var active = QuizManager.active_progression_degrees
+	if is_pressed:
+		if not degree_idx in active:
+			active.append(degree_idx)
+	else:
+		active.erase(degree_idx)
+	
+	# Minimum 1 degree must be selected? 
+	if active.is_empty():
+		active.append(degree_idx)
+		_prog_degree_btns[degree_idx].button_pressed = true
+		
+	_update_degree_filter_visuals()
+
+func _update_degree_filter_visuals() -> void:
+	for i in range(_prog_degree_btns.size()):
+		var btn = _prog_degree_btns[i]
+		var is_active = i in QuizManager.active_progression_degrees
+		
+		var style = StyleBoxFlat.new()
+		style.set_corner_radius_all(6)
+		if is_active:
+			style.bg_color = Color("#4834d4") # Active filter color
+			style.set_border_width_all(2)
+			style.border_color = Color("#686de0")
+		else:
+			style.bg_color = Color(1, 1, 1, 0.05)
+			style.set_border_width_all(1)
+			style.border_color = Color(1, 1, 1, 0.1)
+			
+		btn.add_theme_stylebox_override("normal", style)
+		btn.add_theme_stylebox_override("hover", style)
+		btn.add_theme_stylebox_override("pressed", style)
+
+func _update_progression_slots_active(step_idx: int) -> void:
+	var slots = progression_slots_container.get_children()
+	for i in range(slots.size()):
+		var slot = slots[i]
+		if not slot is PanelContainer: continue
+		
+		var style = slot.get_theme_stylebox("panel").duplicate()
+		if i == step_idx:
+			style.border_color = Color("#74b9ff") # Active slot highlight
+			style.bg_color = Color(1, 1, 1, 0.2)
+			slot.modulate.a = 1.0
+		elif i < step_idx:
+			# Completed
+			style.border_color = Color("#55efc4")
+			style.bg_color = Color(1, 1, 1, 0.1)
+			slot.modulate.a = 1.0
+		else:
+			# Future slots
+			style.border_color = Color(1, 1, 1, 0.2)
+			style.bg_color = Color(1, 1, 1, 0.05)
+			slot.modulate.a = 0.5
+		slot.add_theme_stylebox_override("panel", style)
+
+func _animate_slot_pop(slot: Control) -> void:
+	var tw = create_tween()
+	tw.set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_ELASTIC)
+	slot.pivot_offset = slot.size / 2
+	slot.scale = Vector2(0.8, 0.8)
+	tw.tween_property(slot, "scale", Vector2(1, 1), 0.4)
+
+func _animate_slot_shake(slot: Control) -> void:
+	var tw = create_tween()
+	var start_pos = slot.position
+	tw.tween_property(slot, "position:x", start_pos.x + 10, 0.05)
+	tw.tween_property(slot, "position:x", start_pos.x - 10, 0.05)
+	tw.tween_property(slot, "position:x", start_pos.x + 10, 0.05)
+	tw.tween_property(slot, "position:x", start_pos.x, 0.05)
+
+func _set_active_tab(type: int, auto_start: bool = true) -> void: # QuizType
+	_active_tab_type = type # [Fix] Sync state
+	
+	# Update visibility
+	if interval_container: interval_container.visible = (type == QuizManager.QuizType.INTERVAL)
+	if chord_container: chord_container.visible = (type == QuizManager.QuizType.CHORD_QUALITY)
+	if scale_container: scale_container.visible = (type == QuizManager.QuizType.NONE)
+	if pitch_container: pitch_container.visible = (type == QuizManager.QuizType.PITCH_CLASS)
+	if progression_container: progression_container.visible = (type == QuizManager.QuizType.CHORD_PROGRESSION)
+	
+	_update_tab_buttons_visuals() # [Fix] Refresh styling
+	
+	# [Fix] Only start quiz if explicitly asked (not on startup)
+	if not auto_start: return
+	
+	# Start Quiz Logic
+	match type:
+		QuizManager.QuizType.INTERVAL: QuizManager.start_interval_quiz()
+		QuizManager.QuizType.CHORD_QUALITY: QuizManager.start_chord_quiz()
+		QuizManager.QuizType.CHORD_PROGRESSION: QuizManager.start_progression_quiz()
+		QuizManager.QuizType.PITCH_CLASS: QuizManager.start_pitch_quiz()
+
 
 func _update_tab_buttons_visuals() -> void:
 	_update_tab_btn_style(tab_interval_btn, _active_tab_type == QuizManager.QuizType.INTERVAL, 0)
 	_update_tab_btn_style(tab_chord_btn, _active_tab_type == QuizManager.QuizType.CHORD_QUALITY, 1)
-	_update_tab_btn_style(tab_scale_btn, _active_tab_type == QuizManager.QuizType.NONE, 2)
-	_update_tab_btn_style(tab_pitch_btn, _active_tab_type == QuizManager.QuizType.PITCH_CLASS, 3)
+	_update_tab_btn_style(tab_prog_btn, _active_tab_type == QuizManager.QuizType.CHORD_PROGRESSION, 2)
+	_update_tab_btn_style(tab_scale_btn, _active_tab_type == QuizManager.QuizType.NONE, 3)
+	_update_tab_btn_style(tab_pitch_btn, _active_tab_type == QuizManager.QuizType.PITCH_CLASS, 4)
 
 func _update_tab_btn_style(btn: Button, is_active: bool, pos: int) -> void:
 	var style = StyleBoxFlat.new()
 	style.corner_radius_top_left = 10 if pos == 0 else 0
-	style.corner_radius_top_right = 10 if pos == 3 else 0
+	style.corner_radius_top_right = 10 if pos == 4 else 0
 	
 	if is_active:
 		style.bg_color = Color("#3498db")

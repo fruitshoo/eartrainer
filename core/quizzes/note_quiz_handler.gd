@@ -17,7 +17,7 @@ func start_quiz() -> void:
 	# Sync back to manager for playback
 	manager.current_target_note = current_target_note
 	
-	_play_note(current_target_note)
+	replay()
 	
 	manager.quiz_started.emit({
 		"type": "note",
@@ -35,10 +35,13 @@ func check_answer(input: Variant) -> void:
 		print("[NoteQuizHandler] Correct!")
 		_play_sfx("correct")
 		await manager.get_tree().create_timer(1.0).timeout
-		start_quiz() 
+		start_quiz()
 	else:
 		print("[NoteQuizHandler] Wrong!")
-		_play_sfx("wrong") 
+		_play_sfx("wrong")
 		_play_note(current_target_note)
 		
 	manager.quiz_answered.emit({"correct": is_correct})
+
+func replay() -> void:
+	_play_note(current_target_note)

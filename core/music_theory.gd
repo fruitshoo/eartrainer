@@ -90,6 +90,17 @@ const SCALE_DATA := {
 	}
 }
 
+# [New] Direct Interval Lookup (for easier access)
+const SCALE_INTERVALS := {
+	ScaleMode.MAJOR: [0, 2, 4, 5, 7, 9, 11],
+	ScaleMode.MINOR: [0, 2, 3, 5, 7, 8, 10],
+	ScaleMode.DORIAN: [0, 2, 3, 5, 7, 9, 10],
+	ScaleMode.PHRYGIAN: [0, 1, 3, 5, 7, 8, 10],
+	ScaleMode.LYDIAN: [0, 2, 4, 6, 7, 9, 11],
+	ScaleMode.MIXOLYDIAN: [0, 2, 4, 5, 7, 9, 10],
+	ScaleMode.LOCRIAN: [0, 1, 3, 5, 6, 8, 10]
+}
+
 # [Backward Compatibility] Shortcut for old dict access style
 static func _get_scale_intervals(mode: ScaleMode) -> Array:
 	return SCALE_DATA[mode]["intervals"]

@@ -44,7 +44,7 @@ func start_quiz() -> void:
 	])
 	
 	# 5. Play Sound
-	manager._play_quiz_sound(manager.QuizType.PITCH_CLASS)
+	replay()
 	
 	# 6. Signal
 	manager.quiz_started.emit({
@@ -100,3 +100,6 @@ func on_tile_clicked(clicked_note: int, string_idx: int) -> void:
 				})
 		
 		manager.quiz_answered.emit({"correct": false, "pitch_class": pitch_target_class})
+
+func replay() -> void:
+	manager._play_note_with_blink(pitch_target_note_actual)

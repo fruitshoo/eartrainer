@@ -112,7 +112,7 @@ func start_quiz() -> void:
 	])
 	
 	# Play
-	manager._play_quiz_sound(manager.QuizType.CHORD_QUALITY)
+	replay()
 	
 	manager.quiz_started.emit({
 		"type": "chord_location" if is_location_mode else "chord",
@@ -121,6 +121,9 @@ func start_quiz() -> void:
 		"degree_label": roman_label,
 		"voicing": manager.chord_quiz_use_voicing
 	})
+
+func replay() -> void:
+	_play_chord_structure(manager.interval_root_note, chord_target_type)
 
 func on_tile_clicked(note: int, _string_idx: int) -> void:
 	if manager._is_processing_correct_answer: return
