@@ -129,22 +129,30 @@ func _build_content() -> void:
 	
 	_update_tab_buttons_visuals()
 	
-	_setup_stage_button(et_replay_btn, Color("#34495e"))
-	_setup_stage_button(et_next_btn, Color("#3498db"))
+	_setup_stage_button(et_replay_btn, ThemeColors.NEUTRAL.darkened(0.2))
+	_setup_stage_button(et_next_btn, ThemeColors.TOGGLE_ON)
 	
-	if et_asc_mode: _setup_mode_button(et_asc_mode, "↗", QuizManager.IntervalMode.ASCENDING, Color("#81ecec"), 0)
-	if et_desc_mode: _setup_mode_button(et_desc_mode, "↘", QuizManager.IntervalMode.DESCENDING, Color("#fab1a0"), 1)
-	if et_harm_mode: _setup_mode_button(et_harm_mode, "≡", QuizManager.IntervalMode.HARMONIC, Color("#ffeaa7"), 2)
+	if et_asc_mode: _setup_mode_button(et_asc_mode, "↗", QuizManager.IntervalMode.ASCENDING, ThemeColors.MODE_ASC, 0)
+	if et_desc_mode: _setup_mode_button(et_desc_mode, "↘", QuizManager.IntervalMode.DESCENDING, ThemeColors.MODE_DESC, 1)
+	if et_harm_mode: _setup_mode_button(et_harm_mode, "≡", QuizManager.IntervalMode.HARMONIC, ThemeColors.MODE_HARM, 2)
+	
+	# [Fix] Connect Easy Mode (Visual Hints)
+	if et_easy_mode:
+		et_easy_mode.button_pressed = GameManager.show_target_visual
+		et_easy_mode.toggled.connect(func(on):
+			GameManager.show_target_visual = on
+			GameManager.save_settings()
+		)
 	
 	# [New] Chord Direction Buttons
-	_setup_chord_dir_button(chord_up_btn, "↑", 0, Color("#81ecec"), 0)
-	_setup_chord_dir_button(chord_down_btn, "↓", 1, Color("#fab1a0"), 1)
-	_setup_chord_dir_button(chord_harm_btn, "≡", 2, Color("#ffeaa7"), 2)
+	_setup_chord_dir_button(chord_up_btn, "↑", 0, ThemeColors.MODE_ASC, 0)
+	_setup_chord_dir_button(chord_down_btn, "↓", 1, ThemeColors.MODE_DESC, 1)
+	_setup_chord_dir_button(chord_harm_btn, "≡", 2, ThemeColors.MODE_HARM, 2)
 	
 	# [New] Chord Inversion Buttons
-	_setup_chord_inv_button(chord_inv_root_btn, "Root", 0, Color("#74b9ff"), 0)
-	_setup_chord_inv_button(chord_inv_1st_btn, "1st", 1, Color("#a29bfe"), 1)
-	_setup_chord_inv_button(chord_inv_2nd_btn, "2nd", 2, Color("#81ecec"), 2)
+	_setup_chord_inv_button(chord_inv_root_btn, "Root", 0, ThemeColors.CHORD_ROOT, 0)
+	_setup_chord_inv_button(chord_inv_1st_btn, "1st", 1, ThemeColors.CHORD_1ST, 1)
+	_setup_chord_inv_button(chord_inv_2nd_btn, "2nd", 2, ThemeColors.CHORD_2ND, 2)
 	
 	# [New] Voicing Mode Toggle
 	_setup_voicing_toggle()
@@ -183,7 +191,7 @@ func _on_et_quiz_step(data: Dictionary) -> void:
 			var slot = slots[idx] as PanelContainer
 			var lbl = slot.get_child(0) as Label
 			lbl.text = _get_degree_text(data.degree)
-			lbl.modulate = Color("#55efc4")
+			lbl.modulate = ThemeColors.SUCCESS
 			
 			_animate_slot_pop(slot)
 			_update_progression_slots_active(data.step)
@@ -196,9 +204,9 @@ func _on_et_quiz_step(data: Dictionary) -> void:
 		
 		if et_feedback_label:
 			et_feedback_label.text = "TRY AGAIN"
-			et_feedback_label.modulate = Color("#ff7675")
+			et_feedback_label.modulate = ThemeColors.ERROR
 			_animate_feedback_pop()
-			et_feedback_label.modulate = Color("#ff7675")
+			et_feedback_label.modulate = ThemeColors.ERROR
 
 func _get_degree_text(degree: int) -> String:
 	var texts = ["I", "ii", "iii", "IV", "V", "vi", "vii°"]
@@ -279,50 +287,62 @@ func _setup_interval_options_ui() -> void:
 	# [New] Move to TOP of list
 	interval_container.move_child(pad, 0)
 	
-	# 4. Populate Options
+	# 4. Populate Options (Grid for Toggles, Row for Strings)
+	var grid = GridContainer.new()
+	grid.columns = 2
+	grid.add_theme_constant_override("h_separation", 16) # Reduced separation
+	grid.add_theme_constant_override("v_separation", 4)
+	options_container.add_child(grid)
 	
-	# Row 1: Toggles (Diatonic + Context)
-	var toggles_hbox = HBoxContainer.new()
-	toggles_hbox.add_theme_constant_override("separation", 16)
-	
-	# Diatonic Mode Toggle
+	# [1] Diatonic Mode
 	var diatonic_check = CheckBox.new()
 	diatonic_check.text = "Diatonic"
-	diatonic_check.tooltip_text = "Only generate intervals that naturally occur within the current key's scale."
+	diatonic_check.tooltip_text = "Only in-key intervals"
 	diatonic_check.button_pressed = QuizManager.interval_diatonic_mode
 	diatonic_check.focus_mode = Control.FOCUS_NONE
 	diatonic_check.toggled.connect(func(on):
 		QuizManager.interval_diatonic_mode = on
 		QuizManager.save_interval_settings()
 	)
-	toggles_hbox.add_child(diatonic_check)
+	grid.add_child(diatonic_check)
 	
-	# Harmonic Context Toggle
+	# [2] Harmonic Context
 	var context_check = CheckBox.new()
 	context_check.text = "Context"
-	context_check.tooltip_text = "Play the tonic chord (I) before the quiz starts."
+	context_check.tooltip_text = "Play I-IV-V-I cadence first"
 	context_check.button_pressed = QuizManager.interval_harmonic_context
 	context_check.focus_mode = Control.FOCUS_NONE
 	context_check.toggled.connect(func(on):
 		QuizManager.interval_harmonic_context = on
 		QuizManager.save_interval_settings()
 	)
-	toggles_hbox.add_child(context_check)
+	grid.add_child(context_check)
 	
-	options_container.add_child(toggles_hbox)
+	# [3] Fixed Anchor
+	var anchor_check = CheckBox.new()
+	anchor_check.text = "Fixed Pos"
+	anchor_check.tooltip_text = "Keep same root/position"
+	anchor_check.button_pressed = QuizManager.interval_fixed_anchor
+	anchor_check.focus_mode = Control.FOCUS_NONE
+	anchor_check.toggled.connect(func(on):
+		QuizManager.interval_fixed_anchor = on
+		QuizManager.save_interval_settings()
+	)
+	grid.add_child(anchor_check)
 	
-	# Row 2: String Constraint Dropdown
+	# [4] String Constraint (Separate Row to save width)
 	var string_hbox = HBoxContainer.new()
+	string_hbox.add_theme_constant_override("separation", 8)
 	var string_label = Label.new()
-	string_label.text = "Strings:"
+	string_label.text = "Strings: "
+	string_label.add_theme_color_override("font_color", Color(1, 1, 1, 0.6))
 	string_hbox.add_child(string_label)
 	
 	var string_opt = OptionButton.new()
-	string_opt.tooltip_text = "Restrict where notes can appear:\n- All: Any string\n- Same: Both notes on same string (Distance)\n- Cross: Adjacent strings (Shapes)"
 	string_opt.focus_mode = Control.FOCUS_NONE
-	string_opt.add_item("All Strings", 0)
-	string_opt.add_item("Same String", 1)
-	string_opt.add_item("Cross String", 2)
+	string_opt.add_item("All", 0)
+	string_opt.add_item("Same", 1)
+	string_opt.add_item("Cross", 2)
 	string_opt.selected = QuizManager.interval_string_constraint
 	string_opt.item_selected.connect(func(idx):
 		QuizManager.interval_string_constraint = idx
@@ -414,7 +434,7 @@ func _sync_et_state() -> void:
 		et_harm_mode.set_pressed_no_signal(QuizManager.IntervalMode.HARMONIC in modes)
 		_update_mode_button_style(et_harm_mode, Color("#ffeaa7"), et_harm_mode.button_pressed, 2)
 		
-	# if et_easy_mode: et_easy_mode.set_pressed_no_signal(GameManager.show_target_visual)
+	if et_easy_mode: et_easy_mode.set_pressed_no_signal(GameManager.show_target_visual)
 
 func _setup_mode_button(btn: Button, text: String, mode_id: int, color: Color, pos_idx: int) -> void:
 	btn.text = text
@@ -475,13 +495,13 @@ func _populate_chord_grid() -> void:
 func _create_degree_tile(degree_idx: int, label: String, is_checked: bool) -> Button:
 	var btn = Button.new()
 	btn.text = label
-	btn.custom_minimum_size = Vector2(50, 50)
+	btn.custom_minimum_size = Vector2(64, 45)
 	btn.add_theme_font_size_override("font_size", 16)
 	btn.focus_mode = Control.FOCUS_NONE
 	btn.toggle_mode = true
 	btn.button_pressed = is_checked
 	
-	_update_tile_style(btn, Color("#3498db"), is_checked)
+	_update_tile_style(btn, ThemeColors.TOGGLE_ON, is_checked)
 	
 	btn.toggled.connect(func(on):
 		if on:
@@ -492,7 +512,7 @@ func _create_degree_tile(degree_idx: int, label: String, is_checked: bool) -> Bu
 			if QuizManager.active_degrees.is_empty():
 				QuizManager.active_degrees.append(degree_idx)
 				btn.set_pressed_no_signal(true)
-		_update_tile_style(btn, Color("#3498db"), btn.button_pressed)
+		_update_tile_style(btn, ThemeColors.TOGGLE_ON, btn.button_pressed)
 		QuizManager.save_chord_settings()
 	)
 	return btn
@@ -500,14 +520,14 @@ func _create_degree_tile(degree_idx: int, label: String, is_checked: bool) -> Bu
 func _sync_chord_state() -> void:
 	# [Fix #5] Direction uses active_directions array
 	var dir_list = QuizManager.active_directions
-	_update_chord_dir_style(chord_up_btn, Color("#81ecec"), 0 in dir_list, 0)
-	_update_chord_dir_style(chord_down_btn, Color("#fab1a0"), 1 in dir_list, 1)
-	_update_chord_dir_style(chord_harm_btn, Color("#ffeaa7"), 2 in dir_list, 2)
+	_update_chord_dir_style(chord_up_btn, ThemeColors.MODE_ASC, 0 in dir_list, 0)
+	_update_chord_dir_style(chord_down_btn, ThemeColors.MODE_DESC, 1 in dir_list, 1)
+	_update_chord_dir_style(chord_harm_btn, ThemeColors.MODE_HARM, 2 in dir_list, 2)
 	
 	var inv_list = QuizManager.active_inversions
-	_update_chord_inv_style(chord_inv_root_btn, Color("#74b9ff"), 0 in inv_list, 0)
-	_update_chord_inv_style(chord_inv_1st_btn, Color("#a29bfe"), 1 in inv_list, 1)
-	_update_chord_inv_style(chord_inv_2nd_btn, Color("#81ecec"), 2 in inv_list, 2)
+	_update_chord_inv_style(chord_inv_root_btn, ThemeColors.CHORD_ROOT, 0 in inv_list, 0)
+	_update_chord_inv_style(chord_inv_1st_btn, ThemeColors.CHORD_1ST, 1 in inv_list, 1)
+	_update_chord_inv_style(chord_inv_2nd_btn, ThemeColors.CHORD_2ND, 2 in inv_list, 2)
 	
 	_update_voicing_toggle_style()
 
@@ -598,8 +618,8 @@ func _setup_voicing_toggle() -> void:
 
 func _update_voicing_toggle_style() -> void:
 	var is_voicing = QuizManager.chord_quiz_use_voicing
-	_update_tile_style(chord_voicing_toggle_theory, Color("#74b9ff"), not is_voicing)
-	_update_tile_style(chord_voicing_toggle_form, Color("#fdcb6e"), is_voicing)
+	_update_tile_style(chord_voicing_toggle_theory, ThemeColors.CHORD_ROOT, not is_voicing)
+	_update_tile_style(chord_voicing_toggle_form, ThemeColors.MODE_HARM.darkened(0.1), is_voicing)
 
 func _setup_stage_button(btn: Button, color: Color) -> void:
 	var normal = StyleBoxFlat.new()
@@ -642,20 +662,14 @@ func _on_et_quiz_started(data: Dictionary) -> void:
 		for i in range(data.length):
 			var slot_panel = PanelContainer.new()
 			var style = StyleBoxFlat.new()
-			style.bg_color = Color(1, 1, 1, 0.1)
-			style.border_width_left = 2
-			style.border_width_top = 2
-			style.border_width_right = 2
-			style.border_width_bottom = 2
-			style.border_color = Color(1, 1, 1, 0.2)
-			style.corner_radius_top_left = 6
-			style.corner_radius_top_right = 6
-			style.corner_radius_bottom_left = 6
-			style.corner_radius_bottom_right = 6
-			style.content_margin_left = 12
-			style.content_margin_right = 12
-			style.content_margin_top = 6
-			style.content_margin_bottom = 6
+			style.bg_color = ThemeColors.SLOT_FUTURE_BG
+			style.set_border_width_all(2)
+			style.border_color = ThemeColors.SLOT_FUTURE_BORDER
+			style.set_corner_radius_all(6)
+			style.content_margin_left = 8
+			style.content_margin_right = 8
+			style.content_margin_top = 4
+			style.content_margin_bottom = 4
 			slot_panel.add_theme_stylebox_override("panel", style)
 			
 			var lbl = Label.new()
@@ -677,13 +691,13 @@ func _on_et_quiz_answered(result: Dictionary) -> void:
 	if et_feedback_label:
 		if result.correct:
 			et_feedback_label.text = "CORRECT!"
-			et_feedback_label.modulate = Color("#55efc4")
+			et_feedback_label.modulate = ThemeColors.SUCCESS
 		elif result.get("partial", false):
 			et_feedback_label.text = "%d / %d Found" % [result.found_count, result.total_count]
-			et_feedback_label.modulate = Color("#74b9ff") # Light Blue for progress
+			et_feedback_label.modulate = ThemeColors.PROGRESS # Light Blue for progress
 		else:
 			et_feedback_label.text = "TRY AGAIN"
-			et_feedback_label.modulate = Color("#ff7675")
+			et_feedback_label.modulate = ThemeColors.ERROR
 		_animate_feedback_pop()
 
 func _animate_feedback_pop() -> void:
@@ -713,7 +727,7 @@ func _on_next_pressed() -> void:
 func _setup_progression_tab_ui() -> void:
 	# 1. Add Tab Button
 	# [Fix] tab_prog_btn is now initialized in _build_content correctly
-	tab_prog_btn.text = "PROG"
+	tab_prog_btn.text = "PRG"
 	tab_prog_btn.toggle_mode = true
 	tab_prog_btn.focus_mode = Control.FOCUS_NONE
 	tab_prog_btn.custom_minimum_size.y = 40
@@ -740,16 +754,26 @@ func _setup_progression_tab_ui() -> void:
 	style.content_margin_bottom = 10
 	slots_frame.add_theme_stylebox_override("panel", style)
 	
+	var slots_scroll = ScrollContainer.new()
+	slots_scroll.name = "SlotsScroll"
+	slots_scroll.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	slots_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_AUTO
+	slots_scroll.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	slots_scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	slots_frame.add_child(slots_scroll)
+	
 	progression_slots_container = HBoxContainer.new()
 	progression_slots_container.alignment = BoxContainer.ALIGNMENT_CENTER
+	progression_slots_container.size_flags_horizontal = Control.SIZE_EXPAND_FILL # Ensure it fills scroll area
 	progression_slots_container.add_theme_constant_override("separation", 10)
-	slots_frame.add_child(progression_slots_container)
+	slots_scroll.add_child(progression_slots_container)
 	
 	progression_container.add_child(slots_frame)
 	
 	# 4. Input Buttons (I through vii) - NOW FILTERS
 	var input_grid = GridContainer.new()
 	input_grid.columns = 4
+	input_grid.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 	input_grid.add_theme_constant_override("h_separation", 8)
 	input_grid.add_theme_constant_override("v_separation", 8)
 	
@@ -759,7 +783,7 @@ func _setup_progression_tab_ui() -> void:
 	for i in range(degrees.size()):
 		var btn = Button.new()
 		btn.text = degrees[i]
-		btn.custom_minimum_size = Vector2(0, 45)
+		btn.custom_minimum_size = Vector2(64, 45)
 		btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		btn.focus_mode = Control.FOCUS_NONE
 		btn.toggle_mode = true # [New] Toggle behavior for filters
@@ -799,13 +823,13 @@ func _update_degree_filter_visuals() -> void:
 		var style = StyleBoxFlat.new()
 		style.set_corner_radius_all(6)
 		if is_active:
-			style.bg_color = Color("#4834d4") # Active filter color
+			style.bg_color = ThemeColors.FILTER_ACTIVE_BG # Active filter color
 			style.set_border_width_all(2)
-			style.border_color = Color("#686de0")
+			style.border_color = ThemeColors.FILTER_ACTIVE_BORDER
 		else:
-			style.bg_color = Color(1, 1, 1, 0.05)
+			style.bg_color = ThemeColors.SLOT_FUTURE_BG
 			style.set_border_width_all(1)
-			style.border_color = Color(1, 1, 1, 0.1)
+			style.border_color = ThemeColors.SLOT_FUTURE_BORDER.lightened(0.1)
 			
 		btn.add_theme_stylebox_override("normal", style)
 		btn.add_theme_stylebox_override("hover", style)
@@ -819,18 +843,18 @@ func _update_progression_slots_active(step_idx: int) -> void:
 		
 		var style = slot.get_theme_stylebox("panel").duplicate()
 		if i == step_idx:
-			style.border_color = Color("#74b9ff") # Active slot highlight
-			style.bg_color = Color(1, 1, 1, 0.2)
+			style.border_color = ThemeColors.SLOT_ACTIVE_BORDER # Active slot highlight
+			style.bg_color = ThemeColors.SLOT_ACTIVE_BG
 			slot.modulate.a = 1.0
 		elif i < step_idx:
 			# Completed
-			style.border_color = Color("#55efc4")
-			style.bg_color = Color(1, 1, 1, 0.1)
+			style.border_color = ThemeColors.SLOT_DONE_BORDER
+			style.bg_color = ThemeColors.SLOT_DONE_BG
 			slot.modulate.a = 1.0
 		else:
 			# Future slots
-			style.border_color = Color(1, 1, 1, 0.2)
-			style.bg_color = Color(1, 1, 1, 0.05)
+			style.border_color = ThemeColors.SLOT_FUTURE_BORDER
+			style.bg_color = ThemeColors.SLOT_FUTURE_BG
 			slot.modulate.a = 0.5
 		slot.add_theme_stylebox_override("panel", style)
 
@@ -885,11 +909,11 @@ func _update_tab_btn_style(btn: Button, is_active: bool, pos: int) -> void:
 	style.corner_radius_top_right = 10 if pos == 4 else 0
 	
 	if is_active:
-		style.bg_color = Color("#3498db")
-		btn.add_theme_color_override("font_color", Color.WHITE)
+		style.bg_color = ThemeColors.TOGGLE_ON
+		btn.add_theme_color_override("font_color", ThemeColors.TOGGLE_TEXT_ON)
 	else:
-		style.bg_color = Color(0, 0, 0, 0.1)
-		btn.add_theme_color_override("font_color", Color(0, 0, 0, 0.4))
+		style.bg_color = ThemeColors.TOGGLE_OFF
+		btn.add_theme_color_override("font_color", ThemeColors.TOGGLE_TEXT_OFF)
 		
 	btn.add_theme_stylebox_override("normal", style)
 	btn.add_theme_stylebox_override("hover", style)

@@ -39,69 +39,93 @@ func start_quiz() -> void:
 		_play_context()
 		await manager.get_tree().create_timer(1.0).timeout
 	
-	# 4. Find Valid Position (Near Player)
-	# 4. Find Valid Position (Near Player)
-	# [Fix] Don't use player_fret as anchor, as it causes "drifting" up the neck on ascending intervals.
-	# Instead, pick a random anchor in lower/mid neck (e.g. fret 2-8)
-	var center_fret = randi_range(2, 5)
-	# Note: root_fret adds (randi() % 5 - 2) -> -2 to +2. 
-	# So random center 2-5 means roots could be 0 to 7. Safe range.
+	# 4. Find Valid Position (Near Player or Fixed)
+	var center_fret = manager._current_root_fret if manager.interval_fixed_anchor and manager._current_root_fret != -1 else randi_range(2, 5)
 	
 	var valid_found = false
-	var max_retries = 50 # Increased retries for stricter constraints
+	var max_retries = 50
 	var final_string_idx = -1
 	var final_fret_idx = -1
 	
 	var key_root = GameManager.current_key
 	var key_mode = GameManager.current_mode
 	
-	for i in range(max_retries):
-		# [String Constraint Logic]
-		# 0=All, 1=Same, 2=Cross
-		var constraint = manager.interval_string_constraint
-		
-		var root_string = randi() % 6
-		
-		# [Fret Logic]
-		# Try to stay near center fret, but explore slightly wider
-		var root_fret = center_fret + (randi() % 5 - 2)
-		root_fret = clampi(root_fret, 0, 12)
-		
-		var candidate_root = AudioEngine.OPEN_STRING_MIDI[root_string] + root_fret
-		
-		# [Diatonic Validation - Step 1]
-		# If Diatonic Mode is ON, Root MUST be in scale
-		if manager.interval_diatonic_mode:
-			if not MusicTheory.is_in_scale(candidate_root, key_root, key_mode):
+	# If Fixed Anchor is ON, we might already have a valid position to try first
+	if manager.interval_fixed_anchor and manager.interval_root_note != -1:
+		# Check if current root and its position still work for the new interval
+		var root_str = -1
+		var root_fret = manager._current_root_fret
+		# Find which string the last root was on
+		for s in range(6):
+			if AudioEngine.OPEN_STRING_MIDI[s] + root_fret == manager.interval_root_note:
+				root_str = s
+				break
+				
+		if root_str != -1:
+			var constraint = manager.interval_string_constraint
+			var candidate_target = -1
+			if current_interval_mode == 1: # DESCENDING
+				candidate_target = manager.interval_root_note - interval_semitones
+			else:
+				candidate_target = manager.interval_root_note + interval_semitones
+				
+			if candidate_target >= 40 and candidate_target <= 88:
+				var target_pos = _find_target_pos_with_constraint(candidate_target, root_str, root_fret, constraint)
+				if target_pos.valid:
+					interval_root_note = manager.interval_root_note
+					interval_target_note = candidate_target
+					final_string_idx = root_str
+					final_fret_idx = root_fret
+					valid_found = true
+
+	if not valid_found:
+		for i in range(max_retries):
+			# [String Constraint Logic]
+			# 0=All, 1=Same, 2=Cross
+			var constraint = manager.interval_string_constraint
+			
+			var root_string = randi() % 6
+			
+			# [Fret Logic]
+			# Try to stay near center fret, but explore slightly wider
+			var root_fret = center_fret + (randi() % 5 - 2)
+			root_fret = clampi(root_fret, 0, 12)
+			
+			var candidate_root = AudioEngine.OPEN_STRING_MIDI[root_string] + root_fret
+			
+			# [Diatonic Validation - Step 1]
+			# If Diatonic Mode is ON, Root MUST be in scale
+			if manager.interval_diatonic_mode:
+				if not MusicTheory.is_in_scale(candidate_root, key_root, key_mode):
+					continue
+			
+			var candidate_target = -1
+			if current_interval_mode == 1: # DESCENDING
+				candidate_target = candidate_root - interval_semitones
+			else:
+				candidate_target = candidate_root + interval_semitones
+				
+			if candidate_target < 40 or candidate_target > 88: # Range check
 				continue
-		
-		var candidate_target = -1
-		if current_interval_mode == 1: # DESCENDING
-			candidate_target = candidate_root - interval_semitones
-		else:
-			candidate_target = candidate_root + interval_semitones
+				
+			# [Diatonic Validation - Step 2]
+			# If Diatonic Mode is ON, Target MUST ALSO be in scale
+			if manager.interval_diatonic_mode:
+				if not MusicTheory.is_in_scale(candidate_target, key_root, key_mode):
+					continue
 			
-		if candidate_target < 40 or candidate_target > 88: # Range check
-			continue
-			
-		# [Diatonic Validation - Step 2]
-		# If Diatonic Mode is ON, Target MUST ALSO be in scale
-		if manager.interval_diatonic_mode:
-			if not MusicTheory.is_in_scale(candidate_target, key_root, key_mode):
+			var target_pos = _find_target_pos_with_constraint(candidate_target, root_string, root_fret, constraint)
+			if not target_pos.valid:
 				continue
-		
-		var target_pos = _find_target_pos_with_constraint(candidate_target, root_string, root_fret, constraint)
-		if not target_pos.valid:
-			continue
+				
+			interval_root_note = candidate_root
+			interval_target_note = candidate_target
+			final_string_idx = root_string
+			final_fret_idx = root_fret
+			manager._current_root_fret = final_fret_idx
 			
-		interval_root_note = candidate_root
-		interval_target_note = candidate_target
-		final_string_idx = root_string
-		final_fret_idx = root_fret
-		manager._current_root_fret = final_fret_idx
-		
-		valid_found = true
-		break
+			valid_found = true
+			break
 			
 	if not valid_found:
 		print("[IntervalQuizHandler] Using chromatic fallback.")
@@ -219,24 +243,43 @@ func _pick_fallback_question(center_fret: int) -> void:
 		interval_root_note = 76 - interval_semitones
 
 func _play_context() -> void:
-	# Plays the tonic chord (Triad) of the current key
+	# Plays a full I-IV-V-I cadence to establish the key
 	var root = GameManager.current_key
-	# Center around C3 (48) or C4 (60)
-	var bass = 48 + root
-	if bass > 59: bass -= 12
+	var mode = GameManager.current_mode
 	
-	var chord_intervals = [0, 4, 7] # Major
-	if GameManager.current_mode == MusicTheory.ScaleMode.MINOR:
-		chord_intervals = [0, 3, 7] # Minor
+	# Degrees for I, IV, V (0-based: 0, 3, 4)
+	var degrees = [0, 3, 4, 0]
+	
+	for deg in degrees:
+		var chord_info = _get_chord_info_for_degree(deg, root, mode)
+		if chord_info.notes.is_empty(): continue
 		
+		# Strum chord
+		for note in chord_info.notes:
+			AudioEngine.play_note(note, -1)
+			await manager.get_tree().create_timer(0.03).timeout
+			
+		await manager.get_tree().create_timer(0.5).timeout # Gap between chords
+
+# Helper to get notes for a degree (duplicated from ProgressionHandler or moved to MusicTheory?)
+# For now, a simplified version here to keep it self-contained
+func _get_chord_info_for_degree(degree_idx: int, key_root: int, mode: int) -> Dictionary:
+	var scale_intervals = MusicTheory.SCALE_INTERVALS.get(mode, [0, 2, 4, 5, 7, 9, 11])
+	if degree_idx >= scale_intervals.size(): return {"notes": []}
+	
+	var root_note = key_root + scale_intervals[degree_idx] + 48
+	var type_7th = MusicTheory.get_diatonic_type(root_note, key_root, mode)
+	
+	var quality = "Major"
+	if type_7th.begins_with("m") and not type_7th.begins_with("maj"): quality = "Minor"
+	elif type_7th.begins_with("dim"): quality = "Diminished"
+	
+	const ChordData = preload("res://core/data/chord_quiz_data.gd")
+	var intervals = ChordData.CHORD_QUALITIES.get(quality, [0, 4, 7])
 	var notes = []
-	for i in chord_intervals:
-		notes.append(bass + i)
-		
-	# Quick strum
-	for i in range(notes.size()):
-		AudioEngine.play_note(notes[i], -1) # -1 string for generic playback
-		await manager.get_tree().create_timer(0.05).timeout
+	for iv in intervals:
+		notes.append(root_note + iv)
+	return {"notes": notes}
 
 func _find_target_pos_with_constraint(target_note: int, root_str: int, root_fret: int, constraint: int) -> Dictionary:
 	# 0=All, 1=Same, 2=Cross

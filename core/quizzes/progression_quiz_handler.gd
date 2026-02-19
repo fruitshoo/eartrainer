@@ -52,8 +52,15 @@ func replay() -> void:
 	manager._clear_markers()
 	play_full_sequence()
 
+func stop_playback() -> void:
+	is_playing_sequence = false
+	_playback_id += 1 # Invalidate any running loops
+
+# Playback ID for race condition safety
+var _playback_id: int = 0
+
 func on_tile_clicked(note: int, string_idx: int) -> void:
-	if is_playing_sequence: return
+	# if is_playing_sequence: return # [User Request] Allow input during playback
 	if current_step_index >= current_progression.size(): return
 	
 	# Convert Note -> Degree
@@ -74,7 +81,10 @@ func on_tile_clicked(note: int, string_idx: int) -> void:
 		on_degree_clicked(degree_idx, string_idx)
 
 func play_full_sequence() -> void:
-	if is_playing_sequence: return
+	# Cancel previous playback
+	_playback_id += 1
+	var my_id = _playback_id
+	
 	is_playing_sequence = true
 	
 	var key_root = GameManager.current_key
@@ -82,14 +92,21 @@ func play_full_sequence() -> void:
 	
 	# Play Sequence
 	for i in range(current_progression.size()):
+		# Race condition check: If quiz reset, abort
+		if _playback_id != my_id:
+			is_playing_sequence = false
+			return
+			
 		var degree_idx = current_progression[i]
 		
 		# Calculate Chord Root & Type
 		var chord_info = _get_chord_info_for_degree(degree_idx, key_root, scale_mode)
 		var notes = chord_info.notes
 		
-		# Highlight logic (optional, maybe just show progress?)
-		# manager.highlight_degree(degree_idx) 
+		# Highlight logic (if enabled)
+		if GameManager.show_target_visual:
+			# print("[ProgressionHandler] Highlighting degree: ", degree_idx)
+			manager.highlight_degree(degree_idx)
 		
 		# Play Chord
 		for note in notes:
@@ -97,10 +114,12 @@ func play_full_sequence() -> void:
 			
 		await manager.get_tree().create_timer(1.2).timeout # Gap
 		
-	is_playing_sequence = false
+	if _playback_id == my_id:
+		is_playing_sequence = false
+		manager._clear_markers() # Clean up after sequence
 
 func on_degree_clicked(degree_idx: int, string_idx: int = -1) -> void:
-	if is_playing_sequence: return
+	# if is_playing_sequence: return # [User Request] Allow input during playback
 	if current_step_index >= current_progression.size(): return
 	
 	var expected_degree = current_progression[current_step_index]
@@ -160,25 +179,34 @@ func _get_chord_info_for_degree(degree_idx: int, key_root: int, mode: int) -> Di
 	# 0=I, 1=ii, etc.
 	# We need to know if it's Major or Minor based on key/mode
 	# Simplified Diatonic logic:
+	# 1. Get interval and root note for this degree
 	var scale_intervals = MusicTheory.SCALE_INTERVALS[mode]
-	var degree_semitone = scale_intervals[degree_idx]
 	
+	# [Fix] Bounds check: If mode is Pentatonic (size 5) but degree is 6 (vii), prevent crash
+	if degree_idx >= scale_intervals.size():
+		GameLogger.error("[ProgressionHandler] Degree %d out of bounds for mode %d" % [degree_idx, mode])
+		return {"root": 60, "notes": [], "quality": "Major"} # Fallback
+		
+	var degree_semitone = scale_intervals[degree_idx]
 	var root_note = key_root + degree_semitone + 48 # Octave 3/4
 	
-	# Determine quality (Maj/Min/Dim)
-	# Check 3rd and 5th relative to root within scale
+	# 2. Dynamic Quality Resolution via MusicTheory
+	# Note: get_diatonic_type returns "M7", "m7", "7", etc.
+	# We need to map these to simple Triads ("Major", "Minor", "Diminished") for the quiz data
+	# OR update ChordQuizData to support 7th chords.
+	# For now, let's map back to simple strings used in ChordData.CHORD_QUALITIES
 	
-	# Shortcuts for Major Scale (Mode 0):
-	# I(M), ii(m), iii(m), IV(M), V(M), vi(m), vii(dim)
+	var type_7th = MusicTheory.get_diatonic_type(root_note, key_root, mode)
 	var quality = "Major"
-	if mode == MusicTheory.ScaleMode.MAJOR:
-		if degree_idx in [1, 2, 5]: quality = "Minor"
-		if degree_idx == 6: quality = "Diminished"
-	elif mode == MusicTheory.ScaleMode.MINOR:
-		# i(m), ii(dim), III(M), iv(m), v(m), VI(M), VII(M)
-		if degree_idx in [0, 3, 4]: quality = "Minor"
-		if degree_idx == 1: quality = "Diminished"
-		
+	
+	if type_7th.begins_with("m") and not type_7th.begins_with("maj"): # m7, m7b5
+		quality = "Minor"
+		if "b5" in type_7th or "dim" in type_7th:
+			quality = "Diminished"
+	elif type_7th.begins_with("dim"):
+		quality = "Diminished"
+	# else Major (M7, 7)
+	
 	var intervals = ChordData.CHORD_QUALITIES[quality]
 	var notes = []
 	for iv in intervals:

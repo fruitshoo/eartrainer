@@ -39,6 +39,7 @@ var active_intervals: Array[int] = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]
 var interval_diatonic_mode: bool = false # [New] Only in-key intervals
 var interval_string_constraint: int = 0 # [New] 0=All, 1=Same, 2=Cross
 var interval_harmonic_context: bool = false # [New] Play tonic chord before quiz
+var interval_fixed_anchor: bool = false # [New] Keep same root for shapes
 var active_pitch_classes: Array = [0, 2, 4, 5, 7, 9, 11]
 var active_chord_types: Array = ["maj", "min"]
 var chord_root_mode: String = "fixed"
@@ -250,6 +251,20 @@ func highlight_found_tone(string_idx: int, fret_idx: int):
 	var highlight_color = Color.SPRING_GREEN # Bright Green for Found
 	_highlight_tile(string_idx, fret_idx, highlight_color, 2.0)
 
+func highlight_degree(degree_idx: int):
+	# Calculate root note for degree
+	var scale_intervals = MusicTheory.SCALE_INTERVALS[GameManager.current_mode]
+	if degree_idx >= scale_intervals.size(): return
+	
+	var interval = scale_intervals[degree_idx]
+	var root_note = GameManager.current_key + interval
+	
+	print("[QuizManager] highlight_degree(%d) -> Root: %d" % [degree_idx, root_note])
+	
+	# Find positions for this root note
+	# We want to show the ROOT of the chord clearly
+	highlight_root_positions(root_note)
+
 func replay_current_quiz():
 	if _active_handler:
 		_active_handler.replay()
@@ -370,6 +385,10 @@ var _is_processing_correct_answer: bool = false
 
 func _stop_playback():
 	print("[QuizManager] Stopping Playback. ID: %d -> %d" % [_current_playback_id, _current_playback_id + 1])
+	
+	if _active_handler:
+		_active_handler.stop_playback()
+		
 	_is_processing_correct_answer = false # Reset input lock
 	# elif block removed - erroneous placement
 	
@@ -593,6 +612,7 @@ func save_interval_settings():
 	config.set_value("interval_quiz", "diatonic_mode", interval_diatonic_mode)
 	config.set_value("interval_quiz", "string_constraint", interval_string_constraint)
 	config.set_value("interval_quiz", "harmonic_context", interval_harmonic_context)
+	config.set_value("interval_quiz", "fixed_anchor", interval_fixed_anchor)
 	config.save(SETTINGS_PATH_INTERVAL)
 
 func load_interval_settings():
@@ -605,3 +625,4 @@ func load_interval_settings():
 	interval_diatonic_mode = config.get_value("interval_quiz", "diatonic_mode", interval_diatonic_mode)
 	interval_string_constraint = config.get_value("interval_quiz", "string_constraint", interval_string_constraint)
 	interval_harmonic_context = config.get_value("interval_quiz", "harmonic_context", interval_harmonic_context)
+	interval_fixed_anchor = config.get_value("interval_quiz", "fixed_anchor", interval_fixed_anchor)

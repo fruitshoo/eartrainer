@@ -98,7 +98,9 @@ const SCALE_INTERVALS := {
 	ScaleMode.PHRYGIAN: [0, 1, 3, 5, 7, 8, 10],
 	ScaleMode.LYDIAN: [0, 2, 4, 6, 7, 9, 11],
 	ScaleMode.MIXOLYDIAN: [0, 2, 4, 5, 7, 9, 10],
-	ScaleMode.LOCRIAN: [0, 1, 3, 5, 6, 8, 10]
+	ScaleMode.LOCRIAN: [0, 1, 3, 5, 6, 8, 10],
+	ScaleMode.MAJOR_PENTATONIC: [0, 2, 4, 7, 9],
+	ScaleMode.MINOR_PENTATONIC: [0, 3, 5, 7, 10]
 }
 
 # [Backward Compatibility] Shortcut for old dict access style
@@ -297,10 +299,18 @@ static func get_diatonic_type(midi_note: int, key_root: int, mode: ScaleMode) ->
 		return "M7" # Non-diatonic (Chromatic) root -> Default to M7
 		
 	# 4. Stack Thirds to determine quality
+	var count = intervals.size()
+	
+	# [Fix] Safety for Pentatonic/Small scales (size < 7)
+	# They don't support standard diatonic 7th mapping easily.
+	# Fallback to simple triad or assume Major if too small.
+	if count < 5:
+		return "M7"
+		
 	# Scale degrees (0-based index in intervals array)
-	var third_idx = (degree_idx + 2) % intervals.size()
-	var fifth_idx = (degree_idx + 4) % intervals.size()
-	var seventh_idx = (degree_idx + 6) % intervals.size()
+	var third_idx = (degree_idx + 2) % count
+	var fifth_idx = (degree_idx + 4) % count
+	var seventh_idx = (degree_idx + 6) % count
 	
 	var root_val = intervals[degree_idx]
 	var third_val = intervals[third_idx]
