@@ -73,12 +73,7 @@ func load_startup_state() -> void:
 	var default_name = GameManager.default_preset_name
 	if not default_name.is_empty():
 		# Check if preset exists
-		var presets = _load_presets_safe()
-		var target_preset = {}
-		for p in presets:
-			if p["name"] == default_name:
-				target_preset = p
-				break
+		var target_preset = storage.load_preset(default_name)
 				
 		if not target_preset.is_empty():
 			load_preset(default_name)
@@ -446,7 +441,7 @@ func clear_all_melody() -> void:
 # ============================================================
 # PERSISTENCE (Auto-save)
 # ============================================================
-const SAVE_PATH_SESSION = "user://last_session.json"
+var storage = preload("res://core/progression_storage.gd").new()
 
 func _notification(what: int) -> void:
 	if what == NOTIFICATION_WM_CLOSE_REQUEST:
@@ -454,48 +449,34 @@ func _notification(what: int) -> void:
 
 ## 세션 자동 저장
 func save_session() -> void:
-	var data = {
-		"version": 1,
-		"bar_count": bar_count,
-		"beats_per_bar": beats_per_bar,
-		"playback_mode": playback_mode,
-
-		"bar_densities": bar_densities,
-		"slots": slots,
-		"melody_events": melody_events, # [New]
-		"loop_start": loop_start_index,
-		"loop_end": loop_end_index
-	}
-	var success = _save_json(SAVE_PATH_SESSION, data)
-	
-	if not success:
-		var real_path = ProjectSettings.globalize_path(SAVE_PATH_SESSION)
-		print("Save FAILED! Path: %s" % real_path)
+	storage.save_session(serialize())
 
 ## 세션 자동 불러오기
 func load_session() -> void:
-	if not FileAccess.file_exists(SAVE_PATH_SESSION):
-		# EventBus.debug_log.emit("No session file.")
-		print("No session file.")
-		return
-		
-	var data = _load_json(SAVE_PATH_SESSION)
-	if data:
-		_deserialize_data(data)
-		# if slots.size() > 0 and slots[0] != null:
-		# 	var root = slots[0].get("root", "?")
-		# 	EventBus.debug_log.emit("Session Loaded. Slot[0] Root: %s" % root)
-		# else:
-		# 	EventBus.debug_log.emit("Session Loaded. Slot[0]: Empty")
-		# The original code had `print("Full Save Path: ", real_path)` here, but `real_path` is not defined in this scope.
-		# Assuming it was meant to be removed or defined locally if needed.
-		# For now, I'm keeping the user's provided snippet which removes it.
+	var data = storage.load_session()
+	if not data.is_empty():
+		deserialize(data)
 
-func _deserialize_data(data: Dictionary) -> void:
+func serialize() -> Dictionary:
+	return {
+		"version": 1,
+		"bar_count": bar_count,
+		"beats_per_bar": beats_per_bar,
+		"playback_mode": int(playback_mode),
+		"bar_densities": bar_densities,
+		"slots": slots,
+		"melody_events": melody_events,
+		"loop_start": loop_start_index,
+		"loop_end": loop_end_index,
+		"key": GameManager.current_key,
+		"mode": GameManager.current_mode,
+		"melody_tracks": []
+	}
+
+func deserialize(data: Dictionary) -> void:
 	bar_count = data.get("bar_count", 4)
-	beats_per_bar = data.get("beats_per_bar", 4) # [New]
+	beats_per_bar = data.get("beats_per_bar", 4)
 	playback_mode = int(data.get("playback_mode", MusicTheory.ChordPlaybackMode.ONCE)) as MusicTheory.ChordPlaybackMode
-	# EventBus.debug_log.emit("Deserializing: Bars=%d" % bar_count)
 	
 	var saved_densities = data.get("bar_densities", [])
 	if saved_densities.size() > 0:
@@ -503,14 +484,12 @@ func _deserialize_data(data: Dictionary) -> void:
 		for d in saved_densities:
 			bar_densities.append(int(d))
 	else:
-		# Fallback
 		bar_densities.clear()
 		for i in range(bar_count):
 			bar_densities.append(1)
 	
 	_resize_slots()
 	
-	# [Fix] Clear all slots to prevent stale data from previous state
 	for k in range(slots.size()):
 		slots[k] = null
 	
@@ -518,18 +497,15 @@ func _deserialize_data(data: Dictionary) -> void:
 	for i in range(min(slots.size(), saved_slots.size())):
 		var s = saved_slots[i]
 		if s is Dictionary:
-			# [Fix] JSON loads numbers as floats. Convert to int for safety.
 			if s.has("root"): s["root"] = int(s["root"])
 			if s.has("string"): s["string"] = int(s["string"])
-			slots[i] = s.duplicate() # [Safety] Duplicate
+			slots[i] = s.duplicate()
 		else:
-			slots[i] = s # null or primitive
+			slots[i] = s
 	
-	# Loop Range 복원
 	loop_start_index = data.get("loop_start", -1)
 	loop_end_index = data.get("loop_end", -1)
 	
-	# [New] Melody Data 복원
 	melody_events.clear()
 	var saved_melody = data.get("melody_events", {})
 	if saved_melody is Dictionary:
@@ -537,167 +513,35 @@ func _deserialize_data(data: Dictionary) -> void:
 			var bar_idx = int(bar_idx_str)
 			melody_events[bar_idx] = saved_melody[bar_idx_str]
 	
-	# UI 리프레시를 위해 시그널 방출
-	# [Fix] settings_updated triggers _rebuild_slots (deferred) which calls update_info on each button.
-	# Do NOT emit slot_updated here - it causes a race condition with the deferred rebuild.
 	settings_updated.emit(bar_count, 1)
 	loop_range_changed.emit(loop_start_index, loop_end_index)
-	# Removed: slot_updated loop - _rebuild_slots handles this
 
 # ============================================================
 # PRESET LIBRARY (Saved Progressions)
 # ============================================================
-# ============================================================
-# PRESET LIBRARY (Saved Progressions)
-# ============================================================
-# ============================================================
-# PRESET LIBRARY (Saved Progressions)
-# ============================================================
-const SAVE_PATH_PRESETS = "user://presets.json"
 
-## 프리셋 목록 반환 (순서 보장됨)
 func get_preset_list() -> Array[Dictionary]:
-	var presets = _load_presets_safe()
-	return presets
+	return storage.get_preset_list()
 
-## 현재 상태를 프리셋으로 저장
 func save_preset(name: String) -> void:
-	if name.strip_edges().is_empty():
-		return
-		
-	var presets = _load_presets_safe()
-	
-	var new_data = {
-		"name": name,
-		"key": GameManager.current_key,
-		"mode": GameManager.current_mode,
-		"bar_count": bar_count,
-		"beats_per_bar": beats_per_bar, # [Fix] Persist Time Signature
-		"bar_densities": bar_densities,
-		"slots": slots,
-		"melody_tracks": [],
-		"timestamp": Time.get_unix_time_from_system()
-	}
-	
-	# 중복 이름 확인: 덮어쓰기
-	var found_idx = -1
-	for i in range(presets.size()):
-		if presets[i]["name"] == name:
-			found_idx = i
-			break
-	
-	if found_idx != -1:
-		presets[found_idx] = new_data
-	else:
-		presets.append(new_data)
-		
-	_save_json(SAVE_PATH_PRESETS, presets)
-	print("[ProgressionManager] Preset saved: ", name)
+	storage.save_preset(name, serialize())
 
-## 프리셋 불러오기
 func load_preset(name: String) -> void:
-	var presets = _load_presets_safe()
-	var target_data = {}
-	
-	for p in presets:
-		if p["name"] == name:
-			target_data = p
-			break
-			
+	var target_data = storage.load_preset(name)
 	if target_data.is_empty():
 		return
 	
-	# 1. 키/모드 복원
 	if target_data.has("key") and target_data.has("mode"):
 		GameManager.current_key = int(target_data["key"])
 		GameManager.current_mode = int(target_data["mode"])
 		EventBus.game_settings_changed.emit()
 	
-	# 2. 시퀀서 데이터 복원
-	_deserialize_data(target_data)
+	deserialize(target_data)
 	save_session()
 	print("[ProgressionManager] Preset loaded: ", name)
 
-## 프리셋 삭제
 func delete_preset(name: String) -> void:
-	var presets = _load_presets_safe()
-	var found_idx = -1
-	for i in range(presets.size()):
-		if presets[i]["name"] == name:
-			found_idx = i
-			break
-			
-	if found_idx != -1:
-		presets.remove_at(found_idx)
-		_save_json(SAVE_PATH_PRESETS, presets)
-		print("[ProgressionManager] Preset deleted: ", name)
+	storage.delete_preset(name)
 
-## 프리셋 순서 변경
 func reorder_presets(from_idx: int, to_idx: int) -> void:
-	var presets = _load_presets_safe()
-	if from_idx < 0 or from_idx >= presets.size() or to_idx < 0 or to_idx >= presets.size():
-		return
-		
-	var item = presets.pop_at(from_idx)
-	presets.insert(to_idx, item)
-	_save_json(SAVE_PATH_PRESETS, presets)
-
-## 내부: 안전하게 로드하고 마이그레이션 처리
-func _load_presets_safe() -> Array[Dictionary]:
-	var raw_data = _load_json(SAVE_PATH_PRESETS)
-	
-	# Case 1: File doesn't exist or empty
-	if raw_data == null:
-		return []
-		
-	# Case 2: Dictionary (Old Format) -> Optimize Migration
-	if raw_data is Dictionary:
-		print("[ProgressionManager] Migrating presets from Dict to Array...")
-		var list: Array[Dictionary] = []
-		for key in raw_data.keys():
-			var item = raw_data[key]
-			item["name"] = key # Ensure name exists
-			list.append(item)
-		
-		# Sort by timestamp (Old behavior)
-		list.sort_custom(func(a, b): return a.get("timestamp", 0) > b.get("timestamp", 0))
-		
-		# Save immediately as Array
-		_save_json(SAVE_PATH_PRESETS, list)
-		return list
-		
-	# Case 3: Array (New Format)
-	if raw_data is Array:
-		# Type safety check
-		var typed_list: Array[Dictionary] = []
-		for item in raw_data:
-			if item is Dictionary:
-				typed_list.append(item)
-		return typed_list
-		
-	return []
-
-# --- File I/O Helpers ---
-
-func _save_json(path: String, data: Variant) -> bool:
-	var file = FileAccess.open(path, FileAccess.WRITE)
-	if file:
-		file.store_string(JSON.stringify(data, "\t"))
-		file.close()
-		return true
-	else:
-		var err = FileAccess.get_open_error()
-		print("[ProgressionManager] Error opening file %s: %d" % [path, err])
-		# EventBus.debug_log.emit("File Error: %d" % err)
-		return false
-
-func _load_json(path: String) -> Variant:
-	var file = FileAccess.open(path, FileAccess.READ)
-	if file:
-		var text = file.get_as_text()
-		file.close()
-		var json = JSON.new()
-		var error = json.parse(text)
-		if error == OK:
-			return json.data
-	return null
+	storage.reorder_presets(from_idx, to_idx)

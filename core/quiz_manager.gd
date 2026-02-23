@@ -5,10 +5,10 @@ extends Node
 # ============================================================
 # ============================================================
 # SIGNALS
-# ============================================================
 signal quiz_started(data: Dictionary) # { "type": "note"|"interval", ... }
 signal quiz_answered(result: Dictionary) # { "correct": bool, "answer": ..., "target": ... }
 signal quiz_step_completed(data: Dictionary) # [New] For multi-step quizzes
+signal quiz_sequence_playing(step_idx: int) # [New] Emitted each time a chord in the sequence begins playing
 
 # ============================================================
 # ENUMS
@@ -50,6 +50,8 @@ var active_inversions: Array = [0] # 0=Root, 1=1st, 2=2nd
 var active_directions: Array = [2] # [Fix #5] 0=Up, 1=Down, 2=Harmonic
 var active_degrees: Array = [0, 1, 2, 3, 4, 5, 6] # [New] Diatonic degrees (I through vii°)
 var active_progression_degrees: Array = [0, 3, 4, 5] # [New] I, IV, V, vi selected by default
+var progression_level: int = 3 # [New] 1=2chords, 2=3chords, 3=4chords, 4=5chords, 5=6chords, etc
+var use_power_chords: bool = false # [New] Power Chords only for progressions
 var chord_quiz_use_voicing: bool = false # [New] false=Theory mode, true=Guitar Form mode
 
 # -- Handler Strategy --
@@ -153,7 +155,12 @@ func _auto_hide_visuals():
 		# Disable all
 		GameManager.highlight_root = false
 		GameManager.highlight_chord = false
-		# GameManager.highlight_scale = false # [Modified] Keep scale visible for context
+		
+		# [Fix] Dim scale context during progression quizzes if hints are enabled for clarity
+		if current_quiz_type == QuizType.CHORD_PROGRESSION and GameManager.show_target_visual:
+			GameManager.highlight_scale = false
+		# else keep scale visible for context if it was already on
+		
 		GameManager.settings_changed.emit() # Force update
 
 # ============================================================
@@ -189,10 +196,19 @@ func stop_quiz():
 var _active_markers: Array = [] # List of tiles with active markers
 
 # Helper to find a valid string/fret for a given MIDI note
-# Prioritizes positions close to preferred_fret (defaults to player_fret)
+# Prioritizes positions close to preferred_fret (defaults to player_fret or fixed anchor)
 func _find_valid_pos_for_note(midi_note: int, preferred_fret: int = -1) -> Dictionary:
 	if preferred_fret == -1:
-		preferred_fret = GameManager.player_fret
+		if interval_fixed_anchor:
+			var anchor = MusicTheory.get_preferred_quiz_anchor(GameManager.current_key)
+			if not anchor.is_empty():
+				preferred_fret = anchor.fret
+			elif _current_root_fret != -1:
+				preferred_fret = _current_root_fret
+			else:
+				preferred_fret = GameManager.player_fret
+		else:
+			preferred_fret = GameManager.player_fret
 		
 	var candidates = []
 	var open_notes = AudioEngine.OPEN_STRING_MIDI # [Fix #7]
@@ -213,23 +229,65 @@ func _find_valid_pos_for_note(midi_note: int, preferred_fret: int = -1) -> Dicti
 	return candidates[0]
 
 # Find ALL valid positions for a note on the fretboard
-func _find_all_positions_for_note(midi_note: int) -> Array:
+func _find_all_positions_for_note(midi_note: int, min_string_idx: int = 0) -> Array:
 	var results = []
-	var open_notes = AudioEngine.OPEN_STRING_MIDI # [Fix #7]
-	for s_idx in range(6):
+	var open_notes = AudioEngine.OPEN_STRING_MIDI
+	for s_idx in range(min_string_idx, 6):
 		var fret = midi_note - open_notes[s_idx]
 		if fret >= 0 and GameManager.find_tile(s_idx, fret):
 			results.append({"string": s_idx, "fret": fret})
 	return results
 
-func highlight_root_positions(midi_note: int):
-	print("[QuizManager] highlight_root_positions called for Note: %d" % midi_note)
-	_clear_markers()
-	var positions = _find_all_positions_for_note(midi_note)
-	print("[QuizManager] Found positions: ", positions)
-	var highlight_color = Color.WHITE # White (Bright, like playback)
+func _find_closest_root_for_pitch_class(pitch_class: int, anchor_fret: int = -1) -> Dictionary:
+	if anchor_fret == -1:
+		if interval_fixed_anchor:
+			var anchor = MusicTheory.get_preferred_quiz_anchor(GameManager.current_key)
+			if not anchor.is_empty():
+				anchor_fret = anchor.fret
+			elif _current_root_fret != -1:
+				anchor_fret = _current_root_fret
+			else:
+				anchor_fret = GameManager.player_fret
+		else:
+			anchor_fret = GameManager.player_fret
+
+	var candidates = []
+	var open_notes = AudioEngine.OPEN_STRING_MIDI
+	
+	# Only search 6th(0) and 5th(1) strings for primary bass roots. 4th(2) is fallback.
+	for s_idx in range(3):
+		var open_note = open_notes[s_idx]
+		var fret = (pitch_class - (open_note % 12)) % 12
+		if fret < 0: fret += 12
+		
+		for f in [fret, fret + 12]:
+			if f >= 0 and f <= 19 and GameManager.find_tile(s_idx, f):
+				var penalty = 0.0
+				if s_idx == 2: penalty = 4.0 # Prefer 6th/5th strings
+				candidates.append({
+					"valid": true,
+					"string": s_idx,
+					"fret": f,
+					"midi_note": open_note + f,
+					"dist": abs(f - anchor_fret) + penalty
+				})
+				
+	if candidates.is_empty():
+		return {"valid": false}
+		
+	candidates.sort_custom(func(a, b): return a.dist < b.dist)
+	return candidates[0]
+
+func highlight_root_positions(midi_note: int, clear_previous: bool = true):
+	print("[QuizManager] highlight_root_positions called for Note: %d (Clear: %s)" % [midi_note, clear_previous])
+	if clear_previous:
+		_clear_markers()
+		
+	var positions = _find_all_positions_for_note(midi_note, 0)
+	
+	var highlight_color = Color(0.9, 0.7, 0.3)
 	for pos in positions:
-		_highlight_tile(pos.string, pos.fret, highlight_color, 2.0)
+		_highlight_tile(pos.string, pos.fret, highlight_color, 0.8)
 
 func _highlight_tile(string_idx: int, fret_idx: int, color: Color, energy: float = 1.0):
 	var tile = GameManager.find_tile(string_idx, fret_idx)
@@ -237,9 +295,6 @@ func _highlight_tile(string_idx: int, fret_idx: int, color: Color, energy: float
 		tile.set_marker(color, energy)
 		if not tile in _active_markers:
 			_active_markers.append(tile)
-		
-	# Also ensure camera follows if needed? No, leave camera to user or GameManager logic.
-	# But ensure this tile is the one used for the visual anchor.
 
 func _clear_markers():
 	for tile in _active_markers:
@@ -251,19 +306,21 @@ func highlight_found_tone(string_idx: int, fret_idx: int):
 	var highlight_color = Color.SPRING_GREEN # Bright Green for Found
 	_highlight_tile(string_idx, fret_idx, highlight_color, 2.0)
 
-func highlight_degree(degree_idx: int):
-	# Calculate root note for degree
+func highlight_degree(degree_idx: int, clear_previous: bool = true):
 	var scale_intervals = MusicTheory.SCALE_INTERVALS[GameManager.current_mode]
 	if degree_idx >= scale_intervals.size(): return
 	
 	var interval = scale_intervals[degree_idx]
-	var root_note = GameManager.current_key + interval
+	var root_pc = (GameManager.current_key + interval) % 12
 	
-	print("[QuizManager] highlight_degree(%d) -> Root: %d" % [degree_idx, root_note])
-	
-	# Find positions for this root note
-	# We want to show the ROOT of the chord clearly
-	highlight_root_positions(root_note)
+	if clear_previous:
+		_clear_markers()
+		
+	var best_pos = _find_closest_root_for_pitch_class(root_pc)
+	if best_pos.valid:
+		var highlight_color = Color(0.9, 0.7, 0.3)
+		_highlight_tile(best_pos.string, best_pos.fret, highlight_color, 0.8)
+		print("[QuizManager] highlight_degree(%d) -> PC: %d at Str %d Fret %d" % [degree_idx, root_pc, best_pos.string, best_pos.fret])
 
 func replay_current_quiz():
 	if _active_handler:
@@ -586,6 +643,9 @@ const SETTINGS_PATH = "user://chord_quiz_settings.cfg"
 func save_chord_settings():
 	var config = ConfigFile.new()
 	config.set_value("chord_quiz", "active_degrees", active_degrees)
+	config.set_value("chord_progression", "active_progression_degrees", active_progression_degrees)
+	config.set_value("chord_progression", "progression_level", progression_level) # [New]
+	config.set_value("chord_progression", "use_power_chords", use_power_chords) # [New]
 	config.set_value("chord_quiz", "active_directions", active_directions)
 	config.set_value("chord_quiz", "active_inversions", active_inversions)
 	config.set_value("chord_quiz", "use_voicing", chord_quiz_use_voicing)
@@ -598,6 +658,9 @@ func load_chord_settings():
 	if err != OK: return
 	
 	active_degrees = config.get_value("chord_quiz", "active_degrees", active_degrees)
+	active_progression_degrees = config.get_value("chord_progression", "active_progression_degrees", active_progression_degrees)
+	progression_level = config.get_value("chord_progression", "progression_level", progression_level) # [New]
+	use_power_chords = config.get_value("chord_progression", "use_power_chords", use_power_chords) # [New]
 	active_directions = config.get_value("chord_quiz", "active_directions", active_directions)
 	active_inversions = config.get_value("chord_quiz", "active_inversions", active_inversions)
 	chord_quiz_use_voicing = config.get_value("chord_quiz", "use_voicing", chord_quiz_use_voicing)

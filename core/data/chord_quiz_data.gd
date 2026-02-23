@@ -11,7 +11,8 @@ const CHORD_QUALITIES = {
 	"min7": [0, 3, 7, 10],
 	"Dom7": [0, 4, 7, 10],
 	"m7b5": [0, 3, 6, 10],
-	"dim7": [0, 3, 6, 9]
+	"dim7": [0, 3, 6, 9],
+	"Power": [0, 7] # [New]
 }
 
 # [New] Common Diatonic Progressions (Indices: 0=I, 1=ii, 2=iii, 3=IV, 4=V, 5=vi, 6=vii)
@@ -28,6 +29,18 @@ const DIATONIC_PROGRESSIONS = {
 	"Minor 1 (i-VI-III-VII)": [0, 5, 2, 6], # Aeolian
 	"Minor 2 (i-iv-v)": [0, 3, 4],
 	"Circle (vi-ii-V-I)": [5, 1, 4, 0],
+}
+
+# [New] Functional Harmony Transition Rules (Markov Chain)
+# Defines musically pleasing "next chords" for any given diatonic degree (0=I, 1=ii, 2=iii, 3=IV, 4=V, 5=vi, 6=vii)
+const DIATONIC_TRANSITIONS = {
+	0: [3, 4, 5, 1, 2], # I -> IV, V, vi, ii, iii (Can go anywhere)
+	1: [4, 6, 5], # ii -> V (strongest), vii°, vi
+	2: [5, 3, 1], # iii -> vi, IV, ii
+	3: [4, 0, 1], # IV -> V, I, ii
+	4: [0, 5], # V -> I (resolution), vi (deceptive)
+	5: [3, 1, 4], # vi -> IV, ii, V
+	6: [0, 2] # vii° -> I, iii
 }
 
 # Original CHORDS constant (modified to use CHORD_QUALITIES for intervals)

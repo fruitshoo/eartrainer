@@ -119,36 +119,25 @@ func _refresh_visuals() -> void:
 	var is_in_focus := _is_within_focus()
 	var tier := GameManager.get_tile_tier(midi_note)
 	
-	# 1. Tier & Hierarchy Logic
-	var visual_tier := 4 # Default: Avoid (No light)
+	# 1. Label Visibility Logic
+	var is_highlighted = _flash_active or _effect_active or _marker_active
 	
-	if tier == 1 and GameManager.highlight_root:
-		visual_tier = 1
-	elif tier <= 2 and GameManager.highlight_chord:
-		visual_tier = 2
-	elif tier == 3 and GameManager.highlight_scale: # [Fix] Use tier instead of separate is_scale_tone
-		visual_tier = 3
-	
-	# can_show logic
-	# [v0.4] Ensure labels show if Marker/Effect is active (e.g. Question Root),
-	# even if base tier is hidden for Anti-Cheat.
-	# [Fix] Keep labels visible if we are in Melody Input Mode (even if out of focus)
 	var is_melody_mode = false
 	var seq_ui = get_tree().get_first_node_in_group("sequence_ui")
 	if seq_ui and not seq_ui.selected_melody_slot.is_empty():
 		is_melody_mode = true
 		
-	# [Fix] Labels visibility: Show if in focus/melody mode AND (it's a valid tier/marker OR we are in a quiz/location mode)
 	var is_quiz_active = QuizManager.current_quiz_type != QuizManager.QuizType.NONE
 	
-	# [New] Quiz Visual Refinement: Only show if Diatonic (In-Scale)
-	var is_diatonic_visible = true
-	if is_quiz_active:
-		# If quiz is active, we ONLY show if it's in the current scale.
-		# This filters out non-diatonic notes even if they are in focus.
-		is_diatonic_visible = MusicTheory.is_in_scale(midi_note, GameManager.current_key, GameManager.current_mode)
-	
-	var can_show = is_diatonic_visible and (is_in_focus or is_melody_mode) and GameManager.show_note_labels and (visual_tier < 4 or _marker_active or _effect_active or is_quiz_active)
+	var can_show = false
+	if GameManager.show_note_labels:
+		if is_highlighted:
+			# 1. Explicitly lit tiles always show labels (e.g. Sequencer, Quiz Hints)
+			can_show = true
+		elif tier < 4:
+			# 2. In-scale notes show labels if in focus or in melody mode
+			if is_in_focus or is_melody_mode:
+				can_show = true
 	
 	# 2. Update Label (3D)
 	if is_instance_valid(_label_3d):
@@ -156,10 +145,9 @@ func _refresh_visuals() -> void:
 			_label_3d.text = GameManager.get_note_label(midi_note)
 			_label_3d.visible = true
 			
-			# Dark Tones for high contrast against white/bright highlights
-			# [Fix] During Quiz, use neutral color for ALL notes to avoid confusion (User Request)
+			# Modulate colors for high contrast
 			if is_quiz_active:
-				_label_3d.modulate = Color("#2C222C")
+				_label_3d.modulate = Color("#2C222C") # Neutral in quiz
 			elif midi_note % 12 == 0: # C (Root) - Only in Practice Mode
 				_label_3d.modulate = Color(0.8, 0.5, 0.0) # Deep Gold/Orange
 			else:

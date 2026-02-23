@@ -40,39 +40,56 @@ func start_quiz() -> void:
 		await manager.get_tree().create_timer(1.0).timeout
 	
 	# 4. Find Valid Position (Near Player or Fixed)
+	var key_root = GameManager.current_key
+	var key_mode = GameManager.current_mode
+	
+	var preferred_anchor = {}
+	if manager.interval_fixed_anchor:
+		preferred_anchor = MusicTheory.get_preferred_quiz_anchor(key_root)
+		
 	var center_fret = manager._current_root_fret if manager.interval_fixed_anchor and manager._current_root_fret != -1 else randi_range(2, 5)
+	
+	# Override center fret if we have a preferred anchor
+	if not preferred_anchor.is_empty():
+		center_fret = preferred_anchor.fret
 	
 	var valid_found = false
 	var max_retries = 50
 	var final_string_idx = -1
 	var final_fret_idx = -1
 	
-	var key_root = GameManager.current_key
-	var key_mode = GameManager.current_mode
-	
-	# If Fixed Anchor is ON, we might already have a valid position to try first
-	if manager.interval_fixed_anchor and manager.interval_root_note != -1:
-		# Check if current root and its position still work for the new interval
+	# If Fixed Anchor is ON, we might already have a valid position or a preferred anchor to try first
+	if manager.interval_fixed_anchor:
 		var root_str = -1
-		var root_fret = manager._current_root_fret
-		# Find which string the last root was on
-		for s in range(6):
-			if AudioEngine.OPEN_STRING_MIDI[s] + root_fret == manager.interval_root_note:
-				root_str = s
-				break
+		var root_fret = -1
+		var candidate_root = -1
+		
+		if not preferred_anchor.is_empty():
+			# 1st Priority: Use the key's preferred anchor exactly
+			root_str = preferred_anchor.string
+			root_fret = preferred_anchor.fret
+			candidate_root = AudioEngine.OPEN_STRING_MIDI[root_str] + root_fret
+		elif manager.interval_root_note != -1:
+			# 2nd Priority: Use the last known fixed anchor (legacy behavior for unmapped keys)
+			root_fret = manager._current_root_fret
+			for s in range(6):
+				if AudioEngine.OPEN_STRING_MIDI[s] + root_fret == manager.interval_root_note:
+					root_str = s
+					candidate_root = manager.interval_root_note
+					break
 				
-		if root_str != -1:
+		if root_str != -1 and candidate_root != -1:
 			var constraint = manager.interval_string_constraint
 			var candidate_target = -1
 			if current_interval_mode == 1: # DESCENDING
-				candidate_target = manager.interval_root_note - interval_semitones
+				candidate_target = candidate_root - interval_semitones
 			else:
-				candidate_target = manager.interval_root_note + interval_semitones
+				candidate_target = candidate_root + interval_semitones
 				
 			if candidate_target >= 40 and candidate_target <= 88:
 				var target_pos = _find_target_pos_with_constraint(candidate_target, root_str, root_fret, constraint)
 				if target_pos.valid:
-					interval_root_note = manager.interval_root_note
+					interval_root_note = candidate_root # [Fix] Use candidate_root, not the old manager state
 					interval_target_note = candidate_target
 					final_string_idx = root_str
 					final_fret_idx = root_fret

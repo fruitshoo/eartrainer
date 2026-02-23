@@ -463,3 +463,37 @@ static func get_tab_string(root: int, type: String, string_index: int) -> String
 			tabs[target_string_idx] = str(target_fret)
 			
 	return "".join(tabs)
+
+## [New] 퀴즈용 선호 고정 포지션 반환 (Dynamic for all keys)
+static func get_preferred_quiz_anchor(key_root: int) -> Dictionary:
+	# Dictionary return format: {"string": int, "fret": int}
+	var root_index = key_root % 12
+	
+	# 1. Check user's explicitly preferred hardcoded ones first for consistency
+	match root_index:
+		2: return {"string": 1, "fret": 5} # D: 5th string (A), 5th fret
+		4: return {"string": 1, "fret": 7} # E: 5th string (A), 7th fret
+		9: return {"string": 0, "fret": 5} # A: 6th string (E), 5th fret
+	
+	# 2. Dynamic Calculation for all other keys (C, G, B, F, etc)
+	# Goal: Find a root note on the 6th (E) or 5th (A) string that is between fret 3 and 8
+	var preferred_strings = [0, 1] # 6th string (index 0) or 5th string (index 1)
+	
+	for string_idx in preferred_strings:
+		var open_note = OPEN_STRING_MIDI[string_idx]
+		# Find the target note's fret
+		var fret = (root_index - (open_note % 12)) % 12
+		if fret < 0: fret += 12
+		
+		# If it's too low (open string / 1st fret), bump to the octave up on the same string if possible
+		if fret < 3:
+			fret += 12
+			
+		# Is it in a comfortable middle-neck rhythm position?
+		if fret >= 3 and fret <= 10:
+			return {"string": string_idx, "fret": fret}
+			
+	# Fallback (Should rarely hit, but just in case, return 6th string closest)
+	var fallback_fret = (root_index - (OPEN_STRING_MIDI[0] % 12)) % 12
+	if fallback_fret < 0: fallback_fret += 12
+	return {"string": 0, "fret": fallback_fret}

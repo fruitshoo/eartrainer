@@ -58,7 +58,14 @@ var et_checkboxes: Dictionary = {} # semitones -> tile
 var pending_manage_interval: int = -1
 var pending_delete_song: String = ""
 var _active_tab_type: QuizManager.QuizType = QuizManager.QuizType.INTERVAL
-var _prog_degree_btns: Array[Button] = [] # [New] Track filter buttons
+
+var interval_tab = preload("res://ui/side_panel/tabs/interval_tab.gd")
+var chord_tab = preload("res://ui/side_panel/tabs/chord_tab.gd")
+var progression_tab = preload("res://ui/side_panel/tabs/progression_tab.gd")
+
+var interval_controller: ETIntervalTab # Using specific types
+var chord_controller: ETChordTab
+var progression_controller: ETProgressionTab
 
 # Overlays (Managed through code)
 var example_manager_root: Control
@@ -79,15 +86,6 @@ func _ready() -> void:
 	
 	# EventBus connections
 	EventBus.request_collapse_side_panel.connect(close)
-	
-	# Inits
-	_populate_et_grid()
-	_populate_chord_grid()
-	_sync_et_state()
-	_sync_chord_state()
-	
-	# [New] Setup progression tab UI dynamically
-	_setup_progression_tab_ui()
 	
 	# Initial State - Set UI but DON'T auto-start quiz on launch
 	_set_active_tab(QuizManager.QuizType.INTERVAL, false)
@@ -132,30 +130,13 @@ func _build_content() -> void:
 	_setup_stage_button(et_replay_btn, ThemeColors.NEUTRAL.darkened(0.2))
 	_setup_stage_button(et_next_btn, ThemeColors.TOGGLE_ON)
 	
-	if et_asc_mode: _setup_mode_button(et_asc_mode, "↗", QuizManager.IntervalMode.ASCENDING, ThemeColors.MODE_ASC, 0)
-	if et_desc_mode: _setup_mode_button(et_desc_mode, "↘", QuizManager.IntervalMode.DESCENDING, ThemeColors.MODE_DESC, 1)
-	if et_harm_mode: _setup_mode_button(et_harm_mode, "≡", QuizManager.IntervalMode.HARMONIC, ThemeColors.MODE_HARM, 2)
+	interval_controller = interval_tab.new(self)
+	chord_controller = chord_tab.new(self)
+	progression_controller = progression_tab.new(self)
 	
-	# [Fix] Connect Easy Mode (Visual Hints)
-	if et_easy_mode:
-		et_easy_mode.button_pressed = GameManager.show_target_visual
-		et_easy_mode.toggled.connect(func(on):
-			GameManager.show_target_visual = on
-			GameManager.save_settings()
-		)
-	
-	# [New] Chord Direction Buttons
-	_setup_chord_dir_button(chord_up_btn, "↑", 0, ThemeColors.MODE_ASC, 0)
-	_setup_chord_dir_button(chord_down_btn, "↓", 1, ThemeColors.MODE_DESC, 1)
-	_setup_chord_dir_button(chord_harm_btn, "≡", 2, ThemeColors.MODE_HARM, 2)
-	
-	# [New] Chord Inversion Buttons
-	_setup_chord_inv_button(chord_inv_root_btn, "Root", 0, ThemeColors.CHORD_ROOT, 0)
-	_setup_chord_inv_button(chord_inv_1st_btn, "1st", 1, ThemeColors.CHORD_1ST, 1)
-	_setup_chord_inv_button(chord_inv_2nd_btn, "2nd", 2, ThemeColors.CHORD_2ND, 2)
-	
-	# [New] Voicing Mode Toggle
-	_setup_voicing_toggle()
+	interval_controller.setup()
+	chord_controller.setup()
+	progression_controller.setup()
 	
 	# [Fix] Ensure tab buttons fit the panel width
 	tab_interval_btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -176,8 +157,20 @@ func _build_content() -> void:
 	
 	QuizManager.quiz_started.connect(_on_et_quiz_started)
 	QuizManager.quiz_answered.connect(_on_et_quiz_answered)
+	if not QuizManager.quiz_sequence_playing.is_connected(_on_et_quiz_sequence_playing): # [New] Listen for playback
+		QuizManager.quiz_sequence_playing.connect(_on_et_quiz_sequence_playing)
 	
 	GameLogger.info("[SidePanel] Content build finished.")
+
+func _on_et_quiz_sequence_playing(step_idx: int) -> void:
+	if _active_tab_type != QuizManager.QuizType.CHORD_PROGRESSION: return
+	if not progression_slots_container: return
+	
+	var slots = progression_slots_container.get_children()
+	if step_idx >= 0 and step_idx < slots.size():
+		var slot = slots[step_idx] as Control
+		if progression_controller:
+			progression_controller.animate_slot_pulse(slot) # [New] Custom pulse animation during playback
 
 func _on_et_quiz_step(data: Dictionary) -> void:
 	if not progression_slots_container: return
@@ -193,14 +186,15 @@ func _on_et_quiz_step(data: Dictionary) -> void:
 			lbl.text = _get_degree_text(data.degree)
 			lbl.modulate = ThemeColors.SUCCESS
 			
-			_animate_slot_pop(slot)
-			_update_progression_slots_active(data.step)
+			if progression_controller:
+				progression_controller.animate_slot_pop(slot)
+				progression_controller.update_progression_slots_active(data.step)
 			
 	else:
 		# Wrong feedback - shake the current target slot
 		var target_idx = data.step # The index the user WAS trying to fill
-		if target_idx >= 0 and target_idx < slots.size():
-			_animate_slot_shake(slots[target_idx])
+		if target_idx >= 0 and target_idx < slots.size() and progression_controller:
+			progression_controller.animate_slot_shake(slots[target_idx])
 		
 		if et_feedback_label:
 			et_feedback_label.text = "TRY AGAIN"
@@ -239,148 +233,12 @@ func _input(event: InputEvent) -> void:
 	# Blocking it here was preventing the ScrollContainer from receiving events.
 
 # ============================================================
-# EAR TRAINER LOGIC
+# SHARED TAB UI UTILS
 # ============================================================
-func _populate_et_grid() -> void:
-	if not et_interval_grid: return
-	for child in et_interval_grid.get_children(): child.queue_free()
-	et_checkboxes.clear()
-	
-	var data = IntervalQuizData.INTERVALS
-	var sorted_semitones = data.keys()
-	sorted_semitones.sort()
-	
-	for semitones in sorted_semitones:
-		var info = data[semitones]
-		var is_checked = semitones in QuizManager.active_intervals
-		var tile = _create_interval_tile(semitones, info, is_checked)
-		et_interval_grid.add_child(tile)
-		et_checkboxes[semitones] = tile
-
-	# [New] Interval Options UI
-	_setup_interval_options_ui()
-
-func _setup_interval_options_ui() -> void:
-	# [Fix] Options should be in the main VBox (interval_container), NOT inside the GridMargin (which overlaps children)
-	# 1. Cleanup: Remove from wrong parent if it exists (old buggy version)
-	var wrong_parent = et_interval_grid.get_parent()
-	if wrong_parent and wrong_parent.has_node("IntervalOptions"):
-		wrong_parent.get_node("IntervalOptions").queue_free()
-		
-	# 2. Cleanup: Remove existing valid container to rebuild (simpler than update)
-	if interval_container.has_node("IntervalOptionsPad"):
-		interval_container.get_node("IntervalOptionsPad").queue_free()
-	
-	# 3. Create new structure: Pad (Margin) -> Options (VBox)
-	var options_container = VBoxContainer.new()
-	options_container.name = "IntervalOptions"
-	options_container.add_theme_constant_override("separation", 8)
-	
-	var pad = MarginContainer.new()
-	pad.name = "IntervalOptionsPad"
-	pad.add_theme_constant_override("margin_left", 10)
-	pad.add_theme_constant_override("margin_right", 10)
-	pad.add_theme_constant_override("margin_bottom", 10)
-	pad.add_child(options_container)
-	
-	interval_container.add_child(pad)
-	# [New] Move to TOP of list
-	interval_container.move_child(pad, 0)
-	
-	# 4. Populate Options (Grid for Toggles, Row for Strings)
-	var grid = GridContainer.new()
-	grid.columns = 2
-	grid.add_theme_constant_override("h_separation", 16) # Reduced separation
-	grid.add_theme_constant_override("v_separation", 4)
-	options_container.add_child(grid)
-	
-	# [1] Diatonic Mode
-	var diatonic_check = CheckBox.new()
-	diatonic_check.text = "Diatonic"
-	diatonic_check.tooltip_text = "Only in-key intervals"
-	diatonic_check.button_pressed = QuizManager.interval_diatonic_mode
-	diatonic_check.focus_mode = Control.FOCUS_NONE
-	diatonic_check.toggled.connect(func(on):
-		QuizManager.interval_diatonic_mode = on
-		QuizManager.save_interval_settings()
-	)
-	grid.add_child(diatonic_check)
-	
-	# [2] Harmonic Context
-	var context_check = CheckBox.new()
-	context_check.text = "Context"
-	context_check.tooltip_text = "Play I-IV-V-I cadence first"
-	context_check.button_pressed = QuizManager.interval_harmonic_context
-	context_check.focus_mode = Control.FOCUS_NONE
-	context_check.toggled.connect(func(on):
-		QuizManager.interval_harmonic_context = on
-		QuizManager.save_interval_settings()
-	)
-	grid.add_child(context_check)
-	
-	# [3] Fixed Anchor
-	var anchor_check = CheckBox.new()
-	anchor_check.text = "Fixed Pos"
-	anchor_check.tooltip_text = "Keep same root/position"
-	anchor_check.button_pressed = QuizManager.interval_fixed_anchor
-	anchor_check.focus_mode = Control.FOCUS_NONE
-	anchor_check.toggled.connect(func(on):
-		QuizManager.interval_fixed_anchor = on
-		QuizManager.save_interval_settings()
-	)
-	grid.add_child(anchor_check)
-	
-	# [4] String Constraint (Separate Row to save width)
-	var string_hbox = HBoxContainer.new()
-	string_hbox.add_theme_constant_override("separation", 8)
-	var string_label = Label.new()
-	string_label.text = "Strings: "
-	string_label.add_theme_color_override("font_color", Color(1, 1, 1, 0.6))
-	string_hbox.add_child(string_label)
-	
-	var string_opt = OptionButton.new()
-	string_opt.focus_mode = Control.FOCUS_NONE
-	string_opt.add_item("All", 0)
-	string_opt.add_item("Same", 1)
-	string_opt.add_item("Cross", 2)
-	string_opt.selected = QuizManager.interval_string_constraint
-	string_opt.item_selected.connect(func(idx):
-		QuizManager.interval_string_constraint = idx
-		QuizManager.save_interval_settings()
-	)
-	string_hbox.add_child(string_opt)
-	options_container.add_child(string_hbox)
-	
-	# Separator
-	var sep = HSeparator.new()
-	sep.modulate = Color(1, 1, 1, 0.3)
-	options_container.add_child(sep)
-
-func _create_interval_tile(semitones: int, info: Dictionary, is_checked: bool) -> Button:
-	var btn = Button.new()
-	btn.text = info.short
-	btn.custom_minimum_size = Vector2(80, 80)
-	btn.focus_mode = Control.FOCUS_NONE
-	btn.toggle_mode = true
-	btn.button_pressed = is_checked
-	
-	# Initial Style
-	_update_tile_style(btn, info.color, is_checked)
-	
-	btn.toggled.connect(func(on):
-		_on_et_interval_toggled(on, semitones)
-		_update_tile_style(btn, info.color, on)
-	)
-	
-	# Long press or right click for manage? Let's use right click for now
-	btn.gui_input.connect(func(event):
-		if event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_RIGHT and event.pressed:
-			_show_example_manager_dialog(semitones)
-	)
-	
-	return btn
 
 func _update_tile_style(btn: Button, color: Color, is_active: bool) -> void:
+	if not btn: return
+	
 	var style = StyleBoxFlat.new()
 	style.corner_radius_top_left = 12
 	style.corner_radius_top_right = 12
@@ -406,43 +264,15 @@ func _update_tile_style(btn: Button, color: Color, is_active: bool) -> void:
 	btn.add_theme_stylebox_override("hover", style)
 	btn.add_theme_stylebox_override("pressed", style)
 
-func _on_et_interval_toggled(on: bool, semitones: int) -> void:
-	if on:
-		if not semitones in QuizManager.active_intervals: QuizManager.active_intervals.append(semitones)
-	else: QuizManager.active_intervals.erase(semitones)
-
-func _on_et_mode_toggled(on: bool, mode: int) -> void:
-	if on:
-		if not mode in QuizManager.active_modes: QuizManager.active_modes.append(mode)
-	else:
-		QuizManager.active_modes.erase(mode)
-		if QuizManager.active_modes.is_empty():
-			QuizManager.active_modes.append(mode)
-			_sync_et_state()
-
-func _sync_et_state() -> void:
-	var modes = QuizManager.active_modes
-	if et_asc_mode:
-		et_asc_mode.set_pressed_no_signal(QuizManager.IntervalMode.ASCENDING in modes)
-		_update_mode_button_style(et_asc_mode, Color("#81ecec"), et_asc_mode.button_pressed, 0)
-		
-	if et_desc_mode:
-		et_desc_mode.set_pressed_no_signal(QuizManager.IntervalMode.DESCENDING in modes)
-		_update_mode_button_style(et_desc_mode, Color("#fab1a0"), et_desc_mode.button_pressed, 1)
-		
-	if et_harm_mode:
-		et_harm_mode.set_pressed_no_signal(QuizManager.IntervalMode.HARMONIC in modes)
-		_update_mode_button_style(et_harm_mode, Color("#ffeaa7"), et_harm_mode.button_pressed, 2)
-		
-	if et_easy_mode: et_easy_mode.set_pressed_no_signal(GameManager.show_target_visual)
-
 func _setup_mode_button(btn: Button, text: String, mode_id: int, color: Color, pos_idx: int) -> void:
+	if not btn: return
+	
 	btn.text = text
 	btn.button_pressed = (mode_id in QuizManager.active_modes)
 	
-	# Connect toggled signal
 	btn.toggled.connect(func(on):
-		_on_et_mode_toggled(on, mode_id)
+		if interval_controller:
+			interval_controller._on_et_mode_toggled(on, mode_id)
 		_update_mode_button_style(btn, color, on, pos_idx)
 	)
 	
@@ -450,9 +280,10 @@ func _setup_mode_button(btn: Button, text: String, mode_id: int, color: Color, p
 	_update_mode_button_style(btn, color, btn.button_pressed, pos_idx)
 
 func _update_mode_button_style(btn: Button, color: Color, is_active: bool, pos_idx: int) -> void:
+	if not btn: return
+	
 	var style = StyleBoxFlat.new()
 	
-	# Segmented Corners
 	style.corner_radius_top_left = 12 if pos_idx == 0 else 0
 	style.corner_radius_bottom_left = 12 if pos_idx == 0 else 0
 	style.corner_radius_top_right = 12 if pos_idx == 2 else 0
@@ -469,157 +300,13 @@ func _update_mode_button_style(btn: Button, color: Color, is_active: bool, pos_i
 		btn.add_theme_color_override("font_color", Color.BLACK)
 		btn.add_theme_color_override("font_pressed_color", Color.BLACK)
 	else:
-		style.bg_color = Color(0, 0, 0, 0.03) # Subtle indent
+		style.bg_color = Color(0, 0, 0, 0.03)
 		style.border_color = Color(0, 0, 0, 0.1)
 		btn.add_theme_color_override("font_color", Color(0, 0, 0, 0.5))
 	
 	btn.add_theme_stylebox_override("normal", style)
 	btn.add_theme_stylebox_override("hover", style)
 	btn.add_theme_stylebox_override("pressed", style)
-
-# [New] Degree-based Chord Training
-func _populate_chord_grid() -> void:
-	if not chord_type_grid: return
-	for child in chord_type_grid.get_children(): child.queue_free()
-	
-	# Build 7 diatonic degree tiles
-	for degree_idx in range(7):
-		var chord_data = MusicTheory.get_chord_from_degree(GameManager.current_mode, degree_idx)
-		if chord_data.is_empty(): continue
-		
-		var roman = chord_data[2] # e.g. "I", "ii", "iii", etc.
-		var is_active = degree_idx in QuizManager.active_degrees
-		var tile = _create_degree_tile(degree_idx, roman, is_active)
-		chord_type_grid.add_child(tile)
-
-func _create_degree_tile(degree_idx: int, label: String, is_checked: bool) -> Button:
-	var btn = Button.new()
-	btn.text = label
-	btn.custom_minimum_size = Vector2(64, 45)
-	btn.add_theme_font_size_override("font_size", 16)
-	btn.focus_mode = Control.FOCUS_NONE
-	btn.toggle_mode = true
-	btn.button_pressed = is_checked
-	
-	_update_tile_style(btn, ThemeColors.TOGGLE_ON, is_checked)
-	
-	btn.toggled.connect(func(on):
-		if on:
-			if not degree_idx in QuizManager.active_degrees: QuizManager.active_degrees.append(degree_idx)
-		else:
-			QuizManager.active_degrees.erase(degree_idx)
-			# Prevent empty selection
-			if QuizManager.active_degrees.is_empty():
-				QuizManager.active_degrees.append(degree_idx)
-				btn.set_pressed_no_signal(true)
-		_update_tile_style(btn, ThemeColors.TOGGLE_ON, btn.button_pressed)
-		QuizManager.save_chord_settings()
-	)
-	return btn
-
-func _sync_chord_state() -> void:
-	# [Fix #5] Direction uses active_directions array
-	var dir_list = QuizManager.active_directions
-	_update_chord_dir_style(chord_up_btn, ThemeColors.MODE_ASC, 0 in dir_list, 0)
-	_update_chord_dir_style(chord_down_btn, ThemeColors.MODE_DESC, 1 in dir_list, 1)
-	_update_chord_dir_style(chord_harm_btn, ThemeColors.MODE_HARM, 2 in dir_list, 2)
-	
-	var inv_list = QuizManager.active_inversions
-	_update_chord_inv_style(chord_inv_root_btn, ThemeColors.CHORD_ROOT, 0 in inv_list, 0)
-	_update_chord_inv_style(chord_inv_1st_btn, ThemeColors.CHORD_1ST, 1 in inv_list, 1)
-	_update_chord_inv_style(chord_inv_2nd_btn, ThemeColors.CHORD_2ND, 2 in inv_list, 2)
-	
-	_update_voicing_toggle_style()
-
-func _setup_chord_dir_button(btn: Button, text: String, mode_id: int, color: Color, pos: int) -> void:
-	btn.text = text
-	btn.toggle_mode = true # [Fix #5] Enable multi-select toggle
-	btn.pressed.connect(func():
-		var list = QuizManager.active_directions
-		if mode_id in list:
-			list.erase(mode_id)
-		else:
-			list.append(mode_id)
-		
-		# Prevent empty selection
-		if list.is_empty():
-			list.append(mode_id)
-		
-		_sync_chord_state()
-		QuizManager.save_chord_settings()
-	)
-	_update_chord_dir_style(btn, color, mode_id in QuizManager.active_directions, pos)
-
-func _setup_chord_inv_button(btn: Button, text: String, mode_id: int, color: Color, pos: int) -> void:
-	btn.text = text
-	btn.toggle_mode = true # Ensure it behaves as a toggle
-	btn.pressed.connect(func():
-		var list = QuizManager.active_inversions
-		if mode_id in list:
-			list.erase(mode_id)
-		else:
-			list.append(mode_id)
-		
-		# Prevent empty selection (force toggle back on if it was the last one)
-		if list.is_empty():
-			list.append(mode_id)
-			
-		_sync_chord_state()
-		QuizManager.save_chord_settings()
-	)
-	_update_chord_inv_style(btn, color, mode_id in QuizManager.active_inversions, pos)
-
-func _update_chord_dir_style(btn: Button, color: Color, is_active: bool, pos: int) -> void:
-	_update_mode_button_style(btn, color, is_active, pos)
-
-func _update_chord_inv_style(btn: Button, color: Color, is_active: bool, pos: int) -> void:
-	_update_mode_button_style(btn, color, is_active, pos)
-
-func _setup_voicing_toggle() -> void:
-	# Create a horizontal container for the toggle
-	var hbox = HBoxContainer.new()
-	hbox.alignment = BoxContainer.ALIGNMENT_CENTER
-	hbox.add_theme_constant_override("separation", 2)
-	
-	chord_voicing_toggle_theory = Button.new()
-	chord_voicing_toggle_theory.text = "이론"
-	chord_voicing_toggle_theory.custom_minimum_size = Vector2(60, 36)
-	chord_voicing_toggle_theory.add_theme_font_size_override("font_size", 13)
-	chord_voicing_toggle_theory.focus_mode = Control.FOCUS_NONE
-	
-	chord_voicing_toggle_form = Button.new()
-	chord_voicing_toggle_form.text = "기타폼"
-	chord_voicing_toggle_form.custom_minimum_size = Vector2(70, 36)
-	chord_voicing_toggle_form.add_theme_font_size_override("font_size", 13)
-	chord_voicing_toggle_form.focus_mode = Control.FOCUS_NONE
-	
-	hbox.add_child(chord_voicing_toggle_theory)
-	hbox.add_child(chord_voicing_toggle_form)
-	
-	# Insert into chord_container (after chord_type_grid's parent)
-	if chord_type_grid and chord_type_grid.get_parent():
-		var parent = chord_type_grid.get_parent()
-		var idx = chord_type_grid.get_index() + 1
-		parent.add_child(hbox)
-		parent.move_child(hbox, idx)
-	
-	chord_voicing_toggle_theory.pressed.connect(func():
-		QuizManager.chord_quiz_use_voicing = false
-		_update_voicing_toggle_style()
-		QuizManager.save_chord_settings()
-	)
-	chord_voicing_toggle_form.pressed.connect(func():
-		QuizManager.chord_quiz_use_voicing = true
-		_update_voicing_toggle_style()
-		QuizManager.save_chord_settings()
-	)
-	
-	_update_voicing_toggle_style()
-
-func _update_voicing_toggle_style() -> void:
-	var is_voicing = QuizManager.chord_quiz_use_voicing
-	_update_tile_style(chord_voicing_toggle_theory, ThemeColors.CHORD_ROOT, not is_voicing)
-	_update_tile_style(chord_voicing_toggle_form, ThemeColors.MODE_HARM.darkened(0.1), is_voicing)
 
 func _setup_stage_button(btn: Button, color: Color) -> void:
 	var normal = StyleBoxFlat.new()
@@ -685,7 +372,8 @@ func _on_et_quiz_started(data: Dictionary) -> void:
 			slot_panel.set_meta("slot_index", i)
 			
 		# Highlight first slot
-		_update_progression_slots_active(0)
+		if progression_controller:
+			progression_controller.update_progression_slots_active(0)
 
 func _on_et_quiz_answered(result: Dictionary) -> void:
 	if et_feedback_label:
@@ -723,155 +411,6 @@ func _on_next_pressed() -> void:
 		_:
 			QuizManager.start_interval_quiz() # Fallback
 
-
-func _setup_progression_tab_ui() -> void:
-	# 1. Add Tab Button
-	# [Fix] tab_prog_btn is now initialized in _build_content correctly
-	tab_prog_btn.text = "PRG"
-	tab_prog_btn.toggle_mode = true
-	tab_prog_btn.focus_mode = Control.FOCUS_NONE
-	tab_prog_btn.custom_minimum_size.y = 40
-	tabs_hbox.add_child(tab_prog_btn)
-	tabs_hbox.move_child(tab_prog_btn, 2) # Insert after Chord
-	
-	# 2. Create Container
-	progression_container = VBoxContainer.new()
-	progression_container.name = "ProgressionContainer"
-	progression_container.visible = false
-	progression_container.add_theme_constant_override("separation", 16)
-	main_vbox.add_child(progression_container)
-	main_vbox.move_child(progression_container, chord_container.get_index() + 1)
-	
-	# 3. Slots Visualizer
-	var slots_frame = PanelContainer.new()
-	var style = StyleBoxFlat.new()
-	style.bg_color = Color(0, 0, 0, 0.2)
-	style.corner_radius_top_left = 8
-	style.corner_radius_top_right = 8
-	style.corner_radius_bottom_left = 8
-	style.corner_radius_bottom_right = 8
-	style.content_margin_top = 10
-	style.content_margin_bottom = 10
-	slots_frame.add_theme_stylebox_override("panel", style)
-	
-	var slots_scroll = ScrollContainer.new()
-	slots_scroll.name = "SlotsScroll"
-	slots_scroll.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
-	slots_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_AUTO
-	slots_scroll.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	slots_scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	slots_frame.add_child(slots_scroll)
-	
-	progression_slots_container = HBoxContainer.new()
-	progression_slots_container.alignment = BoxContainer.ALIGNMENT_CENTER
-	progression_slots_container.size_flags_horizontal = Control.SIZE_EXPAND_FILL # Ensure it fills scroll area
-	progression_slots_container.add_theme_constant_override("separation", 10)
-	slots_scroll.add_child(progression_slots_container)
-	
-	progression_container.add_child(slots_frame)
-	
-	# 4. Input Buttons (I through vii) - NOW FILTERS
-	var input_grid = GridContainer.new()
-	input_grid.columns = 4
-	input_grid.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
-	input_grid.add_theme_constant_override("h_separation", 8)
-	input_grid.add_theme_constant_override("v_separation", 8)
-	
-	var degrees = ["I", "ii", "iii", "IV", "V", "vi", "vii°"]
-	_prog_degree_btns.clear()
-	
-	for i in range(degrees.size()):
-		var btn = Button.new()
-		btn.text = degrees[i]
-		btn.custom_minimum_size = Vector2(64, 45)
-		btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		btn.focus_mode = Control.FOCUS_NONE
-		btn.toggle_mode = true # [New] Toggle behavior for filters
-		
-		# Initialize toggle state from manager
-		btn.button_pressed = i in QuizManager.active_progression_degrees
-		
-		btn.pressed.connect(func():
-			_on_degree_filter_toggled(i, btn.button_pressed)
-		)
-		input_grid.add_child(btn)
-		_prog_degree_btns.append(btn)
-		
-	progression_container.add_child(input_grid)
-	_update_degree_filter_visuals()
-
-func _on_degree_filter_toggled(degree_idx: int, is_pressed: bool) -> void:
-	var active = QuizManager.active_progression_degrees
-	if is_pressed:
-		if not degree_idx in active:
-			active.append(degree_idx)
-	else:
-		active.erase(degree_idx)
-	
-	# Minimum 1 degree must be selected? 
-	if active.is_empty():
-		active.append(degree_idx)
-		_prog_degree_btns[degree_idx].button_pressed = true
-		
-	_update_degree_filter_visuals()
-
-func _update_degree_filter_visuals() -> void:
-	for i in range(_prog_degree_btns.size()):
-		var btn = _prog_degree_btns[i]
-		var is_active = i in QuizManager.active_progression_degrees
-		
-		var style = StyleBoxFlat.new()
-		style.set_corner_radius_all(6)
-		if is_active:
-			style.bg_color = ThemeColors.FILTER_ACTIVE_BG # Active filter color
-			style.set_border_width_all(2)
-			style.border_color = ThemeColors.FILTER_ACTIVE_BORDER
-		else:
-			style.bg_color = ThemeColors.SLOT_FUTURE_BG
-			style.set_border_width_all(1)
-			style.border_color = ThemeColors.SLOT_FUTURE_BORDER.lightened(0.1)
-			
-		btn.add_theme_stylebox_override("normal", style)
-		btn.add_theme_stylebox_override("hover", style)
-		btn.add_theme_stylebox_override("pressed", style)
-
-func _update_progression_slots_active(step_idx: int) -> void:
-	var slots = progression_slots_container.get_children()
-	for i in range(slots.size()):
-		var slot = slots[i]
-		if not slot is PanelContainer: continue
-		
-		var style = slot.get_theme_stylebox("panel").duplicate()
-		if i == step_idx:
-			style.border_color = ThemeColors.SLOT_ACTIVE_BORDER # Active slot highlight
-			style.bg_color = ThemeColors.SLOT_ACTIVE_BG
-			slot.modulate.a = 1.0
-		elif i < step_idx:
-			# Completed
-			style.border_color = ThemeColors.SLOT_DONE_BORDER
-			style.bg_color = ThemeColors.SLOT_DONE_BG
-			slot.modulate.a = 1.0
-		else:
-			# Future slots
-			style.border_color = ThemeColors.SLOT_FUTURE_BORDER
-			style.bg_color = ThemeColors.SLOT_FUTURE_BG
-			slot.modulate.a = 0.5
-		slot.add_theme_stylebox_override("panel", style)
-
-func _animate_slot_pop(slot: Control) -> void:
-	var tw = create_tween()
-	tw.set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_ELASTIC)
-	slot.pivot_offset = slot.size / 2
-	slot.scale = Vector2(0.8, 0.8)
-	tw.tween_property(slot, "scale", Vector2(1, 1), 0.4)
-
-func _animate_slot_shake(slot: Control) -> void:
-	var tw = create_tween()
-	var start_pos = slot.position
-	tw.tween_property(slot, "position:x", start_pos.x + 10, 0.05)
-	tw.tween_property(slot, "position:x", start_pos.x - 10, 0.05)
-	tw.tween_property(slot, "position:x", start_pos.x + 10, 0.05)
-	tw.tween_property(slot, "position:x", start_pos.x, 0.05)
 
 func _set_active_tab(type: int, auto_start: bool = true) -> void: # QuizType
 	_active_tab_type = type # [Fix] Sync state
