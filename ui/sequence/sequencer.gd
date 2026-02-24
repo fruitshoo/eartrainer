@@ -428,7 +428,7 @@ func _clear_chord_highlights() -> void:
 
 func _clear_melody_highlights() -> void:
 	if is_instance_valid(_active_melody_tile):
-		_active_melody_tile.clear_sequencer_highlight()
+		_active_melody_tile.clear_melody_highlight() # [Fix] Use dedicated melody layer
 	_active_melody_tile = null
 
 func _check_chord_playback_trigger() -> void:
@@ -505,8 +505,8 @@ func _play_melody_note() -> void:
 	
 	var density = ProgressionManager.bar_densities[bar_idx]
 	if density == 0: density = 1
-	var beats_per_slot = ProgressionManager.beats_per_bar / density
-	var beat_in_bar = current_beat + (slot_offset * beats_per_slot)
+	var beats_per_slot = float(ProgressionManager.beats_per_bar) / density
+	var beat_in_bar = current_beat + int(slot_offset * beats_per_slot)
 	
 	var key = "%d_%d" % [beat_in_bar, _sub_beat]
 	var note_data = events.get(key, {})
@@ -522,7 +522,7 @@ func _play_melody_note() -> void:
 			if not is_instance_valid(_active_melody_tile):
 				var tile = GameManager.find_tile(string_idx, MusicTheory.get_fret_position(root, string_idx))
 				if tile:
-					tile.apply_sequencer_highlight(null)
+					tile.apply_melody_highlight() # [Fix] Use dedicated melody layer
 					_active_melody_tile = tile
 		else:
 			# New Note Attack
@@ -532,7 +532,7 @@ func _play_melody_note() -> void:
 			
 			var tile = GameManager.find_tile(string_idx, MusicTheory.get_fret_position(root, string_idx))
 			if tile:
-				tile.apply_sequencer_highlight(null)
+				tile.apply_melody_highlight() # [Fix] Use dedicated melody layer
 				_active_melody_tile = tile
 			
 			# [New] 16th Note Sub-Note: Schedule back half at midpoint
@@ -548,7 +548,7 @@ func _play_melody_note() -> void:
 					AudioEngine.play_note(sub_root, sub_string, "melody", 1.0)
 					var sub_tile = GameManager.find_tile(sub_string, MusicTheory.get_fret_position(sub_root, sub_string))
 					if sub_tile:
-						sub_tile.apply_sequencer_highlight(null)
+						sub_tile.apply_melody_highlight() # [Fix] Use dedicated melody layer
 						_active_melody_tile = sub_tile
 				)
 	else:

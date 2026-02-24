@@ -37,7 +37,12 @@ var _flash_active: bool = false
 var _flash_color: Color = Color.WHITE
 var _flash_energy: float = 3.0
 
-# Layer 2: Effect (Melody Playback, Feedback Flash) - High Priority
+# Layer 2.5: Melody (Melody Playback) - High Priority
+var _melody_active: bool = false
+var _melody_color: Color = Color.TRANSPARENT
+var _melody_energy: float = 0.0
+
+# Layer 2: Effect (Chord Sequencer Playback) - High Priority
 var _effect_active: bool = false
 var _effect_color: Color = Color.TRANSPARENT
 var _effect_energy: float = 0.0
@@ -120,7 +125,7 @@ func _refresh_visuals() -> void:
 	var tier := GameManager.get_tile_tier(midi_note)
 	
 	# 1. Label Visibility Logic
-	var is_highlighted = _flash_active or _effect_active or _marker_active
+	var is_highlighted = _flash_active or _melody_active or _effect_active or _marker_active
 	
 	var is_melody_mode = false
 	var seq_ui = get_tree().get_first_node_in_group("sequence_ui")
@@ -242,12 +247,15 @@ func clear_sequencer_highlight(_fade_duration: float = 0.2) -> void:
 
 ## [v0.3.1] Melody Wrapper (GameManager 호환용)
 func apply_melody_highlight() -> void:
-	# 보상음악/멜로디 재생 시 밝은 Magenta 색상으로 강조 (User Request: Avoid Cyan/Yellow)
-	# Energy reduced to 1.2 to avoid white blowout
-	apply_sequencer_highlight(Color.MAGENTA, 0.8) # Reduced from 1.2
+	# 보상음악/멜로디 재생 시 너무 튀지 않는 부드러운 보라/퍼플 색상으로 강조
+	_melody_active = true
+	_melody_color = Color(0.7, 0.4, 0.9) # Soft Violet / Purple (Replaces harsh Magenta)
+	_melody_energy = 0.8
+	_refresh_visuals()
 
 func clear_melody_highlight() -> void:
-	clear_sequencer_highlight()
+	_melody_active = false
+	_refresh_visuals()
 
 ## Layer 1: Marker (Quiz Root / Lock)
 func set_marker(color: Color, energy: float = 1.0) -> void: # Reduced from 1.5
@@ -270,6 +278,10 @@ func _update_material_state() -> void:
 		# Layer 3: Flash
 		final_color = _flash_color
 		final_energy = _flash_energy
+	elif _melody_active:
+		# Layer 2.5: Melody
+		final_color = _melody_color
+		final_energy = _melody_energy
 	elif _effect_active:
 		# Layer 2: Effect
 		final_color = _effect_color
