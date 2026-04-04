@@ -2,6 +2,11 @@
 # 코드 진행 슬롯 관리 싱글톤
 extends Node
 
+const PROGRESSION_MANAGER_IO = preload("res://core/progression_manager_io.gd")
+const PROGRESSION_MANAGER_SLOTS = preload("res://core/progression_manager_slots.gd")
+const PROGRESSION_MANAGER_MELODY = preload("res://core/progression_manager_melody.gd")
+const PROGRESSION_MANAGER_CLIPBOARD = preload("res://core/progression_manager_clipboard.gd")
+
 # ============================================================
 # ============================================================
 # SIGNALS
@@ -12,6 +17,9 @@ signal selection_cleared
 signal loop_range_changed(start: int, end: int) # [New] 루프 구간 변경 알림
 signal settings_updated(bar_count: int, chords_per_bar: int) # [New] 설정 변경 알림
 signal melody_updated(bar_idx: int) # [New] 멜로디 변경 알림
+signal section_labels_changed
+
+const SESSION_SAVE_DEBOUNCE_SEC := 0.12
 
 # ============================================================
 # STATE VARIABLES
@@ -46,16 +54,34 @@ var loop_start_index: int = -1
 var loop_end_index: int = -1
 
 var slots: Array = []
+var section_labels: Dictionary = {}
+var bar_clipboard: Dictionary = {}
 
 # [New] Melody Data: Key = Bar Index, Value = Dictionary { "beat_sub": NoteData }
 # beat: 0..3, sub: 0..1 (8th notes). Key format: "0_0", "0_1", ... "3_1"
 var melody_events: Dictionary = {}
+var _save_timer: Timer
+var _save_pending: bool = false
+var _io_helper: ProgressionManagerIO
+var _slot_helper: ProgressionManagerSlots
+var _melody_helper: ProgressionManagerMelody
+var _clipboard_helper: ProgressionManagerClipboard
 
 # ============================================================
 # LIFECYCLE
 # ============================================================
 func _ready() -> void:
+	_io_helper = PROGRESSION_MANAGER_IO.new(self)
+	_slot_helper = PROGRESSION_MANAGER_SLOTS.new(self)
+	_melody_helper = PROGRESSION_MANAGER_MELODY.new(self)
+	_clipboard_helper = PROGRESSION_MANAGER_CLIPBOARD.new(self, _slot_helper)
+	playback_mode = MusicTheory.ChordPlaybackMode.ONCE
 	EventBus.tile_clicked.connect(_on_tile_clicked)
+	_save_timer = Timer.new()
+	_save_timer.one_shot = true
+	_save_timer.wait_time = SESSION_SAVE_DEBOUNCE_SEC
+	_save_timer.timeout.connect(_flush_session_save)
+	add_child(_save_timer)
 	# 초기화: 기본 4마디, 마디당 1코드
 	if bar_densities.is_empty():
 		for i in range(bar_count):
@@ -73,7 +99,7 @@ func load_startup_state() -> void:
 	var default_name = GameManager.default_preset_name
 	if not default_name.is_empty():
 		# Check if preset exists
-		var target_preset = storage.load_preset(default_name)
+		var target_preset = _io_helper.load_preset_data(default_name)
 				
 		if not target_preset.is_empty():
 			load_preset(default_name)
@@ -140,264 +166,113 @@ func _on_tile_clicked(midi_note: int, string_index: int, modifiers: Dictionary) 
 ## 시퀀서 설정 변경 (마디 수, 분할)
 ## 시퀀서 설정 변경 (마디 수) - 기존 호환성 유지 (Reset)
 func update_settings(new_bar_count: int, _dummy_density: int = 1) -> void:
-	bar_count = clampi(new_bar_count, 2, 8)
-	
-	# 초기화: densities
-	if bar_densities.size() != bar_count:
-		var new_densities: Array[int] = []
-		for i in range(bar_count):
-			if i < bar_densities.size():
-				new_densities.append(bar_densities[i])
-			else:
-				new_densities.append(1) # Default
-		bar_densities = new_densities
-	
-	# 여기서는 "전체 재구성" 로직이 필요함.
-	_reconstruct_slots()
-	settings_updated.emit(bar_count, 1) # 두 번째 인자는 이제 의미 없음
-	save_session()
+	_slot_helper.update_settings(new_bar_count)
 
 ## [New] 박자 설정 (4 or 3)
 func set_time_signature(beats: int) -> void:
-	if beats != 3 and beats != 4: return
-	if beats_per_bar == beats: return
-	
-	beats_per_bar = beats
-	
-	# 3/4박자일 경우, Split Bar 기능 비활성화 및 기존 Split 병합
-	if beats_per_bar == 3:
-		for i in range(bar_densities.size()):
-			if bar_densities[i] > 1:
-				bar_densities[i] = 1
-	
-	# TODO: 4박자로 돌아올 때도 무조건 1로 두는게 깔끔함.
-	# (마디 쪼개기는 사용자가 명시적으로 했을 때만 유효하도록)
-	
-	_reconstruct_slots()
-	settings_updated.emit(bar_count, 1)
-	save_session()
+	_slot_helper.set_time_signature(beats)
 
 
 ## 특정 마디의 분할 상태 토글 (1 <-> 2)
 func toggle_bar_split(bar_index: int) -> void:
-	if bar_index < 0 or bar_index >= bar_densities.size():
-		return
-	
-	# 1. Capture current data by Bar to prevent shifting
-	var bar_data_map = {}
-	var current_slot_read = 0
-	for i in range(bar_densities.size()):
-		var density = bar_densities[i]
-		var chords = []
-		for k in range(density):
-			var slot_idx = current_slot_read + k
-			if slot_idx < slots.size():
-				chords.append(slots[slot_idx])
-		bar_data_map[i] = chords
-		current_slot_read += density
-
-	# 2. Modify Density
-	var current_bar_density = bar_densities[bar_index]
-	bar_densities[bar_index] = 2 if current_bar_density == 1 else 1
-	
-	# 3. Resize and Reconstruct
-	_resize_slots()
-	
-	# Clear slots first to be safe
-	for i in range(slots.size()): slots[i] = null
-	
-	# Fill from map
-	var current_slot_write = 0
-	for i in range(bar_count):
-		var density = bar_densities[i]
-		var saved_chords = bar_data_map.get(i, [])
-		
-		# Logic:
-		# If we grew (1->2): saved has 1 chord. Put it in slot 1. Slot 2 is null.
-		# If we shrank (2->1): saved has 2 chords. Put 1st in slot 1. Drop 2nd.
-		# If unchanged: Copy as is.
-		
-		for k in range(density):
-			if k < saved_chords.size():
-				slots[current_slot_write + k] = saved_chords[k]
-			# else: leave null (newly created slot)
-			
-			# UI Update limit
-			slot_updated.emit(current_slot_write + k, slots[current_slot_write + k] if slots[current_slot_write + k] else {})
-			
-		current_slot_write += density
-
-	settings_updated.emit(bar_count, 1)
-	save_session()
+	_slot_helper.toggle_bar_split(bar_index)
 
 ## [New] UI 강제 갱신 (SongManager 등 외부에서 데이터 로드 시 사용)
 func force_refresh_ui() -> void:
-	settings_updated.emit(bar_count, 1)
-	loop_range_changed.emit(loop_start_index, loop_end_index)
-	for i in range(slots.size()):
-		slot_updated.emit(i, slots[i] if slots[i] else {})
+	_slot_helper.force_refresh_ui()
+
+func get_section_label(bar_index: int) -> String:
+	return _slot_helper.get_section_label(bar_index)
+
+func set_section_label(bar_index: int, label: String) -> void:
+	_slot_helper.set_section_label(bar_index, label)
+
+func clear_section_label(bar_index: int) -> void:
+	_slot_helper.clear_section_label(bar_index)
+
+func copy_bar(bar_index: int) -> void:
+	_clipboard_helper.copy_bar(bar_index)
+
+func copy_bar_range(start_bar: int, end_bar: int) -> void:
+	_clipboard_helper.copy_bar_range(start_bar, end_bar)
+
+func paste_bar(bar_index: int) -> void:
+	_clipboard_helper.paste_bar(bar_index)
+
+func paste_bar_range(start_bar: int, end_bar: int) -> void:
+	_clipboard_helper.paste_bar_range(start_bar, end_bar)
+
+func has_bar_clipboard() -> bool:
+	return _clipboard_helper.has_bar_clipboard()
+
+func get_loop_bar_range() -> Vector2i:
+	return _slot_helper.get_loop_bar_range()
+
+func get_bar_clipboard_length() -> int:
+	return _clipboard_helper.get_bar_clipboard_length()
+
+func get_bar_clipboard_source_range() -> Vector2i:
+	return _clipboard_helper.get_bar_clipboard_source_range()
+
+func get_bar_clipboard_next_paste_bar() -> int:
+	return _clipboard_helper.get_bar_clipboard_next_paste_bar()
 
 ## 슬롯 인덱스로부터 해당 슬롯의 박자 길이(Duration) 반환
 func get_beats_for_slot(slot_index: int) -> int:
-	# 슬롯 인덱스를 순회하며 어느 마디에 속하는지 찾음
-	var current_slot = 0
-	for density in bar_densities:
-		var next_boundary = current_slot + density
-		if slot_index < next_boundary:
-			# 찾음! density가 1이면 beats_per_bar(3 or 4), 2면 beats_per_bar/2
-			if density == 1:
-				return beats_per_bar
-			else:
-				return beats_per_bar / 2 # 4/2=2. 3/2=1 (Integer division checks needed?)
-				# 3박자는 Split 막았으므로 안전.
-		current_slot = next_boundary
-	return beats_per_bar # Fallback
+	return _slot_helper.get_beats_for_slot(slot_index)
 
 ## 슬롯 인덱스가 속한 "마디 인덱스" 반환
 func get_bar_index_for_slot(slot_index: int) -> int:
-	var current_slot = 0
-	for i in range(bar_densities.size()):
-		var density = bar_densities[i]
-		if slot_index < current_slot + density:
-			return i
-		current_slot += density
-	return -1
+	return _slot_helper.get_bar_index_for_slot(slot_index)
 
 ## 마디 인덱스로부터 해당 마디의 첫 번째 슬롯 인덱스 반환
 func get_slot_index_for_bar(bar_index: int) -> int:
-	if bar_index < 0 or bar_index >= bar_densities.size():
-		return -1
-	
-	var current_slot = 0
-	for i in range(bar_index):
-		current_slot += bar_densities[i]
-	return current_slot
+	return _slot_helper.get_slot_index_for_bar(bar_index)
 
 ## 타일 클릭 시 현재 슬롯에 코드 데이터 저장
 func set_slot_from_tile(midi_note: int, string_index: int, is_shift: bool, is_alt: bool) -> void:
-	if selected_index < 0:
-		return
-		
-	# [BugFix] 루프 구간이 설정된 상태(여러 슬롯 선택)라면 코드 입력을 막는다.
-	# 단, 단일 슬롯 선택(Start==End)인 경우는 허용할 수도 있지만,
-	# UI 로직상 Shift+Click으로 구간을 잡으면 Start != End가 됨.
-	if loop_start_index != -1 and loop_end_index != -1:
-		if loop_start_index != loop_end_index:
-			return
-	
-	# 1. 다이어토닉 타입 자동 추론
-	var chord_type := MusicTheory.get_diatonic_type(
-		midi_note,
-		GameManager.current_key,
-		GameManager.current_mode
-	)
-	
-	# 2. 보조키 수정자 적용
-	if is_shift:
-		chord_type = "7"
-	elif is_alt:
-		chord_type = MusicTheory.toggle_quality(chord_type)
-	
-	# 3. 슬롯 데이터 저장
-	var slot_data := {"root": midi_note, "type": chord_type, "string": string_index}
-	
-	# 안전장치: 인덱스 범위 확인
-	if selected_index < slots.size():
-		slots[selected_index] = slot_data
-		# [Debug] Log modification
-		# if selected_index == 0:
-		# 	var msg = "Slot[0] MODIFIED by Tile! (%d)" % midi_note
-		# 	EventBus.debug_log.emit(msg)
-		# 	print(msg)
-		slot_updated.emit(selected_index, slot_data)
-	
-	# 4. 입력 완료 → 선택 해제
-	selected_index = -1
-	selection_cleared.emit()
-	
-	save_session()
+	_slot_helper.set_slot_from_tile(midi_note, string_index, is_shift, is_alt)
+
+func set_slot_data(index: int, slot_data: Dictionary, clear_selection: bool = false) -> void:
+	_slot_helper.set_slot_data(index, slot_data, clear_selection)
+
+func set_selected_slot_type(chord_type: String) -> void:
+	_slot_helper.set_selected_slot_type(chord_type)
 
 ## 루프 구간 설정
 func set_loop_range(start: int, end: int) -> void:
-	if start < 0 or end < 0 or start > end or end >= total_slots:
-		return
-		
-	loop_start_index = start
-	loop_end_index = end
-	
-	# [Refinement] 루프 구간이 생성되면 기존 단일 슬롯 선택은 해제한다.
-	# (시각적으로 루프 구간(흰색)만 남기고 노란색 슬롯을 없앰)
-	if selected_index != -1:
-		selected_index = -1
-		selection_cleared.emit()
-		
-	loop_range_changed.emit(loop_start_index, loop_end_index)
-	save_session()
+	_slot_helper.set_loop_range(start, end)
 
 ## 루프 구간 해제
 func clear_loop_range() -> void:
-	loop_start_index = -1
-	loop_end_index = -1
-	loop_range_changed.emit(-1, -1)
-	save_session()
+	_slot_helper.clear_loop_range()
 
 ## 특정 슬롯의 데이터 반환
 func get_slot(index: int) -> Variant:
-	if index >= 0 and index < slots.size():
-		return slots[index]
-	return null
+	return _slot_helper.get_slot(index)
 
 ## [New] 특정 슬롯의 데이터를 Dictionary로 반환 (Null 안전)
 func get_chord_data(index: int) -> Dictionary:
-	var s = get_slot(index)
-	if s is Dictionary:
-		return s
-	return {}
+	return _slot_helper.get_chord_data(index)
 
 ## 모든 슬롯 초기화
 func clear_all() -> void:
-	for i in range(slots.size()):
-		slots[i] = null
-		slot_updated.emit(i, {}) # UI 갱신용 빈 데이터
-	selected_index = -1
-	save_session()
+	_slot_helper.clear_all()
 
 ## 특정 슬롯 초기화
 func clear_slot(index: int) -> void:
-	if index >= 0 and index < slots.size():
-		slots[index] = null
-		slot_updated.emit(index, {})
-		if selected_index == index:
-			selected_index = -1
-			selection_cleared.emit()
-	save_session()
+	_slot_helper.clear_slot(index)
 
 ## 내부: 슬롯 배열 완전히 재구성 (Split 변경 시)
 ## 주의: 기존 데이터 위치가 밀릴 수 있음. (간단하게 구현: 리사이즈만 하고 데이터 이동은 일단 패스?)
 ## 사용자 경험상, 마디 1을 쪼갰는데 마디 4의 데이터가 마디 3으로 오면 안됨.
 ## 따라서 데이터를 "마디별"로 백업하고 복원해야 함.
 func _reconstruct_slots() -> void:
-	# 데이터 유지를 위한 임시 저장
-	var old_slots = slots.duplicate()
-	
-	_resize_slots()
-	
-	# 가능한 만큼 복원 (단순 인덱스 매핑)
-	for i in range(min(old_slots.size(), slots.size())):
-		slots[i] = old_slots[i]
-		slot_updated.emit(i, slots[i] if slots[i] else {})
+	_slot_helper.reconstruct_slots()
 
 ## 내부: 슬롯 배열 크기 조정
 func _resize_slots() -> void:
-	var new_total = total_slots
-	slots.resize(new_total)
-	
-	if selected_index >= new_total:
-		selected_index = -1
-	
-	# 루프 범위가 새 크기를 벗어나면 초기화
-	if loop_end_index >= new_total:
-		clear_loop_range()
+	_slot_helper.resize_slots()
 
 # ============================================================
 # MELODY API
@@ -405,143 +280,68 @@ func _resize_slots() -> void:
 
 ## [New] 멜로디 노트 설정
 func set_melody_note(bar_idx: int, beat: int, sub: int, note_data: Dictionary) -> void:
-	if bar_idx < 0 or bar_idx >= bar_count: return
-	
-	if not melody_events.has(bar_idx):
-		melody_events[bar_idx] = {}
-		
-	var key = "%d_%d" % [beat, sub]
-	melody_events[bar_idx][key] = note_data
-	
-	melody_updated.emit(bar_idx)
-	save_session()
+	_melody_helper.set_melody_note(bar_idx, beat, sub, note_data)
 
 ## [New] 멜로디 노트 삭제
 func clear_melody_note(bar_idx: int, beat: int, sub: int) -> void:
-	if not melody_events.has(bar_idx): return
-	
-	var key = "%d_%d" % [beat, sub]
-	if melody_events[bar_idx].has(key):
-		melody_events[bar_idx].erase(key)
-		melody_updated.emit(bar_idx)
-		save_session()
+	_melody_helper.clear_melody_note(bar_idx, beat, sub)
 
 ## [New] 특정 마디의 멜로디 데이터 반환
 func get_melody_events(bar_idx: int) -> Dictionary:
-	return melody_events.get(bar_idx, {})
+	return _melody_helper.get_melody_events(bar_idx)
+
+## [New] 멜로디 전체 교체
+func replace_all_melody_events(new_events: Dictionary) -> void:
+	_melody_helper.replace_all_melody_events(new_events)
 
 ## [New] 멜로디 전체 초기화
 func clear_all_melody() -> void:
-	melody_events.clear()
-	# Emit updates for all bars
-	for i in range(bar_count):
-		melody_updated.emit(i)
-	save_session()
+	_melody_helper.clear_all_melody()
 
 # ============================================================
 # PERSISTENCE (Auto-save)
 # ============================================================
-var storage = preload("res://core/progression_storage.gd").new()
-
 func _notification(what: int) -> void:
 	if what == NOTIFICATION_WM_CLOSE_REQUEST:
-		save_session()
+		save_session(true)
 
 ## 세션 자동 저장
-func save_session() -> void:
-	storage.save_session(serialize())
+func save_session(immediate: bool = false) -> void:
+	_save_pending = true
+	if immediate:
+		_flush_session_save()
+		return
+	if _save_timer:
+		_save_timer.start()
+
+func _flush_session_save() -> void:
+	_io_helper.flush_session_save()
 
 ## 세션 자동 불러오기
 func load_session() -> void:
-	var data = storage.load_session()
-	if not data.is_empty():
-		deserialize(data)
+	_io_helper.load_session()
 
 func serialize() -> Dictionary:
-	return {
-		"version": 1,
-		"bar_count": bar_count,
-		"beats_per_bar": beats_per_bar,
-		"playback_mode": int(playback_mode),
-		"bar_densities": bar_densities,
-		"slots": slots,
-		"melody_events": melody_events,
-		"loop_start": loop_start_index,
-		"loop_end": loop_end_index,
-		"key": GameManager.current_key,
-		"mode": GameManager.current_mode,
-		"melody_tracks": []
-	}
+	return _io_helper.serialize()
 
 func deserialize(data: Dictionary) -> void:
-	bar_count = data.get("bar_count", 4)
-	beats_per_bar = data.get("beats_per_bar", 4)
-	playback_mode = int(data.get("playback_mode", MusicTheory.ChordPlaybackMode.ONCE)) as MusicTheory.ChordPlaybackMode
-	
-	var saved_densities = data.get("bar_densities", [])
-	if saved_densities.size() > 0:
-		bar_densities.clear()
-		for d in saved_densities:
-			bar_densities.append(int(d))
-	else:
-		bar_densities.clear()
-		for i in range(bar_count):
-			bar_densities.append(1)
-	
-	_resize_slots()
-	
-	for k in range(slots.size()):
-		slots[k] = null
-	
-	var saved_slots = data.get("slots", [])
-	for i in range(min(slots.size(), saved_slots.size())):
-		var s = saved_slots[i]
-		if s is Dictionary:
-			if s.has("root"): s["root"] = int(s["root"])
-			if s.has("string"): s["string"] = int(s["string"])
-			slots[i] = s.duplicate()
-		else:
-			slots[i] = s
-	
-	loop_start_index = data.get("loop_start", -1)
-	loop_end_index = data.get("loop_end", -1)
-	
-	melody_events.clear()
-	var saved_melody = data.get("melody_events", {})
-	if saved_melody is Dictionary:
-		for bar_idx_str in saved_melody.keys():
-			var bar_idx = int(bar_idx_str)
-			melody_events[bar_idx] = saved_melody[bar_idx_str]
-	
-	settings_updated.emit(bar_count, 1)
-	loop_range_changed.emit(loop_start_index, loop_end_index)
+	_io_helper.deserialize(data)
 
 # ============================================================
 # PRESET LIBRARY (Saved Progressions)
 # ============================================================
 
 func get_preset_list() -> Array[Dictionary]:
-	return storage.get_preset_list()
+	return _io_helper.get_preset_list()
 
 func save_preset(name: String) -> void:
-	storage.save_preset(name, serialize())
+	_io_helper.save_preset(name)
 
 func load_preset(name: String) -> void:
-	var target_data = storage.load_preset(name)
-	if target_data.is_empty():
-		return
-	
-	if target_data.has("key") and target_data.has("mode"):
-		GameManager.current_key = int(target_data["key"])
-		GameManager.current_mode = int(target_data["mode"])
-		EventBus.game_settings_changed.emit()
-	
-	deserialize(target_data)
-	save_session()
-	print("[ProgressionManager] Preset loaded: ", name)
+	_io_helper.load_preset(name)
 
 func delete_preset(name: String) -> void:
-	storage.delete_preset(name)
+	_io_helper.delete_preset(name)
 
 func reorder_presets(from_idx: int, to_idx: int) -> void:
-	storage.reorder_presets(from_idx, to_idx)
+	_io_helper.reorder_presets(from_idx, to_idx)

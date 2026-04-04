@@ -105,7 +105,7 @@ const SCALE_INTERVALS := {
 
 # [Backward Compatibility] Shortcut for old dict access style
 static func _get_scale_intervals(mode: ScaleMode) -> Array:
-	return SCALE_DATA[mode]["intervals"]
+	return MusicTheoryHarmony.get_scale_intervals(mode)
 
 const CHORD_INTERVALS := {
 	"maj": [0, 4, 7],
@@ -223,59 +223,27 @@ const VOICING_SHAPES := {
 
 ## 현재 키/모드에 따라 Flat 표기를 사용할지 결정
 static func should_use_flats(key_root: int, mode: ScaleMode) -> bool:
-	var root_index := key_root % 12
-	if mode == ScaleMode.MAJOR:
-		# F(5), Bb(10), Eb(3), Ab(8), Db(1) Major -> Flat
-		# F#(6) is now treated as Sharp based on user preference
-		return root_index in [1, 3, 5, 8, 10]
-	else:
-		# C(0), D(2), Eb(3), F(5), G(7), Bb(10) Minor -> Flat
-		# (Note: Minor keys relative to Major flat keys)
-		return root_index in [0, 2, 3, 5, 7, 10]
+	return MusicTheoryNotation.should_use_flats(key_root, mode)
 
 ## MIDI 노트 번호에 해당하는 음이름 반환 (Flat/Sharp 자동 처리)
 static func get_note_name(midi_note: int, use_flats: bool = false) -> String:
-	var index := midi_note % 12
-	if use_flats:
-		return NOTE_NAMES_FLAT[index]
-	return NOTE_NAMES_SHARP[index]
+	return MusicTheoryNotation.get_note_name(midi_note, use_flats)
 
 ## DoReMi 표기법 반환 (Flat/Sharp 자동 처리)
 static func get_doremi_name(relative_note: int, use_flats: bool = false) -> String:
-	var index := relative_note % 12
-	# 음수 인덱스 처리
-	if index < 0: index += 12
-		
-	if use_flats:
-		return NOTE_NAMES_DOREMI_FLAT[index]
-	return NOTE_NAMES_DOREMI_SHARP[index]
+	return MusicTheoryNotation.get_doremi_name(relative_note, use_flats)
 
 ## 숫자 기반 도수 표기 (1, b2, 2, b3...) 반환
 static func get_degree_number_name(midi_note: int, key_root: int) -> String:
-	var interval := _get_interval(midi_note, key_root)
-	return DEGREE_NUMBERS.get(interval, "?")
+	return MusicTheoryNotation.get_degree_number_name(midi_note, key_root)
 
 ## 해당 음이 스케일에 포함되는지 확인
 static func is_in_scale(midi_note: int, key_root: int, mode: ScaleMode) -> bool:
-	# Safety: Check for invalid mode before accessing SCALE_DATA
-	if mode == -1 or not mode in SCALE_DATA:
-		return false
-	
-	var interval := _get_interval(midi_note, key_root)
-	return interval in SCALE_DATA[mode]["intervals"]
+	return MusicTheoryNotation.is_in_scale(midi_note, key_root, mode)
 
 ## 3-Tier 시각화용 계층 반환 (1=Root, 2=ChordTone, 3=ScaleTone, 4=Avoid)
 static func get_visual_tier(midi_note: int, chord_root: int, chord_type: String, key_root: int, mode: ScaleMode) -> int:
-	# [DEBUG] 값 추적 - 문제 해결 후 삭제할 것
-	var chord_interval := _get_interval(midi_note, chord_root)
-	
-	if chord_interval == 0:
-		return 1 # Root
-	if chord_interval in CHORD_INTERVALS.get(chord_type, []):
-		return 2 # Chord Tone
-	if is_in_scale(midi_note, key_root, mode):
-		return 3 # Scale Tone
-	return 4 # Avoid Note
+	return MusicTheoryNotation.get_visual_tier(midi_note, chord_root, chord_type, key_root, mode)
 
 # ============================================================
 # STATIC FUNCTIONS - 다이어토닉 타입 추론
@@ -283,74 +251,20 @@ static func get_visual_tier(midi_note: int, chord_root: int, chord_type: String,
 
 ## 클릭한 음의 다이어토닉 코드 타입 자동 추론 (Dynamic)
 static func get_diatonic_type(midi_note: int, key_root: int, mode: ScaleMode) -> String:
-	# 1. Determine which mode to use for chords (Parent vs Self)
-	var chord_mode = mode
-	var parent_mode = SCALE_DATA[mode].get("parent_mode")
-	if parent_mode != null:
-		chord_mode = parent_mode
-		
-	# 2. Get Intervals
-	var intervals = SCALE_DATA[chord_mode]["intervals"]
-	var target_interval := _get_interval(midi_note, key_root)
-	
-	# 3. Check if the note is a scale tone
-	var degree_idx = intervals.find(target_interval)
-	if degree_idx == -1:
-		return "M7" # Non-diatonic (Chromatic) root -> Default to M7
-		
-	# 4. Stack Thirds to determine quality
-	var count = intervals.size()
-	
-	# [Fix] Safety for Pentatonic/Small scales (size < 7)
-	# They don't support standard diatonic 7th mapping easily.
-	# Fallback to simple triad or assume Major if too small.
-	if count < 5:
-		return "M7"
-		
-	# Scale degrees (0-based index in intervals array)
-	var third_idx = (degree_idx + 2) % count
-	var fifth_idx = (degree_idx + 4) % count
-	var seventh_idx = (degree_idx + 6) % count
-	
-	var root_val = intervals[degree_idx]
-	var third_val = intervals[third_idx]
-	var fifth_val = intervals[fifth_idx]
-	var seventh_val = intervals[seventh_idx]
-	
-	# Adjust for octave wrapping
-	if third_idx < degree_idx: third_val += 12
-	if fifth_idx < degree_idx: fifth_val += 12
-	if seventh_idx < degree_idx: seventh_val += 12
-	
-	var dist_third = third_val - root_val
-	var dist_fifth = fifth_val - root_val
-	var dist_seventh = seventh_val - root_val
-	
-	# Analyze Triad & Seventh
-	if dist_third == 4: # Major 3rd
-		if dist_fifth == 7: # Perfect 5th
-			if dist_seventh == 11: return "M7"
-			else: return "7" # b7
-		elif dist_fifth == 8: # Augmented 5th
-			return "aug"
-	elif dist_third == 3: # Minor 3rd
-		if dist_fifth == 7: # Perfect 5th
-			if dist_seventh == 11: return "mM7" # Rare but exists
-			else: return "m7"
-		elif dist_fifth == 6: # Diminished 5th
-			if dist_seventh == 9: return "dim7" # Full Dim
-			else: return "m7b5" # Half Dim (b7)
-			
-	return "M7" # Fallback
+	return MusicTheoryHarmony.get_diatonic_type(midi_note, key_root, mode)
+
+static func is_effectively_diatonic_chord(chord_root: int, chord_type: String, key_root: int, mode: ScaleMode) -> bool:
+	return MusicTheoryHarmony.is_effectively_diatonic_chord(chord_root, chord_type, key_root, mode)
+
+static func get_visual_scale_override(chord_root: int, chord_type: String, key_root: int, mode: ScaleMode) -> Dictionary:
+	return MusicTheoryHarmony.get_visual_scale_override(chord_root, chord_type, key_root, mode)
 
 ## Maj7 ↔ m7 토글 (Alt 키용)
 static func toggle_quality(current_type: String) -> String:
-	match current_type:
-		"M7": return "m7"
-		"m7": return "M7"
-		"7": return "m7"
-		"m7b5": return "m7"
-		_: return "M7"
+	return MusicTheoryHarmony.toggle_quality(current_type)
+
+static func _get_display_mode_for_chord_quality(chord_type: String) -> ScaleMode:
+	return MusicTheoryHarmony.get_display_mode_for_chord_quality(chord_type)
 
 # ============================================================
 # STATIC FUNCTIONS - 도수 레이블
@@ -358,22 +272,11 @@ static func toggle_quality(current_type: String) -> String:
 
 ## 루트와 타입으로부터 디그리 (로마 숫자) 반환
 static func get_degree_numeral(chord_root: int, chord_type: String, key_root: int) -> String:
-	var interval := _get_interval(chord_root, key_root)
-	
-	# 로마 숫자 매핑
-	const NUMERALS = ["I", "♭II", "II", "♭III", "III", "IV", "♯IV", "V", "♭VI", "VI", "♭VII", "VII"]
-	var numeral: String = NUMERALS[interval]
-	
-	# 마이너/디미니시 코드는 소문자로
-	if chord_type.begins_with("m") or chord_type.begins_with("dim") or chord_type == "°":
-		numeral = numeral.to_lower()
-	
-	return numeral + chord_type
+	return MusicTheoryNotation.get_degree_numeral(chord_root, chord_type, key_root)
 
 ## 반음 간격으로 로마 숫자 도수 반환 (스케일 모드 기반)
-static func get_degree_label(chord_root: int, key_root: int, mode: ScaleMode) -> String:
-	var interval := _get_interval(chord_root, key_root)
-	return DEGREE_LABELS[mode].get(interval, "?")
+static func get_degree_label(chord_root: int, key_root: int, mode: ScaleMode, chord_type: String = "") -> String:
+	return MusicTheoryNotation.get_degree_label(chord_root, key_root, mode, chord_type)
 
 # ============================================================
 # STATIC FUNCTIONS - 기타 유틸리티
@@ -381,119 +284,35 @@ static func get_degree_label(chord_root: int, key_root: int, mode: ScaleMode) ->
 
 ## 특정 줄에서의 프렛 위치 계산
 static func get_fret_position(midi_note: int, string_index: int) -> int:
-	return midi_note - OPEN_STRING_MIDI[string_index]
+	return MusicTheoryGuitar.get_fret_position(midi_note, string_index)
 
 ## 루트 줄 번호로 보이싱 키 반환
 static func get_voicing_key(string_index: int) -> String:
-	match string_index:
-		0: return "6th_string"
-		1: return "5th_string"
-		2: return "4th_string"
-		_: return "6th_string" # Default fallback
+	return MusicTheoryGuitar.get_voicing_key(string_index)
 
 ## 다이어토닉 도수(1~7) 기반 코드 데이터 반환
 static func get_chord_from_degree(mode: ScaleMode, degree_idx: int) -> Array:
-	var chord_mode = mode
-	var parent_mode = SCALE_DATA[mode].get("parent_mode")
-	if parent_mode != null:
-		chord_mode = parent_mode
-		
-	var intervals = SCALE_DATA[chord_mode]["intervals"]
-	if degree_idx < 0 or degree_idx >= intervals.size():
-		return []
-		
-	var interval = intervals[degree_idx]
-	var type = get_diatonic_type(interval, 0, chord_mode)
-	
-	# Generate Roman Numeral
-	var roman = DEGREE_LABELS.get(chord_mode, DEGREE_LABELS[ScaleMode.MAJOR]).get(interval, "?")
-	
-	return [interval, type, roman]
+	return MusicTheoryHarmony.get_chord_from_degree(mode, degree_idx)
 
 ## 키보드 입력 → 코드 데이터 반환 (GameManager용)
 static func get_chord_from_keycode(mode: ScaleMode, keycode: int) -> Array:
-	var degree_idx = -1
-	match keycode:
-		KEY_1: degree_idx = 0
-		KEY_2: degree_idx = 1
-		KEY_3: degree_idx = 2
-		KEY_4: degree_idx = 3
-		KEY_5: degree_idx = 4
-		KEY_6: degree_idx = 5
-		KEY_7: degree_idx = 6
-	
-	if degree_idx == -1: return []
-	return get_chord_from_degree(mode, degree_idx)
+	return MusicTheoryHarmony.get_chord_from_keycode(mode, keycode)
 
 # ============================================================
 # PRIVATE HELPER
 # ============================================================
 
 static func _get_interval(midi_note: int, root: int) -> int:
-	var interval := (midi_note - root) % 12
-	return interval + 12 if interval < 0 else interval
+	return MusicTheoryNotation.get_interval(midi_note, root)
 
 ## 특정 줄(String)에 해당 코드 타입의 보이싱이 존재하는지 확인
 static func has_voicing(type: String, string_index: int) -> bool:
-	var voicing_key = get_voicing_key(string_index)
-	var shapes = VOICING_SHAPES.get(voicing_key, {})
-	return shapes.has(type)
+	return MusicTheoryGuitar.has_voicing(type, string_index)
 
 ## 코드 탭 문자열 생성 (예: "x32010")
 static func get_tab_string(root: int, type: String, string_index: int) -> String:
-	var voicing_key = get_voicing_key(string_index)
-	var shapes = VOICING_SHAPES.get(voicing_key, {}).get(type, [])
-	
-	if shapes.is_empty():
-		return "x-x-x-x-x-x"
-		
-	# Init 6 strings with 'x'
-	var tabs = ["x", "x", "x", "x", "x", "x"]
-	
-	# root fret calculation
-	var root_fret = get_fret_position(root, string_index)
-	
-	for offset in shapes:
-		var target_string_idx = string_index + offset[0]
-		var target_fret = root_fret + offset[1]
-		
-		# String index in array (Godot project logic seems to use 0 for 6th string?)
-		# Mapping: 0(6th) -> tabs[0]
-		if target_string_idx >= 0 and target_string_idx < 6:
-			tabs[target_string_idx] = str(target_fret)
-			
-	return "".join(tabs)
+	return MusicTheoryGuitar.get_tab_string(root, type, string_index)
 
 ## [New] 퀴즈용 선호 고정 포지션 반환 (Dynamic for all keys)
 static func get_preferred_quiz_anchor(key_root: int) -> Dictionary:
-	# Dictionary return format: {"string": int, "fret": int}
-	var root_index = key_root % 12
-	
-	# 1. Check user's explicitly preferred hardcoded ones first for consistency
-	match root_index:
-		2: return {"string": 1, "fret": 5} # D: 5th string (A), 5th fret
-		4: return {"string": 1, "fret": 7} # E: 5th string (A), 7th fret
-		9: return {"string": 0, "fret": 5} # A: 6th string (E), 5th fret
-	
-	# 2. Dynamic Calculation for all other keys (C, G, B, F, etc)
-	# Goal: Find a root note on the 6th (E) or 5th (A) string that is between fret 3 and 8
-	var preferred_strings = [0, 1] # 6th string (index 0) or 5th string (index 1)
-	
-	for string_idx in preferred_strings:
-		var open_note = OPEN_STRING_MIDI[string_idx]
-		# Find the target note's fret
-		var fret = (root_index - (open_note % 12)) % 12
-		if fret < 0: fret += 12
-		
-		# If it's too low (open string / 1st fret), bump to the octave up on the same string if possible
-		if fret < 3:
-			fret += 12
-			
-		# Is it in a comfortable middle-neck rhythm position?
-		if fret >= 3 and fret <= 10:
-			return {"string": string_idx, "fret": fret}
-			
-	# Fallback (Should rarely hit, but just in case, return 6th string closest)
-	var fallback_fret = (root_index - (OPEN_STRING_MIDI[0] % 12)) % 12
-	if fallback_fret < 0: fallback_fret += 12
-	return {"string": 0, "fret": fallback_fret}
+	return MusicTheoryGuitar.get_preferred_quiz_anchor(key_root)

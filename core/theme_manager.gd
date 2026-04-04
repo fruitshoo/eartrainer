@@ -6,12 +6,12 @@ extends Node
 # ============================================================
 const THEMES = {
 	"Default": {
-		"root": Color(1.0, 0.8, 0.2), # Golden Yellow
-		"third": Color(1.0, 0.6, 0.2), # Orange
-		"fifth": Color(0.3, 0.8, 1.0), # Sky Blue
-		"seventh": Color(0.4, 1.0, 0.6), # Mint Green
-		"scale": Color(0.4, 0.4, 0.4), # Grey
-		"avoid": Color(0.05, 0.05, 0.05) # Dark Grey
+		"root": Color("#efd76b"), # Soft warm yellow
+		"third": Color("#d7a15a"), # Muted amber
+		"fifth": Color("#84c8dc"), # Calm blue-cyan
+		"seventh": Color("#9be0c2"), # Soft mint
+		"scale": Color("#b9bec8"), # Quiet cool gray
+		"avoid": Color("#2b313a") # Deep slate
 	},
 	"Solarized": {
 		"root": Color("#b58900"), # Yellow (Base)

@@ -126,4 +126,4 @@ func reset_to_defaults() -> void:
 # ============================================================
 func _on_player_moved() -> void:
 	last_fret = GameManager.player_fret
-	# last_string은 타일 클릭 시점에 업데이트됨 (EventBus 통해)
+	last_string = GameManager.player_string

@@ -34,28 +34,29 @@ offset_right = 22.0
 grow_horizontal = 2
 grow_vertical = 0
 theme = ExtResource("3_4wjan")
-theme_override_constants/margin_bottom = 16
+theme_override_constants/margin_bottom = 12
 
 [node name="MainPanel" type="PanelContainer" parent="RootMargin" unique_id=662601037]
 layout_mode = 2
+custom_minimum_size = Vector2(920, 0)
 
 [node name="InnerMargin" type="MarginContainer" parent="RootMargin/MainPanel" unique_id=777644062]
 layout_mode = 2
 theme_override_constants/margin_left = 10
 theme_override_constants/margin_top = 5
 theme_override_constants/margin_right = 10
-theme_override_constants/margin_bottom = 5
+theme_override_constants/margin_bottom = 9
 
 [node name="MainVBox" type="VBoxContainer" parent="RootMargin/MainPanel/InnerMargin" unique_id=502938471]
 layout_mode = 2
-theme_override_constants/separation = 5
+theme_override_constants/separation = 7
 alignment = 1
 
 [node name="SequencerScroll" type="ScrollContainer" parent="RootMargin/MainPanel/InnerMargin/MainVBox" unique_id=551234888]
 unique_name_in_owner = true
 layout_mode = 2
 size_flags_horizontal = 3
-custom_minimum_size = Vector2(0, 90)
+custom_minimum_size = Vector2(0, 132)
 horizontal_scroll_mode = 0
 vertical_scroll_mode = 0
 
@@ -69,12 +70,12 @@ alignment = 1
 
 [node name="ToolbarHBox" type="HBoxContainer" parent="RootMargin/MainPanel/InnerMargin/MainVBox" unique_id=641263888]
 layout_mode = 2
-theme_override_constants/separation = 8
+theme_override_constants/separation = 6
 alignment = 1
 
 [node name="TimeSigButton" type="Button" parent="RootMargin/MainPanel/InnerMargin/MainVBox/ToolbarHBox" unique_id=991234567]
 unique_name_in_owner = true
-custom_minimum_size = Vector2(40, 30)
+custom_minimum_size = Vector2(30, 24)
 layout_mode = 2
 tooltip_text = "Toggle Time Signature"
 text = "4/4"
@@ -84,29 +85,28 @@ focus_mode = 0
 unique_name_in_owner = true
 layout_mode = 2
 min_value = 2.0
-max_value = 8.0
+max_value = 16.0
 value = 4.0
 focus_mode = 0
 suffix = "Bars"
 
-[node name="PlaybackModeButton" type="OptionButton" parent="RootMargin/MainPanel/InnerMargin/MainVBox/ToolbarHBox" unique_id=441234567]
+[node name="CopyBarButton" type="Button" parent="RootMargin/MainPanel/InnerMargin/MainVBox/ToolbarHBox" unique_id=441234569]
 unique_name_in_owner = true
-custom_minimum_size = Vector2(100, 30)
+custom_minimum_size = Vector2(42, 22)
 layout_mode = 2
-tooltip_text = "Chord Playback Style"
-item_count = 3
-selected = 0
+text = "Copy"
 focus_mode = 0
-popup/item_0/text = "Once"
-popup/item_0/id = 0
-popup/item_1/text = "Every Beat"
-popup/item_1/id = 1
-popup/item_2/text = "Half-Beat"
-popup/item_2/id = 2
+
+[node name="PasteBarButton" type="Button" parent="RootMargin/MainPanel/InnerMargin/MainVBox/ToolbarHBox" unique_id=441234570]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(44, 22)
+layout_mode = 2
+text = "Paste"
+focus_mode = 0
 
 [node name="SplitBarButton" type="Button" parent="RootMargin/MainPanel/InnerMargin/MainVBox/ToolbarHBox" unique_id=293847102]
 unique_name_in_owner = true
-custom_minimum_size = Vector2(30, 30)
+custom_minimum_size = Vector2(24, 22)
 layout_mode = 2
 tooltip_text = "Split Selected Bar"
 text = "✂"
@@ -118,10 +118,116 @@ layout_mode = 2
 
 [node name="ClearMelodyButton" type="Button" parent="RootMargin/MainPanel/InnerMargin/MainVBox/ToolbarHBox" unique_id=881234567]
 unique_name_in_owner = true
-custom_minimum_size = Vector2(30, 30)
+custom_minimum_size = Vector2(24, 22)
 layout_mode = 2
 tooltip_text = "Clear All Melody (Shift+Del)"
 text = "↺"
+focus_mode = 0
+
+[node name="LibraryButton" type="Button" parent="RootMargin/MainPanel/InnerMargin/MainVBox/ToolbarHBox"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(54, 22)
+layout_mode = 2
+tooltip_text = "Song Library"
+text = "Songs"
+focus_mode = 0
+
+[node name="ChordEditorPanel" type="PanelContainer" parent="RootMargin/MainPanel/InnerMargin/MainVBox" unique_id=390100001]
+unique_name_in_owner = true
+visible = false
+layout_mode = 2
+
+[node name="ChordEditorMargin" type="MarginContainer" parent="RootMargin/MainPanel/InnerMargin/MainVBox/ChordEditorPanel"]
+layout_mode = 2
+theme_override_constants/margin_left = 8
+theme_override_constants/margin_top = 6
+theme_override_constants/margin_right = 8
+theme_override_constants/margin_bottom = 6
+
+[node name="ChordEditorVBox" type="VBoxContainer" parent="RootMargin/MainPanel/InnerMargin/MainVBox/ChordEditorPanel/ChordEditorMargin"]
+layout_mode = 2
+theme_override_constants/separation = 6
+
+[node name="ChordEditorLabel" type="Label" parent="RootMargin/MainPanel/InnerMargin/MainVBox/ChordEditorPanel/ChordEditorMargin/ChordEditorVBox" unique_id=390100002]
+unique_name_in_owner = true
+layout_mode = 2
+text = "Select a chord slot"
+autowrap_mode = 2
+
+[node name="ChordTypeButtons" type="HFlowContainer" parent="RootMargin/MainPanel/InnerMargin/MainVBox/ChordEditorPanel/ChordEditorMargin/ChordEditorVBox" unique_id=390100003]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_constants/h_separation = 6
+theme_override_constants/v_separation = 6
+
+[node name="AutoTypeButton" type="Button" parent="RootMargin/MainPanel/InnerMargin/MainVBox/ChordEditorPanel/ChordEditorMargin/ChordEditorVBox/ChordTypeButtons" unique_id=390100004]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(48, 28)
+layout_mode = 2
+text = "Auto"
+focus_mode = 0
+
+[node name="TypeMButton" type="Button" parent="RootMargin/MainPanel/InnerMargin/MainVBox/ChordEditorPanel/ChordEditorMargin/ChordEditorVBox/ChordTypeButtons" unique_id=390100005]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(40, 28)
+layout_mode = 2
+text = "M"
+focus_mode = 0
+
+[node name="TypemButton" type="Button" parent="RootMargin/MainPanel/InnerMargin/MainVBox/ChordEditorPanel/ChordEditorMargin/ChordEditorVBox/ChordTypeButtons" unique_id=390100006]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(40, 28)
+layout_mode = 2
+text = "m"
+focus_mode = 0
+
+[node name="Type7Button" type="Button" parent="RootMargin/MainPanel/InnerMargin/MainVBox/ChordEditorPanel/ChordEditorMargin/ChordEditorVBox/ChordTypeButtons" unique_id=390100007]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(40, 28)
+layout_mode = 2
+text = "7"
+focus_mode = 0
+
+[node name="TypeM7Button" type="Button" parent="RootMargin/MainPanel/InnerMargin/MainVBox/ChordEditorPanel/ChordEditorMargin/ChordEditorVBox/ChordTypeButtons" unique_id=390100008]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(44, 28)
+layout_mode = 2
+text = "M7"
+focus_mode = 0
+
+[node name="Typem7Button" type="Button" parent="RootMargin/MainPanel/InnerMargin/MainVBox/ChordEditorPanel/ChordEditorMargin/ChordEditorVBox/ChordTypeButtons" unique_id=390100009]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(44, 28)
+layout_mode = 2
+text = "m7"
+focus_mode = 0
+
+[node name="Type5Button" type="Button" parent="RootMargin/MainPanel/InnerMargin/MainVBox/ChordEditorPanel/ChordEditorMargin/ChordEditorVBox/ChordTypeButtons" unique_id=390100010]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(40, 28)
+layout_mode = 2
+text = "5"
+focus_mode = 0
+
+[node name="TypeDimButton" type="Button" parent="RootMargin/MainPanel/InnerMargin/MainVBox/ChordEditorPanel/ChordEditorMargin/ChordEditorVBox/ChordTypeButtons" unique_id=390100011]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(48, 28)
+layout_mode = 2
+text = "dim"
+focus_mode = 0
+
+[node name="TypeSus4Button" type="Button" parent="RootMargin/MainPanel/InnerMargin/MainVBox/ChordEditorPanel/ChordEditorMargin/ChordEditorVBox/ChordTypeButtons" unique_id=390100012]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(52, 28)
+layout_mode = 2
+text = "sus4"
+focus_mode = 0
+
+[node name="ClearChordButton" type="Button" parent="RootMargin/MainPanel/InnerMargin/MainVBox/ChordEditorPanel/ChordEditorMargin/ChordEditorVBox/ChordTypeButtons" unique_id=390100013]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(54, 28)
+layout_mode = 2
+text = "Clear"
 focus_mode = 0
 
 
@@ -142,4 +248,3 @@ grow_horizontal = 2
 grow_vertical = 2
 mouse_filter = 2
 script = ExtResource("4_loop")
-

@@ -4,6 +4,9 @@ extends RefCounted
 var panel: Node # SidePanel
 var et_checkboxes: Dictionary = {}
 var pending_manage_interval: int = -1
+var _beginner_description_label: Label = null
+var _beginner_lesson_select: OptionButton = null
+var _beginner_preview_row: HFlowContainer = null
 
 func _init(p_panel: Node) -> void:
 	panel = p_panel
@@ -62,6 +65,8 @@ func _setup_interval_options_ui() -> void:
 	
 	panel.interval_container.add_child(pad)
 	panel.interval_container.move_child(pad, 0)
+
+	_setup_beginner_lesson_ui(options_container)
 	
 	var grid = GridContainer.new()
 	grid.columns = 2
@@ -106,7 +111,7 @@ func _setup_interval_options_ui() -> void:
 	string_hbox.add_theme_constant_override("separation", 8)
 	var string_label = Label.new()
 	string_label.text = "Strings: "
-	string_label.add_theme_color_override("font_color", Color(1, 1, 1, 0.6))
+	string_label.add_theme_color_override("font_color", ThemeColors.APP_TEXT_MUTED)
 	string_hbox.add_child(string_label)
 	
 	var string_opt = OptionButton.new()
@@ -123,8 +128,106 @@ func _setup_interval_options_ui() -> void:
 	options_container.add_child(string_hbox)
 	
 	var sep = HSeparator.new()
-	sep.modulate = Color(1, 1, 1, 0.3)
+	sep.modulate = ThemeColors.APP_BORDER_STRONG
 	options_container.add_child(sep)
+
+func _setup_beginner_lesson_ui(options_container: VBoxContainer) -> void:
+	var lessons = IntervalQuizData.BEGINNER_LESSONS
+	if lessons.is_empty():
+		return
+
+	var frame = PanelContainer.new()
+	var style = StyleBoxFlat.new()
+	style.bg_color = ThemeColors.APP_PANEL_BG_SOFT
+	style.set_corner_radius_all(10)
+	style.set_border_width_all(1)
+	style.border_color = ThemeColors.APP_BORDER
+	style.content_margin_left = 10
+	style.content_margin_right = 10
+	style.content_margin_top = 10
+	style.content_margin_bottom = 10
+	frame.add_theme_stylebox_override("panel", style)
+	options_container.add_child(frame)
+
+	var box = VBoxContainer.new()
+	box.add_theme_constant_override("separation", 8)
+	frame.add_child(box)
+
+	var header = VBoxContainer.new()
+	header.add_theme_constant_override("separation", 6)
+	box.add_child(header)
+
+	var toggle = CheckBox.new()
+	toggle.text = "Beginner Lesson"
+	toggle.button_pressed = QuizManager.interval_beginner_mode
+	toggle.focus_mode = Control.FOCUS_NONE
+	toggle.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	header.add_child(toggle)
+
+	_beginner_lesson_select = OptionButton.new()
+	_beginner_lesson_select.focus_mode = Control.FOCUS_NONE
+	_beginner_lesson_select.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	for i in range(lessons.size()):
+		_beginner_lesson_select.add_item(lessons[i].get("title", "Lesson %d" % (i + 1)), i)
+	_beginner_lesson_select.selected = clampi(QuizManager.interval_beginner_lesson_index, 0, max(lessons.size() - 1, 0))
+	header.add_child(_beginner_lesson_select)
+
+	_beginner_description_label = Label.new()
+	_beginner_description_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_beginner_description_label.add_theme_color_override("font_color", ThemeColors.APP_TEXT_MUTED)
+	box.add_child(_beginner_description_label)
+
+	var helper_label = Label.new()
+	helper_label.text = "Lesson mode keeps one root fixed and highlights a small set of candidate shapes."
+	helper_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	helper_label.add_theme_color_override("font_color", ThemeColors.APP_TEXT_HINT)
+	box.add_child(helper_label)
+
+	_beginner_preview_row = HFlowContainer.new()
+	_beginner_preview_row.add_theme_constant_override("separation", 6)
+	box.add_child(_beginner_preview_row)
+
+	toggle.toggled.connect(func(on):
+		QuizManager.interval_beginner_mode = on
+		QuizManager.save_interval_settings()
+		_refresh_beginner_lesson_ui()
+	)
+	_beginner_lesson_select.item_selected.connect(func(idx):
+		QuizManager.interval_beginner_lesson_index = idx
+		QuizManager.save_interval_settings()
+		_refresh_beginner_lesson_ui()
+	)
+
+	_refresh_beginner_lesson_ui()
+
+func _refresh_beginner_lesson_ui() -> void:
+	if not _beginner_description_label or not _beginner_lesson_select or not _beginner_preview_row:
+		return
+
+	var lesson = QuizManager.get_interval_beginner_lesson()
+	if lesson.is_empty():
+		_beginner_description_label.text = ""
+		return
+
+	_beginner_lesson_select.selected = clampi(QuizManager.interval_beginner_lesson_index, 0, max(IntervalQuizData.BEGINNER_LESSONS.size() - 1, 0))
+	_beginner_description_label.text = lesson.get("description", "")
+
+	for child in _beginner_preview_row.get_children():
+		child.queue_free()
+
+	for semitone in lesson.get("intervals", []):
+		var preview_semitone := int(semitone)
+		var info = IntervalQuizData.INTERVALS.get(preview_semitone, {})
+		var btn = Button.new()
+		btn.text = "Listen %s" % info.get("short", str(semitone))
+		btn.focus_mode = Control.FOCUS_NONE
+		btn.custom_minimum_size = Vector2(96, 34)
+		btn.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+		panel._update_tile_style(btn, info.get("color", ThemeColors.TOGGLE_ON), true)
+		btn.pressed.connect(func():
+			QuizManager.preview_beginner_interval(preview_semitone)
+		)
+		_beginner_preview_row.add_child(btn)
 
 func _create_interval_tile(semitones: int, info: Dictionary, is_checked: bool) -> Button:
 	var btn = Button.new()

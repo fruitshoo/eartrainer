@@ -2,6 +2,9 @@
 # HUD 표시 관리 - 재즈 전광판 스타일
 extends Control
 
+const HUD_UI_STYLES = preload("res://ui/hud/hud_ui_styles.gd")
+const HUD_UI_BEHAVIOR = preload("res://ui/hud/hud_ui_behavior.gd")
+
 # ============================================================
 # CONSTANTS
 # ============================================================
@@ -15,14 +18,22 @@ const ICON_PAUSE = preload("res://ui/resources/icons/pause.svg")
 const ICON_STOP = preload("res://assets/icons/stop.svg")
 const ICON_RECORD = preload("res://assets/icons/record.svg")
 const ICON_METRONOME = preload("res://assets/icons/metronome.svg")
-const ICON_LIBRARY = preload("res://assets/icons/playlist.svg")
-const ICON_TRAINER = preload("res://assets/icons/headphones.svg")
 const ICON_SETTINGS = preload("res://ui/resources/icons/settings.svg")
+const PILL_BG := ThemeColors.APP_BUTTON_BG
+const PILL_BG_HOVER := ThemeColors.APP_BUTTON_BG_HOVER
+const PILL_BG_PRESSED := ThemeColors.APP_BUTTON_BG_PRESSED
+const PILL_BG_ACTIVE := ThemeColors.APP_BUTTON_BG_ACTIVE
+const PILL_BORDER := ThemeColors.APP_BUTTON_BORDER
+const PILL_BORDER_ACTIVE := ThemeColors.APP_BUTTON_BORDER_ACTIVE
+const PILL_TEXT := ThemeColors.APP_TEXT
+const TOPBAR_BG := ThemeColors.APP_PANEL_BG
+const TOPBAR_BORDER := ThemeColors.APP_BORDER
 
 # ============================================================
 # NODE REFERENCES
 # ============================================================
 @onready var key_button: Button = %KeyButton
+@onready var chord_context_label: Label = %ChordContextLabel
 @onready var key_selector_popup: PopupPanel = %KeySelectorPopup
 
 
@@ -30,24 +41,31 @@ const ICON_SETTINGS = preload("res://ui/resources/icons/settings.svg")
 @onready var play_button: Button = %PlayButton
 @onready var stop_button: Button = %StopButton
 @onready var record_button: Button = %RecordButton
+@onready var bpm_label: Label = $TopBarPanel/MarginContainer/TopBar/BPMLabel
 @onready var bpm_spin_box: SpinBox = %BPMSpinBox
 @onready var metronome_button: Button = %MetronomeButton
 @onready var settings_button: Button = %SettingsButton
-@onready var library_button: Button = %LibraryButton
+@onready var sequencer_button: Button = %SequencerButton
 @onready var trainer_button: Button = %TrainerButton
 
 # ============================================================
 # STATE
 # ============================================================
-var _last_chord_text: String = ""
+var _last_key_mode_text: String = ""
+var _last_chord_context_text: String = ""
 var _chord_tween: Tween = null
 var _is_animating: bool = false
 var _current_sequencer_step: int = -1
+var _workspace_mode: int = 0
+var _style_helper: HUDUIStyles
+var _behavior_helper: HUDUIBehavior
 
 # ============================================================
 # LIFECYCLE
 # ============================================================
 func _ready() -> void:
+	_style_helper = HUD_UI_STYLES.new(self)
+	_behavior_helper = HUD_UI_BEHAVIOR.new(self)
 	_setup_signals()
 	_setup_transport()
 	_setup_navigation()
@@ -67,73 +85,16 @@ func _setup_signals() -> void:
 	EventBus.debug_log.connect(_on_debug_log)
 	EventBus.sequencer_playing_changed.connect(_on_sequencer_playing_changed)
 	EventBus.request_toggle_recording.connect(_on_request_toggle_recording)
+	EventBus.workspace_mode_changed.connect(_on_workspace_mode_changed)
 
 func _setup_transport() -> void:
-	if play_button:
-		play_button.icon = ICON_PLAY
-		play_button.pressed.connect(func(): EventBus.request_toggle_playback.emit())
-		play_button.focus_mode = Control.FOCUS_NONE
-		
-	if stop_button:
-		stop_button.icon = ICON_STOP
-		# Properties like expand_icon, alignment should be set in .tscn
-		stop_button.pressed.connect(func(): EventBus.request_stop_playback.emit())
-		stop_button.focus_mode = Control.FOCUS_NONE
-		
-	# [Disabled] Real-time recording deactivated in favor of step input
-	if record_button:
-		record_button.visible = false
-
-	if metronome_button:
-		metronome_button.icon = ICON_METRONOME
-		metronome_button.button_pressed = GameManager.is_metronome_enabled
-		metronome_button.toggled.connect(func(toggled):
-			GameManager.is_metronome_enabled = toggled
-		)
-		metronome_button.focus_mode = Control.FOCUS_NONE
-		
-	if bpm_spin_box:
-		bpm_spin_box.value = GameManager.bpm
-		bpm_spin_box.value_changed.connect(func(val): GameManager.bpm = int(val))
-		var le = bpm_spin_box.get_line_edit()
-		if le:
-			le.focus_mode = Control.FOCUS_NONE
-			le.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_behavior_helper.setup_transport()
 
 func _setup_navigation() -> void:
-	if key_button:
-		key_button.pressed.connect(_on_key_button_pressed)
-		key_button.focus_mode = Control.FOCUS_NONE
-		
-	if settings_button:
-		settings_button.pressed.connect(func(): EventBus.request_toggle_settings.emit())
-		settings_button.focus_mode = Control.FOCUS_NONE
-
-	if library_button:
-		library_button.icon = ICON_LIBRARY
-		library_button.pressed.connect(func(): EventBus.request_toggle_library.emit())
-		library_button.focus_mode = Control.FOCUS_NONE
-
-	if trainer_button:
-		trainer_button.icon = ICON_TRAINER
-		trainer_button.pressed.connect(func(): EventBus.request_show_side_panel_tab.emit(1))
-		trainer_button.focus_mode = Control.FOCUS_NONE
+	_behavior_helper.setup_navigation()
 
 func _delayed_setup() -> void:
-	await get_tree().process_frame
-	
-	# Connect MelodyManager (Delayed to ensure existence)
-	var melody_manager = GameManager.get_node_or_null("MelodyManager")
-	if melody_manager:
-		if not melody_manager.recording_started.is_connected(_on_recording_started):
-			melody_manager.recording_started.connect(_on_recording_started)
-		if not melody_manager.recording_stopped.is_connected(_on_recording_stopped):
-			melody_manager.recording_stopped.connect(_on_recording_stopped)
-
-	_update_display()
-	_update_metronome_visual()
-	
-	set_ui_scale(GameManager.ui_scale)
+	await _behavior_helper.delayed_setup()
 
 func _on_debug_log(msg: String) -> void:
 	var label = %DebugLabel
@@ -169,57 +130,32 @@ var _debug_tween: Tween
 # VISUAL SETUP
 # ============================================================
 func _setup_visual_style() -> void:
-	pass # Style now handled by theme
+	_style_helper.setup_visual_style()
+
+func _apply_pill_button_style(button: Button, compact: bool) -> void:
+	_style_helper.apply_pill_button_style(button, compact)
+
+func _build_pill_style(fill_color: Color, border_color: Color, radius: int, margin_x: int, margin_y: int, shadow_size: int) -> StyleBoxFlat:
+	return _style_helper.build_pill_style(fill_color, border_color, radius, margin_x, margin_y, shadow_size)
+
+func _on_workspace_mode_changed(mode: int) -> void:
+	_behavior_helper.on_workspace_mode_changed(mode)
+
+func _update_workspace_buttons() -> void:
+	_style_helper.update_workspace_buttons()
+
+func _apply_workspace_button_state(button: Button, is_active: bool) -> void:
+	_style_helper.apply_workspace_button_state(button, is_active)
 
 # ============================================================
 # DISPLAY UPDATE
 # ============================================================
 # [New] Update Metronome Button Visuals
 func _update_metronome_visual() -> void:
-	if metronome_button:
-		# Update both pressed state and visual style
-		metronome_button.set_pressed_no_signal(GameManager.is_metronome_enabled)
-		
-		# Optional: Add color feedback if needed, but toggle state usually implies style change
-		# For now, rely on Theme's toggle style, or add modulate if desired.
-		if GameManager.is_metronome_enabled:
-			metronome_button.modulate = Color(0.7, 1.0, 0.7) # Light Green hint
-		else:
-			metronome_button.modulate = Color.WHITE
+	_style_helper.update_metronome_visual()
 
 func _update_display() -> void:
-	# [New] Also update metronome visual in case it changed externally
-	_update_metronome_visual()
-
-	if not key_button:
-		return
-	
-	var use_flats := MusicTheory.should_use_flats(GameManager.current_key, GameManager.current_mode)
-	var key_name := MusicTheory.get_note_name(GameManager.current_key, use_flats)
-	var mode_name := "Major" if GameManager.current_mode == MusicTheory.ScaleMode.MAJOR else "Minor"
-	
-	var chord_root: int = GameManager.current_chord_root
-	var chord_type: String = GameManager.current_chord_type
-	
-	# 재생 중이면 슬롯 데이터 우선
-	if EventBus.is_sequencer_playing and _current_sequencer_step >= 0:
-		var slot_data = ProgressionManager.get_slot(_current_sequencer_step)
-		if slot_data:
-			chord_root = slot_data.root
-			chord_type = slot_data.type
-	
-	# 디그리 계산 (로마 숫자) - MusicTheory 유틸리티 사용
-	var degree := MusicTheory.get_degree_numeral(chord_root, chord_type, GameManager.current_key)
-	
-	# 1줄 통합: "A Major • IIm7" 형식
-	var new_text := "%s %s • %s" % [key_name, mode_name, degree]
-	
-	key_button.pivot_offset = key_button.size / 2.0
-	
-	if new_text != _last_chord_text:
-		key_button.text = new_text
-		_animate_chord_change()
-		_last_chord_text = new_text
+	_behavior_helper.update_display()
 
 # _get_degree_numeral() logic moved to MusicTheory.gd
 
@@ -231,23 +167,13 @@ func _on_beat_updated(_beat_index: int, _total_beats: int) -> void:
 # ANIMATIONS
 # ============================================================
 func _animate_chord_change() -> void:
-	if _chord_tween and _chord_tween.is_running():
-		_chord_tween.kill()
-	
-	_is_animating = true
-	_chord_tween = create_tween()
-	_chord_tween.tween_property(key_button, "scale", Vector2(1.05, 1.05), 0.08) \
-		.set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
-	_chord_tween.tween_property(key_button, "scale", Vector2(1.0, 1.0), 0.1) \
-		.set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
-	_chord_tween.finished.connect(func(): _is_animating = false)
+	_behavior_helper.animate_chord_change()
 
 func _on_beat_pulsed() -> void:
 	return # [Disabled] Beat pulse animation on key button removed
 
 func _on_bar_changed(slot_index: int) -> void:
-	_current_sequencer_step = slot_index
-	_update_display()
+	_behavior_helper.on_bar_changed(slot_index)
 
 
 # ...
@@ -260,81 +186,30 @@ func _on_settings_visibility_changed(_visible_state: bool) -> void:
 # TRANSPORT LOGIC
 # ============================================================
 func _on_sequencer_playing_changed(is_playing: bool) -> void:
-	if play_button:
-		play_button.icon = ICON_PAUSE if is_playing else ICON_PLAY
+	_behavior_helper.on_sequencer_playing_changed(is_playing)
 
 func _on_record_toggled(toggled: bool) -> void:
-	var melody_manager = GameManager.get_node_or_null("MelodyManager")
-	if melody_manager:
-		if toggled:
-			if not melody_manager.is_recording:
-				melody_manager.start_recording()
-			
-			if not EventBus.is_sequencer_playing:
-				var sequencer = get_tree().get_first_node_in_group("sequencer")
-				if sequencer and sequencer.has_method("start_with_count_in"):
-					sequencer.start_with_count_in()
-		else:
-			if melody_manager.is_recording:
-				melody_manager.stop_recording()
+	_behavior_helper.on_record_toggled(toggled)
 
 func _on_request_toggle_recording() -> void:
-	if record_button:
-		# Toggle the button state, which triggers _on_record_toggled
-		# But if we just toggle, we need to ensure we don't double trigger if it's already in the desired state (?)
-		# Actually, toggle() emits toggled signal.
-		record_button.button_pressed = not record_button.button_pressed
+	_behavior_helper.on_request_toggle_recording()
 
 func _on_recording_started() -> void:
-	if record_button:
-		record_button.set_pressed_no_signal(true)
-		record_button.modulate = Color(1.0, 0.3, 0.3)
+	_behavior_helper.on_recording_started()
 
 func _on_recording_stopped() -> void:
-	if record_button:
-		record_button.set_pressed_no_signal(false)
-		record_button.modulate = Color.WHITE
+	_behavior_helper.on_recording_stopped()
 
 var _popup_hide_timestamp: int = 0
 
 func _on_key_button_pressed() -> void:
-	if not key_selector_popup: return
-	
-	if key_selector_popup.visible:
-		key_selector_popup.hide()
-		return
-	
-	# [Fix] If the popup was just hidden (likely by clicking this button),
-	# don't immediately re-open it.
-	if Time.get_ticks_msec() - _popup_hide_timestamp < 500:
-		return
-		
-	key_selector_popup.popup_centered_under_control(key_button)
+	_behavior_helper.on_key_button_pressed()
 
 func _on_key_selector_popup_hide() -> void:
-	_popup_hide_timestamp = Time.get_ticks_msec()
+	_behavior_helper.on_key_selector_popup_hide()
 
 func set_ui_scale(value: float) -> void:
-	if not is_node_ready():
-		# Retry once ready
-		await ready
-	
-	var top_bar = %TopBarPanel
-	if top_bar:
-		# Connect resize only once
-		if not top_bar.resized.is_connected(_update_pivot):
-			top_bar.resized.connect(_update_pivot)
-		
-		# Apply Scale only if changed
-		if not is_equal_approx(top_bar.scale.x, value):
-			top_bar.scale = Vector2(value, value)
-			# Apply Pivot immediately
-			_update_pivot()
-			GameLogger.info("HUD set_ui_scale applying: %s (Size: %s)" % [value, top_bar.size])
+	await _style_helper.set_ui_scale(value)
 
 func _update_pivot() -> void:
-	var top_bar = %TopBarPanel
-	if top_bar:
-		# Since it's anchored Top-Center with grow_horizontal=2, 
-		# pivot at center-top (width/2, 0) is ideal for scaling.
-		top_bar.pivot_offset = Vector2(top_bar.size.x / 2.0, 0)
+	_style_helper.update_pivot()

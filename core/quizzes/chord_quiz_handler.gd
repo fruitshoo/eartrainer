@@ -147,7 +147,7 @@ func on_tile_clicked(note: int, _string_idx: int) -> void:
 			manager.highlight_found_tone(_string_idx, (note - AudioEngine.OPEN_STRING_MIDI[_string_idx]))
 			
 			manager.quiz_answered.emit({
-				"correct": true, "partial": true,
+				"correct": false, "partial": true,
 				"found_count": found_intervals.size(),
 				"total_count": target_intervals.size()
 			})
@@ -276,7 +276,7 @@ func _on_voicing_tile_clicked(note: int, string_idx: int) -> void:
 			manager.highlight_found_tone(string_idx, fret)
 			
 			manager.quiz_answered.emit({
-				"correct": true, "partial": true,
+				"correct": false, "partial": true,
 				"found_count": _found_positions.size(),
 				"total_count": _target_positions.size()
 			})

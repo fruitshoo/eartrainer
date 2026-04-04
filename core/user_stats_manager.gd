@@ -25,6 +25,9 @@ func _ready() -> void:
 	GameLogger.info("[UserStatsManager] Initialized. Level: %d, XP: %d" % [level, total_xp])
 
 func _on_quiz_answered(result: Dictionary) -> void:
+	if result.get("partial", false):
+		return
+
 	if result.get("correct", false):
 		_add_xp(XP_PER_CORRECT)
 		current_streak += 1

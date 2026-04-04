@@ -20,10 +20,12 @@ signal request_close_settings # [New] Explicit close request
 signal request_toggle_library # [New]
 signal request_close_library # [New] Explicit close request for Library
 signal request_toggle_ear_trainer # [New] Toggle Ear Trainer UI
+signal request_set_workspace_mode(mode: int)
 signal request_toggle_help # [New]
 signal settings_visibility_changed(is_visible: bool)
 signal game_settings_changed # [Fix] Missing signal for global settings updates
 signal debug_log(message: String) # [New] On-screen debug message
+signal workspace_mode_changed(mode: int)
 
 # Bottom Sheet Signals
 signal request_show_side_panel_tab(tab_index: int) # 0=Library, 1=EarTrainer
@@ -43,5 +45,5 @@ signal request_stop_playback # 정지 및 리셋 요청
 signal request_toggle_recording # [New] 녹음 토글 요청
 signal bar_changed(slot_index: int)
 signal beat_pulsed # 메트로놈 비트 펄스
-signal sequencer_step_beat_changed(step: int, beat: int) # [New]
+signal sequencer_step_beat_changed(step: int, beat: int, sub_beat: int) # [New]
 signal beat_updated(beat_index: int, total_beats: int) # 박자 진행 정보

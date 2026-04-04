@@ -54,6 +54,7 @@ var _marker_energy: float = 0.0
 
 # [New] Input State
 var _is_pressing: bool = false
+var _is_hovered: bool = false
 
 # Layer 0: Base (Theory Tiers) - Lowest Priority
 # (Calculated dynamically via _get_base_state)
@@ -70,10 +71,13 @@ func _ready() -> void:
 	
 	# Handle Input
 	input_event.connect(_on_input_event)
+	mouse_entered.connect(_on_mouse_entered)
+	mouse_exited.connect(_on_mouse_exited)
 	
 	_refresh_visuals()
 
 func _exit_tree():
+	GameManager.unregister_fret_tile(self)
 	# No manual cleanup needed for Label3D as it's a child node.
 	_label_3d = null
 
@@ -86,6 +90,7 @@ func setup(s_idx: int, f_idx: int, note_val: int, _label_container: CanvasLayer 
 	string_index = s_idx
 	fret_index = f_idx
 	midi_note = note_val
+	GameManager.register_fret_tile(self)
 	
 	# [v1.1] 3D Label3D Setup
 	# Parent to MESH so it follows the "press" and "bounce" animations perfectly.
@@ -295,6 +300,13 @@ func _update_material_state() -> void:
 		var state = _get_base_state()
 		final_color = state.color
 		final_energy = state.energy
+
+	if _is_hovered:
+		final_color = final_color.lerp(Color.WHITE, 0.04)
+		final_energy += 0.03
+	if _is_pressing:
+		final_color = final_color.lerp(Color.WHITE, 0.09)
+		final_energy += 0.10
 		
 	_animate_material(final_color, final_energy)
 
@@ -303,13 +315,15 @@ func _get_base_state() -> Dictionary:
 	var tier := GameManager.get_tile_tier(midi_note)
 	var is_in_focus := _is_within_focus()
 	
-	# [v0.4.1] Proximity Flashlight Logic
-	# If player is near, reveal the note's true tier even if globally hidden.
-	if tier == 1 and (GameManager.highlight_root or is_in_focus):
+	# Base glow semantics:
+	# - Root: only inside focus, controlled by Root Glow
+	# - Chord tones: controlled by Chord Glow from the active chord context
+	# - Scale: only inside focus, controlled by Scale Glow
+	if tier == 1 and is_in_focus and GameManager.highlight_root:
 		visual_tier = 1
-	elif tier <= 2 and (GameManager.highlight_chord or is_in_focus):
+	elif tier == 2 and is_in_focus and GameManager.highlight_chord:
 		visual_tier = 2
-	elif tier == 3 and (GameManager.highlight_scale or is_in_focus): # [Fix] Use tier
+	elif tier == 3 and is_in_focus and GameManager.highlight_scale:
 		visual_tier = 3
 	
 	# Determine Color
@@ -332,7 +346,8 @@ func _get_base_state() -> Dictionary:
 # HELPER
 # ============================================================
 func _is_within_focus() -> bool:
-	if not GameManager.current_player: return false
+	if not GameManager.fixed_fretboard_view and not GameManager.current_player:
+		return false
 	
 	# [v0.4.2] Instant Focus (Logical Distance)
 	# Use Logical Fret Distance for instant response (updates on click)
@@ -361,18 +376,23 @@ func _animate_press() -> void:
 	_anim_tween = create_tween()
 	
 	# Down (Fast)
-	_anim_tween.tween_property(mesh, "position:y", -0.15, 0.05) \
+	_anim_tween.tween_property(mesh, "position:y", -0.11, 0.06) \
 		.set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+	_anim_tween.parallel().tween_property(mesh, "scale", Vector3(0.965, 0.97, 0.965), 0.06) \
+		.set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT)
 	
 	# Up (Bounce)
 	_anim_tween.tween_property(mesh, "position:y", 0.0, 0.15) \
-		.set_trans(Tween.TRANS_ELASTIC).set_ease(Tween.EASE_OUT)
+		.set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT)
+	_anim_tween.parallel().tween_property(mesh, "scale", Vector3.ONE, 0.15) \
+		.set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT)
 
 # [New] Global input listener to fix "Release Outside" stuck bug
 func _input(event: InputEvent) -> void:
 	if _is_pressing and event is InputEventMouseButton and not event.pressed:
 		if event.button_index == MOUSE_BUTTON_LEFT:
 			_is_pressing = false
+			_refresh_visuals()
 			EventBus.tile_released.emit(midi_note, string_index)
 
 # ============================================================
@@ -406,3 +426,11 @@ func _on_input_event(_camera, event, _event_position, _normal, _shape_idx):
 			trigger_flash(Color.CYAN, 0.2, 1.5)
 			EventBus.tile_right_clicked.emit(midi_note, string_index, global_position)
 			get_viewport().set_input_as_handled()
+
+func _on_mouse_entered() -> void:
+	_is_hovered = true
+	_refresh_visuals()
+
+func _on_mouse_exited() -> void:
+	_is_hovered = false
+	_refresh_visuals()

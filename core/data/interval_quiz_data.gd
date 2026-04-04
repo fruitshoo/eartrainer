@@ -24,7 +24,54 @@ const INTERVALS = {
 	12: {"name": "Perfect 8th (P8)", "short": "P8", "color": Color("#dfe6e9"), "examples": [ {"title": "Somewhere Over the Rainbow", "motif": [0, 12]}]}
 }
 
+const BEGINNER_LESSONS = [
+	{
+		"title": "Step vs Skip",
+		"description": "Keep one root on the 5th string, 5th fret and compare a whole-step jump with a brighter major third.",
+		"intervals": [2, 4],
+		"root_string": 1,
+		"root_fret": 5,
+		"constraint": 1
+	},
+	{
+		"title": "Minor vs Major 3rd",
+		"description": "Hear the sad-vs-bright third sound, then connect it to two nearby fretboard targets from the same root.",
+		"intervals": [3, 4],
+		"root_string": 1,
+		"root_fret": 5,
+		"constraint": 1
+	},
+	{
+		"title": "Fourth vs Fifth",
+		"description": "Train the two big guitar anchor sounds on one string before moving them around the neck.",
+		"intervals": [5, 7],
+		"root_string": 1,
+		"root_fret": 5,
+		"constraint": 1
+	},
+	{
+		"title": "Neighbor String Shapes",
+		"description": "Use the same root, but now hear the interval and reach to the next string instead of staying on one string.",
+		"intervals": [5, 7],
+		"root_string": 1,
+		"root_fret": 5,
+		"constraint": 2
+	}
+]
+
 static func get_interval_name(semitones: int) -> String:
 	if INTERVALS.has(semitones):
 		return INTERVALS[semitones].name
 	return "?"
+
+static func get_interval_short(semitones: int) -> String:
+	if INTERVALS.has(semitones):
+		return INTERVALS[semitones].short
+	return "?"
+
+static func get_beginner_lesson(index: int) -> Dictionary:
+	if BEGINNER_LESSONS.is_empty():
+		return {}
+
+	var safe_index = wrapi(index, 0, BEGINNER_LESSONS.size())
+	return BEGINNER_LESSONS[safe_index]

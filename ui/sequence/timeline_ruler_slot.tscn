@@ -1,0 +1,9 @@
+[gd_scene load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://ui/sequence/timeline_ruler_slot.gd" id="1_script"]
+
+[node name="TimelineRulerSlot" type="Control"]
+custom_minimum_size = Vector2(80, 18)
+mouse_default_cursor_shape = 2
+size_flags_horizontal = 3
+script = ExtResource("1_script")

@@ -2,6 +2,10 @@
 # 게임 상태 및 설정 관리 싱글톤
 extends Node
 
+const GAME_MANAGER_THEORY = preload("res://core/game_manager_theory.gd")
+const GAME_MANAGER_TILES = preload("res://core/game_manager_tiles.gd")
+const GAME_MANAGER_SETTINGS = preload("res://core/game_manager_settings.gd")
+
 # ============================================================
 # SIGNALS
 # ============================================================
@@ -36,6 +40,12 @@ var override_mode: int = -1:
 	set(value):
 		if override_mode != value:
 			override_mode = value
+			settings_changed.emit()
+
+var override_use_flats: int = -1:
+	set(value):
+		if override_use_flats != value:
+			override_use_flats = value
 			settings_changed.emit()
 
 var current_notation_mode: NotationMode = NotationMode.CDE:
@@ -96,11 +106,20 @@ var current_chord_type: String = "M7":
 		settings_changed.emit()
 
 var current_degree: String = "I" ## 로마 숫자 표기
+var _tile_lookup: Dictionary = {}
+var _theory_helper: GameManagerTheory
+var _tile_helper: GameManagerTiles
+var _settings_helper: GameManagerSettings
 
 # ============================================================
 # STATE VARIABLES - 플레이어 & UI
 # ============================================================
 var current_player: Node3D = null
+var fixed_fretboard_view: bool = true:
+	set(value):
+		if fixed_fretboard_view != value:
+			fixed_fretboard_view = value
+			settings_changed.emit()
 
 var player_fret: int = 0:
 	set(value):
@@ -172,113 +191,56 @@ func _unhandled_input(event: InputEvent) -> void:
 # ============================================================
 
 ## 스케일 오버라이드 설정 (일시적 변경)
-func set_scale_override(key: int, mode: int) -> void:
-	if override_key != key or override_mode != mode:
-		override_key = key
-		override_mode = mode
-		# settings_changed is emitted by setters
+func set_scale_override(key: int, mode: int, use_flats: int = -1) -> void:
+	_theory_helper.set_scale_override(key, mode, use_flats)
 
 ## 스케일 오버라이드 해제
 func clear_scale_override() -> void:
-	if override_key != -1 or override_mode != -1: # Check both
-		override_key = -1
-		override_mode = -1
-		# settings_changed is emitted by setters
+	_theory_helper.clear_scale_override()
 
 ## 타일의 3-Tier 시각화 계층 반환
 ## 타일의 3-Tier 시각화 계층 반환
 func get_tile_tier(midi_note: int) -> int:
-	# [DEBUG] 값 추적 - print 주석 해제하여 사용
-	# print("get_tile_tier -> Note:%d ChordRoot:%d Type:%s Key:%d Mode:%d" % [midi_note, current_chord_root, current_chord_type, current_key, current_mode])
-	# Use override scale if set
-	var target_key = current_key
-	var target_mode = current_mode
-	if override_key != -1:
-		target_key = override_key
-		target_mode = override_mode
-		
-	return MusicTheory.get_visual_tier(
-		midi_note, current_chord_root, current_chord_type,
-		target_key, target_mode
-	)
+	return _theory_helper.get_tile_tier(midi_note)
 
 ## 현재 코드 기준 인터벌 반환 (0=Root, 4=Major3rd, etc.)
 func get_current_chord_interval(midi_note: int) -> int:
-	var diff = (midi_note - current_chord_root) % 12
-	if diff < 0: diff += 12
-	return diff
+	return _theory_helper.get_current_chord_interval(midi_note)
 
 ## 음 이름 반환 (노테이션 모드에 따라)
 func get_note_label(midi_note: int) -> String:
-	var use_flats := MusicTheory.should_use_flats(current_key, current_mode)
-	
-	match current_notation_mode:
-		NotationMode.CDE:
-			return MusicTheory.get_note_name(midi_note, use_flats)
-		NotationMode.DOREMI:
-			var relative := (midi_note - current_key) % 12
-			if relative < 0: relative += 12
-			return MusicTheory.get_doremi_name(relative, use_flats)
-		NotationMode.DEGREE:
-			return MusicTheory.get_degree_number_name(midi_note, current_key)
-			
-	return ""
+	return _theory_helper.get_note_label(midi_note)
 
 ## 음이 현재 스케일에 포함되는지
 func is_in_scale(midi_note: int) -> bool:
-	var target_key = current_key
-	var target_mode = current_mode
-	# Check valid override
-	if override_key != -1 and override_mode != -1:
-		target_key = override_key
-		target_mode = override_mode
-		
-	return MusicTheory.is_in_scale(midi_note, target_key, target_mode)
+	return _theory_helper.is_in_scale(midi_note)
 
 ## 특정 줄/프렛의 타일 찾기
 func find_tile(string_idx: int, fret_idx: int) -> Node:
-	for tile in get_tree().get_nodes_in_group("fret_tiles"):
-		if tile.string_index == string_idx and tile.fret_index == fret_idx:
-			return tile
-	return null
+	return _tile_helper.find_tile(string_idx, fret_idx)
+
+func register_fret_tile(tile: Node) -> void:
+	_tile_helper.register_fret_tile(tile)
+
+func unregister_fret_tile(tile: Node) -> void:
+	_tile_helper.unregister_fret_tile(tile)
+
+func _get_tile_key(string_idx: int, fret_idx: int) -> String:
+	return _tile_helper.get_tile_key(string_idx, fret_idx)
 
 # ============================================================
 # PRIVATE METHODS
 # ============================================================
 func _toggle_mode() -> void:
-	# Simple Toggle: Major <-> Minor (Context aware?)
-	# If current is Major-like, switch to Minor. If Minor-like, switch to Major.
-	match current_mode:
-		MusicTheory.ScaleMode.MAJOR:
-			current_mode = MusicTheory.ScaleMode.MINOR
-		MusicTheory.ScaleMode.MINOR:
-			current_mode = MusicTheory.ScaleMode.MAJOR
-		MusicTheory.ScaleMode.MAJOR_PENTATONIC:
-			current_mode = MusicTheory.ScaleMode.MINOR_PENTATONIC
-		MusicTheory.ScaleMode.MINOR_PENTATONIC:
-			current_mode = MusicTheory.ScaleMode.MAJOR_PENTATONIC
-		_:
-			# For other modes, default to Major
-			current_mode = MusicTheory.ScaleMode.MAJOR
-
-	settings_changed.emit()
+	_theory_helper.toggle_mode()
 
 
 func _apply_diatonic_chord(keycode: int) -> void:
-	var data := MusicTheory.get_chord_from_keycode(current_mode, keycode)
-	if data.is_empty():
-		return
-	
-	current_chord_root = (current_key + data[0]) % 12
-	current_chord_type = data[1]
-	current_degree = data[2]
-	settings_changed.emit()
+	_theory_helper.apply_diatonic_chord(keycode)
 
 # ============================================================
 # PERSISTENCE
 # ============================================================
-const SAVE_PATH_SETTINGS = "user://game_settings.json"
-
 signal settings_loaded # [New] 초기화 완료 알림
 var is_settings_loaded: bool = false # [New] 상태 플래그
 
@@ -293,171 +255,33 @@ var default_preset_name: String = "":
 # ... (omitted) ...
 
 func save_settings() -> void:
-	var data = {
-		"current_key": current_key,
-		"current_mode": current_mode,
-		"current_notation_mode": current_notation_mode,
-		"bpm": bpm,
-		"show_note_labels": show_note_labels,
-		"highlight_root": highlight_root,
-		"highlight_chord": highlight_chord,
-		"highlight_scale": highlight_scale,
-		"is_metronome_enabled": is_metronome_enabled,
-		"focus_range": focus_range,
-		"camera_deadzone": camera_deadzone,
-		"is_rhythm_mode_enabled": is_rhythm_mode_enabled,
-		"default_preset_name": default_preset_name,
-		"current_theme_name": current_theme_name,
-		"ui_scale": ui_scale,
-		"volume_settings": _get_volume_settings() # [New]
-	}
-	
-	var file = FileAccess.open(SAVE_PATH_SETTINGS, FileAccess.WRITE)
-	if file:
-		file.store_string(JSON.stringify(data, "\t"))
-		file.close()
-		print("[GameManager] Settings saved.")
+	_settings_helper.save_settings()
 
 func load_settings() -> void:
-	if not FileAccess.file_exists(SAVE_PATH_SETTINGS):
-		is_settings_loaded = true # [Fix]
-		settings_loaded.emit() # 파일 없어도 로드 완료로 취급
-		return
-		
-	var file = FileAccess.open(SAVE_PATH_SETTINGS, FileAccess.READ)
-	if file:
-		var text = file.get_as_text()
-		file.close()
-		var json = JSON.new()
-		var error = json.parse(text)
-		if error == OK:
-			var data = json.data
-			if data is Dictionary:
-				_deserialize_settings(data)
-				print("[GameManager] Settings loaded.")
-	
-	is_settings_loaded = true # [Fix]
-	settings_loaded.emit()
-	settings_changed.emit() # Ensure explicit update for listeners (HUD scale, etc.)
+	_settings_helper.load_settings()
 
 func _deserialize_settings(data: Dictionary) -> void:
-	current_key = int(data.get("current_key", 0))
-	current_mode = int(data.get("current_mode", MusicTheory.ScaleMode.MAJOR)) as MusicTheory.ScaleMode
-	current_notation_mode = int(data.get("current_notation_mode", NotationMode.CDE)) as NotationMode
-	
-	# [Migration] Handle old boolean flags or old "current_notation" index
-	if data.has("current_notation"):
-		var old_notation = int(data.get("current_notation"))
-		match old_notation:
-			0: current_notation_mode = NotationMode.CDE
-			1: current_notation_mode = NotationMode.DOREMI
-			2: current_notation_mode = NotationMode.CDE # Backwards compatibility fallback if it was "BOTH"
-	elif data.has("show_notation_cde"):
-		# Handle very old boolean flags
-		if data.get("show_notation_degree", false):
-			current_notation_mode = NotationMode.DEGREE
-		elif data.get("show_notation_doremi", false):
-			current_notation_mode = NotationMode.DOREMI
-		else:
-			current_notation_mode = NotationMode.CDE
-	bpm = int(data.get("bpm", 120))
-	
-	show_note_labels = data.get("show_note_labels", true)
-	highlight_root = data.get("highlight_root", true)
-	highlight_chord = data.get("highlight_chord", true)
-	highlight_scale = data.get("highlight_scale", true)
-	is_metronome_enabled = data.get("is_metronome_enabled", true)
-	
-	focus_range = int(data.get("focus_range", 3))
-	camera_deadzone = float(data.get("camera_deadzone", 4.0))
-	self.ui_scale = float(data.get("ui_scale", 1.0))
-	is_rhythm_mode_enabled = data.get("is_rhythm_mode_enabled", false)
-	default_preset_name = data.get("default_preset_name", "")
-	var loaded_theme = data.get("current_theme_name", "Default")
-	# [Migration] Force Default if Pastel is loaded (Fix stuck pink theme)
-	if loaded_theme == "Pastel":
-		current_theme_name = "Default"
-	else:
-		current_theme_name = loaded_theme
-	
-	var vol_settings = data.get("volume_settings", {})
-	if not vol_settings.is_empty():
-		_apply_volume_settings(vol_settings)
+	_settings_helper.deserialize_settings(data)
 
 func _get_volume_settings() -> Dictionary:
-	var settings = {}
-	settings["Master"] = _get_bus_volume("Master")
-	settings["Chord"] = _get_bus_volume("Chord")
-	settings["Melody"] = _get_bus_volume("Melody")
-	settings["SFX"] = _get_bus_volume("SFX")
-	return settings
+	return _settings_helper.get_volume_settings()
 
 func _get_bus_volume(bus_name: String) -> float:
-	var idx = AudioServer.get_bus_index(bus_name)
-	if idx == -1: return 1.0
-	return db_to_linear(AudioServer.get_bus_volume_db(idx))
+	return _settings_helper.get_bus_volume(bus_name)
 
 func _apply_volume_settings(settings: Dictionary) -> void:
-	for bus_name in settings:
-		var idx = AudioServer.get_bus_index(bus_name)
-		if idx != -1:
-			var linear_vol = float(settings[bus_name])
-			AudioServer.set_bus_volume_db(idx, linear_to_db(linear_vol))
-			AudioServer.set_bus_mute(idx, linear_vol < 0.01)
+	_settings_helper.apply_volume_settings(settings)
 
 func _ready() -> void:
-	call_deferred("load_settings")
-	
-	# [New] Register MelodyManager
-	if not has_node("MelodyManager"):
-		var melody_manager = MelodyManager.new()
-		melody_manager.name = "MelodyManager"
-		add_child(melody_manager)
-		
-		# Connect MelodyManager visual signals
-		melody_manager.visual_note_on.connect(_on_melody_visual_on)
-		melody_manager.visual_note_off.connect(_on_melody_visual_off)
-	
-	# [New] Connect Global EventBus Visuals
-	EventBus.visual_note_on.connect(_on_melody_visual_on)
-	EventBus.visual_note_off.connect(_on_melody_visual_off)
-		
-	# [New] Register SongManager
-	if not has_node("SongManager"):
-		var song_manager = SongManager.new()
-		song_manager.name = "SongManager"
-		add_child(song_manager)
-		
-	# [New] Register RiffManager
-	if not has_node("RiffManager"):
-		var riff_manager = RiffManager.new()
-		riff_manager.name = "RiffManager"
-		add_child(riff_manager)
+	_theory_helper = GAME_MANAGER_THEORY.new(self)
+	_tile_helper = GAME_MANAGER_TILES.new(self)
+	_settings_helper = GAME_MANAGER_SETTINGS.new(self)
+	_settings_helper.setup_runtime_nodes()
+	player_string = SettingsManager.last_string
+	player_fret = SettingsManager.last_fret
 
 func _on_melody_visual_on(midi_note: int, string_idx: int) -> void:
-	# 1. Visual Highlight
-	var fret = MusicTheory.get_fret_position(midi_note, string_idx)
-	var tile = find_tile(string_idx, fret)
-	if tile and is_instance_valid(tile):
-		if tile.has_method("apply_melody_highlight"):
-			tile.apply_melody_highlight()
-	
-	# 2. Audio Playback
-	# [Conflict Fix] Audio should be played by the trigger source (QuizManager, RiffEditor),
-	# NOT by the visual event handler. This prevents double triggering.
-	# if AudioEngine:
-	# 	AudioEngine.play_note(midi_note)
+	_tile_helper.on_melody_visual_on(midi_note, string_idx)
 
 func _on_melody_visual_off(midi_note: int, string_idx: int) -> void:
-	if midi_note == -1:
-		# Clear ALL visuals (Emergency Stop)
-		for tile in get_tree().get_nodes_in_group("fret_tiles"):
-			if tile.has_method("clear_melody_highlight"):
-				tile.clear_melody_highlight()
-		return
-
-	var fret = MusicTheory.get_fret_position(midi_note, string_idx)
-	var tile = find_tile(string_idx, fret)
-	if tile and is_instance_valid(tile):
-		if tile.has_method("clear_melody_highlight"):
-			tile.clear_melody_highlight()
+	_tile_helper.on_melody_visual_off(midi_note, string_idx)

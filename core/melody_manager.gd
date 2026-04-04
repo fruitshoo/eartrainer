@@ -1,6 +1,9 @@
 class_name MelodyManager
 extends Node
 
+const MELODY_MANAGER_GRID = preload("res://core/melody_manager_grid.gd")
+const MELODY_MANAGER_RECORDING = preload("res://core/melody_manager_recording.gd")
+
 # ============================================================
 # SIGNALS
 # ============================================================
@@ -24,177 +27,64 @@ var active_notes: Dictionary = {} # { pitch_string_key: {start_time, ...} } - Fo
 # Playback State
 var _last_beat_time: float = -1.0
 var _active_visuals: Dictionary = {} # { note_ref: true }
+var _grid_helper: MelodyManagerGrid
+var _recording_helper: MelodyManagerRecording
 
 # ============================================================
 # LIFECYCLE
 # ============================================================
 func _ready() -> void:
+	_grid_helper = MELODY_MANAGER_GRID.new(self)
+	_recording_helper = MELODY_MANAGER_RECORDING.new(self)
 	# Connect to EventBus
-	EventBus.beat_updated.connect(_on_beat_updated)
 	EventBus.sequencer_stopped.connect(_on_sequencer_stopped)
 	EventBus.tile_pressed.connect(_on_tile_pressed)
 	EventBus.tile_released.connect(_on_tile_released)
 
 func _on_sequencer_stopped() -> void:
-	if is_recording:
-		stop_recording()
-	_last_beat_time = -1.0
-	_release_all_visuals()
-
-func _on_beat_updated(_current_beat: int, _total_beats: int) -> void:
-	# This is the coarse beat update (quarter notes)
-	pass
+	_recording_helper.on_sequencer_stopped()
 
 # ============================================================
 # RECORDING LOGIC
 # ============================================================
 func start_recording() -> void:
-	if not _get_sequencer(): return
-	is_recording = true
-	recording_started.emit()
-	print("[MelodyManager] Recording Started")
+	_recording_helper.start_recording()
 
 func stop_recording() -> void:
-	is_recording = false
-	active_notes.clear()
-	recording_stopped.emit()
-	print("[MelodyManager] Recording Stopped. Total Notes: ", recorded_notes.size())
-	# Persistence todo
+	_recording_helper.stop_recording()
 
 func toggle_recording() -> void:
-	if is_recording:
-		stop_recording()
-	else:
-		start_recording()
+	_recording_helper.toggle_recording()
 
 func clear_melody() -> void:
-	recorded_notes.clear()
-	active_notes.clear()
-	print("[MelodyManager] Melody Cleared")
+	_grid_helper.clear_melody()
 
 func undo_last_note() -> void:
-	if recorded_notes.size() > 0:
-		var removed = recorded_notes.pop_back()
-		print("[MelodyManager] Undo note at beat %.2f" % removed.start_beat)
-		# Provide some feedback? Signal?
-	else:
-		print("[MelodyManager] Nothing to undo")
+	_grid_helper.undo_last_note()
 
 func quantize_notes(grid: float = QUANTIZE_GRID) -> void:
-	if recorded_notes.is_empty(): return
-	
-	var count = 0
-	for note in recorded_notes:
-		var orig_start = note.start_beat
-		var orig_dur = note.duration
-		
-		# Snap Start
-		note.start_beat = roundf(orig_start / grid) * grid
-		
-		# Snap Duration (min grid)
-		note.duration = maxf(roundf(orig_dur / grid) * grid, grid)
-		
-		if note.start_beat != orig_start or note.duration != orig_dur:
-			count += 1
-			
-	print("[MelodyManager] Quantized %d notes to grid %.2f" % [count, grid])
+	_grid_helper.quantize_notes(grid)
+
+func import_recorded_notes(notes: Array) -> void:
+	_grid_helper.import_recorded_notes(notes)
+
+func sync_from_progression() -> void:
+	_grid_helper.sync_from_progression()
 
 # ============================================================
 # INPUT HANDLING (RECORDING)
 # ============================================================
 func _on_tile_pressed(midi_note: int, string_index: int) -> void:
-	if not is_recording: return
-	
-	var seq = _get_sequencer()
-	if not seq or not seq.is_playing: return
-	
-	var state = seq.get_playback_state()
-	var now = Time.get_ticks_msec()
-	var elapsed_ms = now - state.last_beat_time
-	var beat_duration_ms = (60.0 / state.bpm) * 1000.0
-	var offset_beat = clampf(elapsed_ms / beat_duration_ms, 0.0, 1.0)
-	
-	var start_beat_global = float(state.beat) + offset_beat
-	
-	# Quantize Start (Snap to nearest 0.25)
-	var snapped_beat = roundf(start_beat_global / QUANTIZE_GRID) * QUANTIZE_GRID
-	
-	var note_key = "%d_%d" % [midi_note, string_index]
-	active_notes[note_key] = {
-		"step": state.step,
-		"start_beat": snapped_beat,
-		"raw_start_ms": now,
-		"pitch": midi_note,
-		"string": string_index
-	}
-	
-	# Visual Feedback (Immediate)
-	visual_note_on.emit(midi_note, string_index)
-	# Play Audio (Directly)
-	AudioEngine.play_note(midi_note, string_index)
+	_recording_helper.on_tile_pressed(midi_note, string_index)
 
 func _on_tile_released(midi_note: int, string_index: int) -> void:
-	if not is_recording: return
-	
-	var note_key = "%d_%d" % [midi_note, string_index]
-	if not active_notes.has(note_key): return
-	
-	var start_data = active_notes[note_key]
-	active_notes.erase(note_key)
-	
-	var seq = _get_sequencer()
-	if not seq: return
-	var state = seq.get_playback_state()
-	
-	# Calculate Duration
-	var bpm = state.bpm
-	var beat_ms = (60.0 / bpm) * 1000.0
-	var now = Time.get_ticks_msec()
-	var duration_beat = (now - start_data.raw_start_ms) / beat_ms
-	
-	# Quantize Duration (Min 0.25)
-	var snapped_dur = maxf(roundf(duration_beat / QUANTIZE_GRID) * QUANTIZE_GRID, QUANTIZE_GRID)
-	
-	var new_note = {
-		"step": start_data.step,
-		"start_beat": start_data.start_beat,
-		"duration": snapped_dur,
-		"pitch": midi_note,
-		"string": string_index
-	}
-	
-	recorded_notes.append(new_note)
-	visual_note_off.emit(midi_note, string_index)
+	_recording_helper.on_tile_released(midi_note, string_index)
 
 # ============================================================
-# PLAYBACK LOGIC (GHOST NOTES)
+# PLAYBACK LOGIC
 # ============================================================
 func _process(_delta: float) -> void:
-	if not EventBus.is_sequencer_playing:
-		return
-		
-	var seq = _get_sequencer()
-	if not seq: return
-	var state = seq.get_playback_state()
-	
-	var beat_ms = (60.0 / state.bpm) * 1000.0
-	var elapsed = Time.get_ticks_msec() - state.last_beat_time
-	var current_sub_beat = float(state.beat) + (elapsed / beat_ms)
-	
-	# Check all notes
-	# Optimization: Could filter by step first
-	for note in recorded_notes:
-		if note.step == state.step:
-			# Check Start
-			var diff = current_sub_beat - note.start_beat
-			# Trigger logic: within a small window AND not already active?
-			# Actually, if we just check "is inside duration", we can maintain state.
-			if diff >= 0 and diff < note.duration:
-				_trigger_visual_note(note)
-			else:
-				_release_visual_note(note)
-		else:
-			_release_visual_note(note)
+	return
 
 func _trigger_visual_note(note: Dictionary) -> void:
 	if not _active_visuals.has(note):
@@ -215,7 +105,32 @@ func _release_all_visuals() -> void:
 # ============================================================
 # HELPERS
 # ============================================================
+func _find_last_anchor_note() -> Dictionary:
+	return _grid_helper.find_last_anchor_note()
+
+func _clear_note_chain(bar: int, beat: int, sub: int, note_data: Dictionary) -> void:
+	_grid_helper.clear_note_chain(bar, beat, sub, note_data)
+
+func _extract_recorded_notes_from_progression() -> Array[Dictionary]:
+	return _grid_helper.extract_recorded_notes_from_progression()
+
+func _build_melody_events_from_recorded_notes(notes: Array[Dictionary]) -> Dictionary:
+	return _grid_helper.build_melody_events_from_recorded_notes(notes)
+
+func _recorded_note_to_position(note: Dictionary) -> Dictionary:
+	return _grid_helper.recorded_note_to_position(note)
+
+func _position_to_recorded_time(bar: int, beat: int, sub: int) -> Dictionary:
+	return _grid_helper.position_to_recorded_time(bar, beat, sub)
+
+func _advance_position(bar: int, beat: int, sub: int) -> Dictionary:
+	return _grid_helper.advance_position(bar, beat, sub)
+
+func _set_event(target: Dictionary, bar: int, beat: int, sub: int, note_data: Dictionary) -> void:
+	_grid_helper.set_event(target, bar, beat, sub, note_data)
+
+func _melody_key_order(key: String) -> int:
+	return _grid_helper.melody_key_order(key)
+
 func _get_sequencer() -> Node:
-	var seqs = get_tree().get_nodes_in_group("sequencer")
-	if seqs.size() > 0: return seqs[0]
-	return null
+	return _recording_helper.get_sequencer()

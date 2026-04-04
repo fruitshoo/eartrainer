@@ -7,6 +7,17 @@ signal item_clicked(preset_name: String)
 signal set_default_requested(preset_name: String, is_default: bool)
 signal reorder_requested(from_idx: int, to_idx: int)
 
+const CARD_BG := ThemeColors.APP_PANEL_BG_SOFT
+const CARD_BG_HOVER := ThemeColors.APP_BUTTON_BG_HOVER
+const CARD_BG_SELECTED := ThemeColors.APP_PANEL_BG_ALT
+const CARD_BORDER := ThemeColors.APP_BORDER
+const CARD_BORDER_SELECTED := ThemeColors.APP_BUTTON_BORDER_ACTIVE
+const TEXT_PRIMARY := ThemeColors.APP_TEXT
+const TEXT_SECONDARY := ThemeColors.APP_TEXT_MUTED
+const ICON_MUTED := ThemeColors.APP_TEXT_MUTED
+const DELETE_ACCENT := Color(1.0, 0.58, 0.58, 0.92)
+const DEFAULT_ACCENT := Color(1.0, 0.88, 0.46, 0.96)
+
 @onready var name_label: Label = %NameLabel
 @onready var details_label: Label = %DetailsLabel
 @onready var load_button: Button = %LoadButton
@@ -17,6 +28,7 @@ var preset_name: String = ""
 var item_index: int = -1
 var is_selected: bool = false
 var is_default: bool = false
+var _is_hovered: bool = false
 
 func _init() -> void:
 	# Ensure internal buttons don't steal focus
@@ -45,9 +57,13 @@ func setup(data: Dictionary, index: int) -> void:
 	_update_default_visual()
 
 func _ready() -> void:
-	# [Theme Fix] Remove visual editor override (White BG) and apply Main Theme
-	remove_theme_stylebox_override("panel")
 	theme = load("res://ui/resources/main_theme.tres")
+	_apply_card_theme()
+	_apply_action_button_theme(load_button)
+	_apply_action_button_theme(default_button)
+	_apply_action_button_theme(delete_button, DELETE_ACCENT)
+	name_label.add_theme_color_override("font_color", TEXT_PRIMARY)
+	details_label.add_theme_color_override("font_color", TEXT_SECONDARY)
 	
 	# [Style] Small Icon Buttons (Ultra-Compact Horizontal Row - V4.5 Polish)
 	load_button.icon = preload("res://assets/icons/play.svg")
@@ -59,7 +75,7 @@ func _ready() -> void:
 	delete_button.text = "✖"
 	delete_button.custom_minimum_size = Vector2(32, 32)
 	delete_button.tooltip_text = "Delete"
-	delete_button.modulate.a = 0.7
+	delete_button.modulate = Color.WHITE
 	# Bold cross to match Play icon weight
 	delete_button.add_theme_font_size_override("font_size", 14)
 	
@@ -75,6 +91,7 @@ func _ready() -> void:
 	gui_input.connect(_on_gui_input)
 	mouse_entered.connect(_on_mouse_entered)
 	mouse_exited.connect(_on_mouse_exited)
+	_update_style()
 
 func set_is_default(val: bool) -> void:
 	is_default = val
@@ -85,7 +102,11 @@ func _update_default_visual() -> void:
 		default_button.set_pressed_no_signal(is_default)
 		# Star Icon (Reverted)
 		default_button.text = "★" if is_default else "☆"
-		default_button.modulate = Color(1.0, 0.9, 0.4) if is_default else Color.WHITE
+		var star_color: Color = DEFAULT_ACCENT if is_default else ICON_MUTED
+		default_button.modulate = star_color
+		default_button.add_theme_color_override("font_color", star_color)
+		default_button.add_theme_color_override("font_hover_color", star_color)
+		default_button.add_theme_color_override("font_pressed_color", star_color)
 
 func _on_default_toggled(toggled: bool) -> void:
 	set_default_requested.emit(preset_name, toggled)
@@ -113,13 +134,22 @@ func _drop_data(at_position: Vector2, data: Variant) -> void:
 	reorder_requested.emit(from_idx, to_idx)
 
 func _update_style() -> void:
-	# 테마 오버라이드 대신 직접 모듈레이트나 스타일박스 변경
-	# StyleBoxFlat(White) is now applied to PanelContainer.
-	# We tint it to achieve Dark Mode or Highlight colors.
-	if is_selected:
-		self_modulate = Color(0.9, 0.95, 1.0, 1.0) # Soft Blue Highlight (Light Theme)
-	else:
-		self_modulate = Color(1, 1, 1, 1.0) # White (Let Theme shine)
+	var style := StyleBoxFlat.new()
+	style.bg_color = CARD_BG_SELECTED if is_selected else (CARD_BG_HOVER if _is_hovered else CARD_BG)
+	style.border_color = CARD_BORDER_SELECTED if is_selected else CARD_BORDER
+	style.set_corner_radius_all(10)
+	style.border_width_left = 1
+	style.border_width_top = 1
+	style.border_width_right = 1
+	style.border_width_bottom = 1
+	style.content_margin_left = 8
+	style.content_margin_top = 6
+	style.content_margin_right = 8
+	style.content_margin_bottom = 6
+	add_theme_stylebox_override("panel", style)
+	name_label.add_theme_color_override("font_color", TEXT_PRIMARY)
+	details_label.add_theme_color_override("font_color", TEXT_SECONDARY)
+	self_modulate = Color.WHITE
 
 func _on_gui_input(event: InputEvent) -> void:
 	if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
@@ -127,9 +157,36 @@ func _on_gui_input(event: InputEvent) -> void:
 
 # [Optional] Hover effects
 func _on_mouse_entered() -> void:
-	if not is_selected:
-		self_modulate = Color(0.96, 0.96, 0.96, 1.0) # Subtle Dim (Light Theme)
+	_is_hovered = true
+	_update_style()
 
 func _on_mouse_exited() -> void:
-	if not is_selected:
-		self_modulate = Color(1, 1, 1, 1.0) # Back to White
+	_is_hovered = false
+	_update_style()
+
+func _apply_card_theme() -> void:
+	_update_style()
+
+func _apply_action_button_theme(button: Button, accent: Color = ICON_MUTED) -> void:
+	var normal := StyleBoxFlat.new()
+	normal.bg_color = ThemeColors.APP_BUTTON_BG
+	normal.border_color = ThemeColors.APP_BUTTON_BORDER
+	normal.set_corner_radius_all(9)
+	normal.border_width_left = 1
+	normal.border_width_top = 1
+	normal.border_width_right = 1
+	normal.border_width_bottom = 1
+	var hover := normal.duplicate()
+	hover.bg_color = ThemeColors.APP_BUTTON_BG_HOVER
+	var pressed := normal.duplicate()
+	pressed.bg_color = ThemeColors.APP_BUTTON_BG_PRESSED
+	button.add_theme_stylebox_override("normal", normal)
+	button.add_theme_stylebox_override("hover", hover)
+	button.add_theme_stylebox_override("pressed", pressed)
+	button.add_theme_stylebox_override("focus", hover)
+	button.add_theme_color_override("font_color", accent)
+	button.add_theme_color_override("font_hover_color", accent)
+	button.add_theme_color_override("font_pressed_color", accent)
+	button.add_theme_color_override("icon_normal_color", accent)
+	button.add_theme_color_override("icon_hover_color", accent)
+	button.add_theme_color_override("icon_pressed_color", accent)

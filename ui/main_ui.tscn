@@ -35,12 +35,12 @@ layout_mode = 1
 [node name="SequenceUI" parent="SafeArea/GameUIContainer" unique_id=99102141 instance=ExtResource("3_sequence")]
 layout_mode = 1
 
-[node name="SidePanel" parent="." unique_id=1721731441 instance=ExtResource("4_sidepanel")]
+[node name="SidePanel" parent="SafeArea/GameUIContainer" unique_id=1721731441 instance=ExtResource("4_sidepanel")]
 unique_name_in_owner = true
 
-[node name="SettingsWindow" parent="." unique_id=499636508 instance=ExtResource("5_settings")]
+[node name="SettingsWindow" parent="SafeArea/GameUIContainer" unique_id=499636508 instance=ExtResource("5_settings")]
 unique_name_in_owner = true
 
-[node name="LibraryWindow" parent="." unique_id=1808159204 instance=ExtResource("6_library")]
+[node name="LibraryWindow" parent="SafeArea/GameUIContainer" unique_id=1808159204 instance=ExtResource("6_library")]
 unique_name_in_owner = true
 visible = false

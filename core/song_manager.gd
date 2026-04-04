@@ -16,22 +16,10 @@ signal song_loaded(song_data: Dictionary)
 # PUBLIC API
 # ============================================================
 func save_song(title: String) -> bool:
-	var melody_manager = GameManager.get_node_or_null("MelodyManager")
-	var melody_data = []
-	if melody_manager:
-		melody_data = melody_manager.recorded_notes
-		
-	var song_data = {
-		"title": title,
-		"timestamp": Time.get_unix_time_from_system(),
-		"bpm": GameManager.bpm,
-		"key": GameManager.current_key,
-		"mode": GameManager.current_mode,
-		"bar_count": ProgressionManager.bar_count,
-		"beats_per_bar": ProgressionManager.beats_per_bar, # [Fix] Persist Time Signature
-		"slots": ProgressionManager.slots,
-		"melody": melody_data
-	}
+	var song_data = ProgressionManager.serialize().duplicate(true)
+	song_data["title"] = title
+	song_data["timestamp"] = Time.get_unix_time_from_system()
+	song_data["bpm"] = GameManager.bpm
 	
 	var songs = _load_songs_safe()
 	
@@ -111,39 +99,45 @@ func _apply_song_state(data: Dictionary) -> void:
 	GameManager.bpm = int(data.get("bpm", 120))
 	GameManager.current_key = int(data.get("key", 0))
 	GameManager.current_mode = int(data.get("mode", 0))
+	EventBus.game_settings_changed.emit()
 	
-	# 2. Progression
+	# 2. Progression + Melody
+	if _is_full_sequence_snapshot(data):
+		ProgressionManager.deserialize(data)
+		ProgressionManager.force_refresh_ui()
+	else:
+		_apply_legacy_song_state(data)
+	
+	var melody_manager = GameManager.get_node_or_null("MelodyManager")
+	if melody_manager and melody_manager.has_method("sync_from_progression"):
+		melody_manager.sync_from_progression()
+	
+	song_loaded.emit(data)
+
+func _is_full_sequence_snapshot(data: Dictionary) -> bool:
+	return data.has("bar_densities") or data.has("melody_events") or data.has("loop_start") or data.has("playback_mode")
+
+func _apply_legacy_song_state(data: Dictionary) -> void:
 	var new_bar_count = int(data.get("bar_count", 4))
-	var new_beats = int(data.get("beats_per_bar", 4)) # [Fix] Load Time Signature
+	var new_beats = int(data.get("beats_per_bar", 4))
 	
 	ProgressionManager.update_settings(new_bar_count)
-	ProgressionManager.set_time_signature(new_beats) # [Fix] Apply Time Signature
+	ProgressionManager.set_time_signature(new_beats)
 	
 	var saved_slots = data.get("slots", [])
 	if saved_slots is Array:
-		# Copy slot data
 		for i in range(min(saved_slots.size(), ProgressionManager.slots.size())):
-			var s = saved_slots[i]
-			# Ensure dictionary format (convert if needed, but here we save direct dicts)
-			if s is Dictionary:
-				ProgressionManager.slots[i] = s.duplicate()
+			var slot_data = saved_slots[i]
+			if slot_data is Dictionary:
+				ProgressionManager.slots[i] = slot_data.duplicate(true)
 		
-		# Reset others
 		for i in range(saved_slots.size(), ProgressionManager.slots.size()):
 			ProgressionManager.slots[i] = null
-			
-	ProgressionManager.force_refresh_ui()
 	
-	# 3. Melody
 	var melody_manager = GameManager.get_node_or_null("MelodyManager")
-	if melody_manager:
-		melody_manager.clear_melody()
-		var melody_data = data.get("melody", [])
-		if melody_data is Array:
-			# Type safety check
-			for note in melody_data:
-				if note is Dictionary:
-					melody_manager.recorded_notes.append(note)
-		print("[SongManager] Loaded melody with %d notes" % melody_manager.recorded_notes.size())
-		
-	song_loaded.emit(data)
+	if melody_manager and melody_manager.has_method("import_recorded_notes"):
+		melody_manager.import_recorded_notes(data.get("melody", []))
+	else:
+		ProgressionManager.replace_all_melody_events({})
+	
+	ProgressionManager.force_refresh_ui()

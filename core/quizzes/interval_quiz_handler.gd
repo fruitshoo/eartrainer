@@ -7,13 +7,27 @@ var interval_target_note: int = -1
 var interval_semitones: int = 0
 var current_interval_mode: int = 0 # IntervalMode enum in manager
 var _last_semitones: int = -1 # [New #6] Prevent consecutive duplicates
+var _root_string_idx: int = -1
+var _root_fret_idx: int = -1
+var _target_string_idx: int = -1
+var _target_fret_idx: int = -1
+var _enforce_target_position: bool = false
 
 func start_quiz() -> void:
 	manager._stop_playback()
 	manager._clear_markers()
 	manager._is_processing_correct_answer = false
+	_root_string_idx = -1
+	_root_fret_idx = -1
+	_target_string_idx = -1
+	_target_fret_idx = -1
+	_enforce_target_position = false
 	
 	manager.current_quiz_type = manager.QuizType.INTERVAL
+
+	if manager.interval_beginner_mode:
+		_start_beginner_quiz()
+		return
 	
 	var active_intervals = manager.active_intervals
 	if active_intervals.is_empty():
@@ -93,6 +107,9 @@ func start_quiz() -> void:
 					interval_target_note = candidate_target
 					final_string_idx = root_str
 					final_fret_idx = root_fret
+					_target_string_idx = target_pos.string
+					_target_fret_idx = target_pos.fret
+					_enforce_target_position = (constraint != manager.StringConstraint.ALL)
 					valid_found = true
 
 	if not valid_found:
@@ -139,6 +156,9 @@ func start_quiz() -> void:
 			interval_target_note = candidate_target
 			final_string_idx = root_string
 			final_fret_idx = root_fret
+			_target_string_idx = target_pos.string
+			_target_fret_idx = target_pos.fret
+			_enforce_target_position = (constraint != manager.StringConstraint.ALL)
 			manager._current_root_fret = final_fret_idx
 			
 			valid_found = true
@@ -154,6 +174,10 @@ func start_quiz() -> void:
 			final_string_idx = pos.string
 			final_fret_idx = pos.fret
 			manager._current_root_fret = final_fret_idx
+		var fallback_target_pos = manager._find_valid_pos_for_note(interval_target_note, manager._current_root_fret)
+		if fallback_target_pos.valid:
+			_target_string_idx = fallback_target_pos.string
+			_target_fret_idx = fallback_target_pos.fret
 
 	# Sync back to manager for playback
 	manager.interval_root_note = interval_root_note
@@ -177,6 +201,7 @@ func start_quiz() -> void:
 func on_tile_clicked(clicked_note: int, string_idx: int) -> void:
 	if manager._is_processing_correct_answer: return
 
+	var fret_idx = MusicTheory.get_fret_position(clicked_note, string_idx)
 	var is_correct = false
 	if current_interval_mode == 0: # ASCENDING
 		is_correct = (clicked_note == interval_target_note)
@@ -186,8 +211,10 @@ func on_tile_clicked(clicked_note: int, string_idx: int) -> void:
 		# [Fix #2] Use modulo 12 for octave-aware checking
 		var clicked_diff = abs(clicked_note - interval_root_note) % 12
 		is_correct = (clicked_diff == interval_semitones % 12) and clicked_note != interval_root_note
-		
-	var fret_idx = MusicTheory.get_fret_position(clicked_note, string_idx)
+
+	if is_correct and _enforce_target_position:
+		is_correct = (string_idx == _target_string_idx and fret_idx == _target_fret_idx)
+
 	var tile = GameManager.find_tile(string_idx, fret_idx)
 	
 	if is_correct:
@@ -204,7 +231,16 @@ func on_tile_clicked(clicked_note: int, string_idx: int) -> void:
 		manager._highlight_tile(string_idx, fret_idx, Color.WHITE)
 		
 		var reward_duration = manager._play_reward_song(interval_semitones, current_interval_mode)
-		manager.quiz_answered.emit({"correct": true, "interval": interval_semitones})
+		var result := {
+			"correct": true,
+			"interval": interval_semitones,
+			"interval_name": IntervalQuizData.get_interval_name(interval_semitones),
+			"interval_short": IntervalQuizData.get_interval_short(interval_semitones)
+		}
+		if manager.interval_beginner_mode:
+			result["beginner_mode"] = true
+			result["shape_hint"] = _get_current_shape_hint()
+		manager.quiz_answered.emit(result)
 		
 		var my_id = manager._current_playback_id
 		var wait_time = reward_duration + 1.0 if reward_duration > 0 else 1.0
@@ -219,7 +255,132 @@ func on_tile_clicked(clicked_note: int, string_idx: int) -> void:
 		_play_sfx("wrong")
 		if tile and tile.has_method("_show_rhythm_feedback"):
 			tile.call("_show_rhythm_feedback", {"rating": "Try Again", "color": Color.RED})
-		manager.quiz_answered.emit({"correct": false})
+		var result := {
+			"correct": false,
+			"interval": interval_semitones,
+			"interval_name": IntervalQuizData.get_interval_name(interval_semitones),
+			"interval_short": IntervalQuizData.get_interval_short(interval_semitones)
+		}
+		if manager.interval_beginner_mode:
+			_reveal_beginner_answer()
+			result["beginner_mode"] = true
+			result["beginner_reveal"] = true
+			result["shape_hint"] = _get_current_shape_hint()
+		manager.quiz_answered.emit(result)
+
+func _start_beginner_quiz() -> void:
+	var lesson = manager.get_interval_beginner_lesson()
+	if lesson.is_empty():
+		push_warning("[IntervalQuizHandler] Beginner lesson not found.")
+		return
+
+	var lesson_intervals: Array = lesson.get("intervals", [])
+	if lesson_intervals.is_empty():
+		push_warning("[IntervalQuizHandler] Beginner lesson has no intervals.")
+		return
+
+	if lesson_intervals.size() > 1:
+		var filtered = lesson_intervals.filter(func(s): return s != _last_semitones)
+		interval_semitones = filtered.pick_random() if not filtered.is_empty() else lesson_intervals.pick_random()
+	else:
+		interval_semitones = lesson_intervals[0]
+	_last_semitones = interval_semitones
+
+	current_interval_mode = int(lesson.get("mode", manager.IntervalMode.ASCENDING))
+	_root_string_idx = int(lesson.get("root_string", 1))
+	_root_fret_idx = int(lesson.get("root_fret", 5))
+	var constraint = int(lesson.get("constraint", manager.StringConstraint.SAME_STRING))
+
+	interval_root_note = AudioEngine.OPEN_STRING_MIDI[_root_string_idx] + _root_fret_idx
+	interval_target_note = interval_root_note + interval_semitones
+
+	var target_pos = manager.get_interval_target_pos(interval_target_note, _root_string_idx, _root_fret_idx, constraint)
+	if not target_pos.valid:
+		target_pos = manager._find_valid_pos_for_note(interval_target_note, _root_fret_idx)
+
+	if not target_pos.valid:
+		push_warning("[IntervalQuizHandler] Beginner lesson target is not playable.")
+		return
+
+	_target_string_idx = target_pos.string
+	_target_fret_idx = target_pos.fret
+	_enforce_target_position = true
+	manager._current_root_fret = _root_fret_idx
+
+	manager.interval_root_note = interval_root_note
+	manager.interval_target_note = interval_target_note
+	manager.interval_semitones = interval_semitones
+	manager.current_interval_mode = current_interval_mode
+
+	_highlight_beginner_candidates(lesson)
+	replay()
+
+	var lesson_labels: Array[String] = []
+	for semitone in lesson_intervals:
+		lesson_labels.append(IntervalQuizData.get_interval_short(int(semitone)))
+
+	var root_note_label = MusicTheory.get_note_name(interval_root_note)
+	var prompt = "%s root on string %d fret %d. Hear %s." % [
+		root_note_label,
+		6 - _root_string_idx,
+		_root_fret_idx,
+		" or ".join(lesson_labels)
+	]
+
+	manager.quiz_started.emit({
+		"type": "interval",
+		"root": interval_root_note,
+		"target": interval_target_note,
+		"mode": current_interval_mode,
+		"beginner_mode": true,
+		"lesson_title": lesson.get("title", "Beginner Lesson"),
+		"lesson_description": lesson.get("description", ""),
+		"lesson_prompt": prompt,
+		"shape_hint": _get_current_shape_hint()
+	})
+
+func _highlight_beginner_candidates(lesson: Dictionary) -> void:
+	manager._clear_markers()
+
+	var constraint = int(lesson.get("constraint", manager.StringConstraint.SAME_STRING))
+	var lesson_intervals: Array = lesson.get("intervals", [])
+	for semitone in lesson_intervals:
+		var note = interval_root_note + int(semitone)
+		var pos = manager.get_interval_target_pos(note, _root_string_idx, _root_fret_idx, constraint)
+		if not pos.valid:
+			continue
+		var color = IntervalQuizData.INTERVALS.get(int(semitone), {}).get("color", Color(0.6, 0.8, 1.0))
+		manager._highlight_tile(pos.string, pos.fret, color, 0.55)
+
+	manager._highlight_tile(_root_string_idx, _root_fret_idx, Color.WHITE, 1.6)
+
+func _reveal_beginner_answer() -> void:
+	if _root_string_idx == -1 or _target_string_idx == -1:
+		return
+
+	var color = IntervalQuizData.INTERVALS.get(interval_semitones, {}).get("color", Color.WHITE)
+	manager._highlight_tile(_root_string_idx, _root_fret_idx, Color.WHITE, 1.6)
+	manager._highlight_tile(_target_string_idx, _target_fret_idx, color, 1.6)
+
+func _get_current_shape_hint() -> String:
+	if _root_string_idx == -1 or _target_string_idx == -1:
+		return ""
+
+	var string_delta = _target_string_idx - _root_string_idx
+	var fret_delta = _target_fret_idx - _root_fret_idx
+	var fret_text = "%+d frets" % fret_delta
+
+	if string_delta == 0:
+		return "same string, %s" % fret_text
+
+	var string_text = "next higher string" if string_delta > 0 else "next lower string"
+	if abs(string_delta) > 1:
+		string_text = "%d strings %s" % [abs(string_delta), "higher" if string_delta > 0 else "lower"]
+
+	if fret_delta == 0:
+		return "%s, same fret" % string_text
+
+	return "%s, %s" % [string_text, fret_text]
 
 func _pick_fallback_question(center_fret: int) -> void:
 	var root_string = randi() % 6
@@ -299,37 +460,7 @@ func _get_chord_info_for_degree(degree_idx: int, key_root: int, mode: int) -> Di
 	return {"notes": notes}
 
 func _find_target_pos_with_constraint(target_note: int, root_str: int, root_fret: int, constraint: int) -> Dictionary:
-	# 0=All, 1=Same, 2=Cross
-	var MAX_FRET = 12 # [Fix] Strict 12 fret limit
-	
-	if constraint == 0:
-		# Even for "All", we should ensure there IS a position <= 12
-		for s in range(6):
-			var f = target_note - AudioEngine.OPEN_STRING_MIDI[s]
-			if f >= 0 and f <= MAX_FRET:
-				return {"valid": true, "string": s, "fret": f} # Return specific valid one?
-		return {"valid": false}
-	
-	if constraint == 1: # SAME STRING
-		# Check if target note exists on root_str within reasonable fret range
-		var f = target_note - AudioEngine.OPEN_STRING_MIDI[root_str]
-		if f >= 0 and f <= MAX_FRET: # Playable range
-			# Also avoid extreme stretches
-			return {"valid": true, "string": root_str, "fret": f}
-		return {"valid": false}
-		
-	if constraint == 2: # CROSS STRING (Adjacent string)
-		# Look for target on string +/- 1
-		for s in [root_str - 1, root_str + 1]:
-			if s >= 0 and s < 6:
-				var f = target_note - AudioEngine.OPEN_STRING_MIDI[s]
-				if f >= 0 and f <= MAX_FRET:
-					# Check stretch. Cross string usually implies close frets.
-					if abs(f - root_fret) <= 6:
-						return {"valid": true, "string": s, "fret": f}
-		return {"valid": false}
-		
-	return {"valid": true}
+	return manager.get_interval_target_pos(target_note, root_str, root_fret, constraint)
 
 func replay() -> void:
 	manager._stop_playback()

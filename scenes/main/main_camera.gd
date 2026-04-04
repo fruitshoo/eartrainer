@@ -1,5 +1,10 @@
 extends Camera3D
 
+const TOPDOWN_PIVOT := Vector3(0.0, 0.0, -9.0)
+const TOPDOWN_YAW := 90.0
+const TOPDOWN_PITCH := -89.0
+const TOPDOWN_SIZE := 15.0
+
 @export_group("Smoothness")
 @export var follow_speed: float = 8.0 # Player tracking speed
 @export var zoom_lerp_speed: float = 10.0
@@ -36,9 +41,17 @@ var target_size: float = 10.0
 var is_dragging: bool = false
 var is_orbiting: bool = false
 
+func _is_fixed_fretboard_mode() -> bool:
+	return GameManager.fixed_fretboard_view
+
 func _ready():
 	# Initial Setup
-	if GameManager.current_player:
+	if _is_fixed_fretboard_mode():
+		current_pivot = TOPDOWN_PIVOT
+		current_yaw = deg_to_rad(TOPDOWN_YAW)
+		current_pitch = deg_to_rad(TOPDOWN_PITCH)
+		target_size = TOPDOWN_SIZE
+	elif GameManager.current_player:
 		current_pivot = GameManager.current_player.global_position
 	else:
 		current_pivot = Vector3.ZERO
@@ -68,6 +81,9 @@ func _process(delta):
 	# -----------------------------------------------
 	# 2. Update Orbit Rotation (Smooth)
 	# -----------------------------------------------
+	if _is_fixed_fretboard_mode():
+		target_yaw = deg_to_rad(TOPDOWN_YAW)
+		target_pitch = deg_to_rad(TOPDOWN_PITCH)
 	
 	# [Fix] Dynamic Pitch Constraint (Prevent Clipping when Close)
 	# When Zoomed In (0.3), force steeper angle (max -45 deg).
@@ -94,7 +110,7 @@ func _process(delta):
 	# -----------------------------------------------
 	# 4. Update Pivot (Tracking Player)
 	# -----------------------------------------------
-	if GameManager.current_player and not is_dragging:
+	if not _is_fixed_fretboard_mode() and GameManager.current_player and not is_dragging:
 		var player_pos = GameManager.current_player.global_position
 		
 		# Deadzone Logic
@@ -123,7 +139,7 @@ func _process(delta):
 	
 	# [Fix] Auto-Focus: Use exact player position (ignoring deadzone/smoothing)
 	var focus_target = current_pivot # Default fallback
-	if GameManager.current_player:
+	if not _is_fixed_fretboard_mode() and GameManager.current_player:
 		focus_target = GameManager.current_player.global_position
 		
 	focus_target += drag_offset # Include pan offset? Probably yes, since user looks there.
@@ -140,6 +156,11 @@ func _update_transform():
 
 func _update_dof(target_pos: Vector3):
 	if not attributes or not (attributes is CameraAttributesPractical): return
+	if _is_fixed_fretboard_mode():
+		attributes.dof_blur_amount = 0.0
+		attributes.dof_blur_far_enabled = false
+		attributes.dof_blur_near_enabled = false
+		return
 	
 	var dist = global_position.distance_to(target_pos)
 	
@@ -186,7 +207,7 @@ func _unhandled_input(event):
 			# print("[MainCamera] Middle Click: cmd=%s, meta=%s, ctrl=%s" % [cmd_pressed, meta_pressed, ctrl_pressed])
 			
 			if event.pressed:
-				if cmd_pressed or meta_pressed: # Meta is explicit Command on Mac
+				if not _is_fixed_fretboard_mode() and (cmd_pressed or meta_pressed): # Meta is explicit Command on Mac
 					is_orbiting = true
 					is_dragging = false
 					Input.set_mouse_mode(Input.MOUSE_MODE_HIDDEN)
@@ -205,7 +226,7 @@ func _unhandled_input(event):
 
 	# Mouse Motion
 	if event is InputEventMouseMotion:
-		if is_orbiting:
+		if is_orbiting and not _is_fixed_fretboard_mode():
 			# Orbit Logic: Modify Targets
 			target_yaw -= event.relative.x * orbit_sensitivity * 0.01
 			target_pitch -= event.relative.y * orbit_sensitivity * 0.01
@@ -235,7 +256,7 @@ func _unhandled_input(event):
 
 	# [New] Trackpad Pan / Orbit Gesture
 	if event is InputEventPanGesture:
-		if event.is_command_or_control_pressed():
+		if event.is_command_or_control_pressed() and not _is_fixed_fretboard_mode():
 			# Orbit with Command + Two-finger Swipe (Inverted for Natural feel)
 			target_yaw += event.delta.x * orbit_sensitivity * 0.05
 			target_pitch += event.delta.y * orbit_sensitivity * 0.05
@@ -259,9 +280,15 @@ func reset_view():
 	# Reset Targets
 	var tween = create_tween().set_parallel(true).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
 	tween.tween_property(self, "target_drag_offset", Vector3.ZERO, 0.5)
-	tween.tween_property(self, "target_size", 10.0, 0.5)
-	tween.tween_property(self, "target_yaw", deg_to_rad(135.0), 0.5)
-	tween.tween_property(self, "target_pitch", deg_to_rad(-30.0), 0.5)
+	if _is_fixed_fretboard_mode():
+		tween.tween_property(self, "current_pivot", TOPDOWN_PIVOT, 0.5)
+		tween.tween_property(self, "target_size", TOPDOWN_SIZE, 0.5)
+		tween.tween_property(self, "target_yaw", deg_to_rad(TOPDOWN_YAW), 0.5)
+		tween.tween_property(self, "target_pitch", deg_to_rad(TOPDOWN_PITCH), 0.5)
+	else:
+		tween.tween_property(self, "target_size", 10.0, 0.5)
+		tween.tween_property(self, "target_yaw", deg_to_rad(135.0), 0.5)
+		tween.tween_property(self, "target_pitch", deg_to_rad(-30.0), 0.5)
 
 func _process_keyboard_input(delta: float) -> void:
 	# Skip if editing text (though usually handled by UI focus, explicit check handles edge cases)

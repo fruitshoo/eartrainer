@@ -30,11 +30,16 @@ func _setup_progression_tab_ui() -> void:
 	# 3. Slots Visualizer
 	var slots_frame = PanelContainer.new()
 	var style = StyleBoxFlat.new()
-	style.bg_color = Color(0, 0, 0, 0.2)
+	style.bg_color = ThemeColors.APP_PANEL_BG_SOFT
 	style.corner_radius_top_left = 8
 	style.corner_radius_top_right = 8
 	style.corner_radius_bottom_left = 8
 	style.corner_radius_bottom_right = 8
+	style.border_width_left = 1
+	style.border_width_top = 1
+	style.border_width_right = 1
+	style.border_width_bottom = 1
+	style.border_color = ThemeColors.APP_BORDER
 	style.content_margin_top = 10
 	style.content_margin_bottom = 10
 	slots_frame.add_theme_stylebox_override("panel", style)
@@ -61,7 +66,7 @@ func _setup_progression_tab_ui() -> void:
 	
 	var diff_lbl = Label.new()
 	diff_lbl.text = "Difficulty Level: "
-	diff_lbl.add_theme_color_override("font_color", Color(1, 1, 1, 0.7))
+	diff_lbl.add_theme_color_override("font_color", ThemeColors.APP_TEXT_MUTED)
 	diff_header.add_child(diff_lbl)
 	
 	var diff_val_lbl = Label.new()
@@ -91,7 +96,7 @@ func _setup_progression_tab_ui() -> void:
 	var dist_box = HBoxContainer.new()
 	var pwr_lbl = Label.new()
 	pwr_lbl.text = "Power Chords Only"
-	pwr_lbl.add_theme_color_override("font_color", Color(1, 1, 1, 0.7))
+	pwr_lbl.add_theme_color_override("font_color", ThemeColors.APP_TEXT_MUTED)
 	pwr_lbl.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	dist_box.add_child(pwr_lbl)
 	

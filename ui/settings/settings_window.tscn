@@ -152,7 +152,7 @@ theme_override_constants/separation = 12
 
 [node name="Label" type="Label" parent="ScrollContainer/Content/DisplaySection"]
 layout_mode = 2
-text = "Display Options"
+text = "Fretboard Display"
 horizontal_alignment = 1
 
 [node name="GridContainer" type="GridContainer" parent="ScrollContainer/Content/DisplaySection"]
@@ -165,32 +165,36 @@ columns = 2
 unique_name_in_owner = true
 layout_mode = 2
 size_flags_horizontal = 3
+tooltip_text = "Show note labels on highlighted notes and notes inside the active fretboard window."
 text = "Labels"
 
 [node name="HighlightRoot" type="CheckBox" parent="ScrollContainer/Content/DisplaySection/GridContainer"]
 unique_name_in_owner = true
 layout_mode = 2
 size_flags_horizontal = 3
-text = "Root"
+tooltip_text = "Highlight root notes only inside the active fretboard window."
+text = "Root Glow"
 
 [node name="HighlightChord" type="CheckBox" parent="ScrollContainer/Content/DisplaySection/GridContainer"]
 unique_name_in_owner = true
 layout_mode = 2
 size_flags_horizontal = 3
-text = "Chord"
+tooltip_text = "Highlight tones from the active chord or chord slot, but only inside the active fretboard window."
+text = "Chord Glow"
 
 [node name="HighlightScale" type="CheckBox" parent="ScrollContainer/Content/DisplaySection/GridContainer"]
 unique_name_in_owner = true
 layout_mode = 2
 size_flags_horizontal = 3
-text = "Scale"
+tooltip_text = "Highlight scale tones only inside the active fretboard window."
+text = "Scale Glow"
 
 [node name="HSeparator3" type="HSeparator" parent="ScrollContainer/Content"]
 layout_mode = 2
 
 [node name="LabelScale" type="Label" parent="ScrollContainer/Content"]
 layout_mode = 2
-text = "UI Scale"
+text = "Panel Scale"
 horizontal_alignment = 1
 
 [node name="ScaleRow" type="HBoxContainer" parent="ScrollContainer/Content"]
@@ -205,6 +209,7 @@ size_flags_vertical = 4
 min_value = 0.5
 max_value = 1.2
 step = 0.05
+tooltip_text = "Scale the HUD, sequencer, and side panels. Does not resize the 3D fretboard."
 value = 1.0
 
 [node name="UIScaleLbl" type="Label" parent="ScrollContainer/Content/ScaleRow"]
@@ -223,7 +228,7 @@ theme_override_constants/separation = 12
 
 [node name="Label" type="Label" parent="ScrollContainer/Content/CameraSection"]
 layout_mode = 2
-text = "Camera"
+text = "Fretboard Focus"
 horizontal_alignment = 1
 
 [node name="GridContainer" type="GridContainer" parent="ScrollContainer/Content/CameraSection"]
@@ -235,7 +240,7 @@ columns = 2
 [node name="LabelFocus" type="Label" parent="ScrollContainer/Content/CameraSection/GridContainer"]
 layout_mode = 2
 size_flags_horizontal = 3
-text = "String Focus"
+text = "String Window"
 
 [node name="StringFocus" type="OptionButton" parent="ScrollContainer/Content/CameraSection/GridContainer"]
 unique_name_in_owner = true
@@ -257,7 +262,7 @@ popup/item_3/id = 0
 [node name="LabelRange" type="Label" parent="ScrollContainer/Content/CameraSection/GridContainer"]
 layout_mode = 2
 size_flags_horizontal = 3
-text = "Focus Range"
+text = "Fret Window"
 
 [node name="FocusRangeRow" type="HBoxContainer" parent="ScrollContainer/Content/CameraSection/GridContainer"]
 layout_mode = 2

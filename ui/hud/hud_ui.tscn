@@ -23,25 +23,25 @@ layout_mode = 1
 anchors_preset = 5
 anchor_left = 0.5
 anchor_right = 0.5
-offset_left = -291.0
-offset_right = 291.0
-offset_bottom = 56.0
+offset_left = -336.0
+offset_right = 336.0
+offset_bottom = 46.0
 grow_horizontal = 2
 
 [node name="MarginContainer" type="MarginContainer" parent="TopBarPanel" unique_id=879696128]
 layout_mode = 2
-theme_override_constants/margin_left = 16
-theme_override_constants/margin_top = 8
-theme_override_constants/margin_right = 16
-theme_override_constants/margin_bottom = 8
+theme_override_constants/margin_left = 14
+theme_override_constants/margin_top = 5
+theme_override_constants/margin_right = 14
+theme_override_constants/margin_bottom = 5
 
 [node name="TopBar" type="HBoxContainer" parent="TopBarPanel/MarginContainer" unique_id=1433826817]
 layout_mode = 2
-theme_override_constants/separation = 16
+theme_override_constants/separation = 12
 
 [node name="PlayButton" type="Button" parent="TopBarPanel/MarginContainer/TopBar" unique_id=1503064678]
 unique_name_in_owner = true
-custom_minimum_size = Vector2(40, 40)
+custom_minimum_size = Vector2(28, 28)
 layout_mode = 2
 icon = ExtResource("4_play_icon")
 icon_alignment = 1
@@ -49,14 +49,14 @@ expand_icon = true
 
 [node name="StopButton" type="Button" parent="TopBarPanel/MarginContainer/TopBar" unique_id=1147607598]
 unique_name_in_owner = true
-custom_minimum_size = Vector2(40, 40)
+custom_minimum_size = Vector2(28, 28)
 layout_mode = 2
 icon_alignment = 1
 expand_icon = true
 
 [node name="RecordButton" type="Button" parent="TopBarPanel/MarginContainer/TopBar" unique_id=889205913]
 unique_name_in_owner = true
-custom_minimum_size = Vector2(40, 40)
+custom_minimum_size = Vector2(28, 28)
 layout_mode = 2
 toggle_mode = true
 icon_alignment = 1
@@ -64,7 +64,7 @@ expand_icon = true
 
 [node name="MetronomeButton" type="Button" parent="TopBarPanel/MarginContainer/TopBar" unique_id=1999798851]
 unique_name_in_owner = true
-custom_minimum_size = Vector2(40, 40)
+custom_minimum_size = Vector2(28, 28)
 layout_mode = 2
 tooltip_text = "Metronome"
 toggle_mode = true
@@ -77,12 +77,19 @@ layout_mode = 2
 
 [node name="KeyButton" type="Button" parent="TopBarPanel/MarginContainer/TopBar" unique_id=1418992411]
 unique_name_in_owner = true
-custom_minimum_size = Vector2(240, 0)
+custom_minimum_size = Vector2(122, 0)
 layout_mode = 2
 focus_mode = 0
 theme_type_variation = &"HeaderMedium"
-text = "A Major • Im7"
+text = "A Major"
 flat = true
+
+[node name="ChordContextLabel" type="Label" parent="TopBarPanel/MarginContainer/TopBar" unique_id=1418992412]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(48, 0)
+layout_mode = 2
+text = "I"
+vertical_alignment = 1
 
 [node name="VSeparator2" type="VSeparator" parent="TopBarPanel/MarginContainer/TopBar" unique_id=1985635800]
 layout_mode = 2
@@ -103,25 +110,23 @@ alignment = 1
 [node name="VSeparator3" type="VSeparator" parent="TopBarPanel/MarginContainer/TopBar" unique_id=541898970]
 layout_mode = 2
 
-[node name="LibraryButton" type="Button" parent="TopBarPanel/MarginContainer/TopBar"]
+[node name="SequencerButton" type="Button" parent="TopBarPanel/MarginContainer/TopBar"]
 unique_name_in_owner = true
-custom_minimum_size = Vector2(40, 40)
+custom_minimum_size = Vector2(68, 28)
 layout_mode = 2
-tooltip_text = "Song Library"
-icon_alignment = 1
-expand_icon = true
+tooltip_text = "Sequencer Workspace"
+text = "Sequencer"
 
 [node name="TrainerButton" type="Button" parent="TopBarPanel/MarginContainer/TopBar"]
 unique_name_in_owner = true
-custom_minimum_size = Vector2(40, 40)
+custom_minimum_size = Vector2(68, 28)
 layout_mode = 2
-tooltip_text = "Ear Training"
-icon_alignment = 1
-expand_icon = true
+tooltip_text = "Ear Training Workspace"
+text = "Ear Training"
 
 [node name="SettingsButton" type="Button" parent="TopBarPanel/MarginContainer/TopBar" unique_id=231635344]
 unique_name_in_owner = true
-custom_minimum_size = Vector2(40, 40)
+custom_minimum_size = Vector2(28, 28)
 layout_mode = 2
 tooltip_text = "Settings"
 icon = ExtResource("5_settings_icon")
